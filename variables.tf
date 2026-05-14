@@ -298,3 +298,60 @@ variable "contact_value" {
   type        = string
   default     = "mailto:info@henrystadthagen.de"
 }
+
+variable "mail_server_ipv4" {
+  description = "IPv4 for the mail A record in module.dns (align SPF ip4: with this host if you use ip4: in spf_value)"
+  type        = string
+  default     = "91.107.238.126"
+
+  validation {
+    condition = can(regex(
+      "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$",
+      var.mail_server_ipv4
+    ))
+    error_message = "mail_server_ipv4 must be a dotted IPv4 address."
+  }
+}
+
+variable "mail_server_ipv6" {
+  description = "IPv6 for the mail AAAA record in module.dns"
+  type        = string
+  default     = "2a01:4f8:1c0c:5bc1::1"
+
+  validation {
+    condition = (
+      can(regex(":", var.mail_server_ipv6))
+      && length(trimspace(var.mail_server_ipv6)) <= 128
+      && !strcontains(var.mail_server_ipv6, " ")
+    )
+    error_message = "mail_server_ipv6 must look like an IPv6 address (contain ':', no spaces, max 128 chars)."
+  }
+}
+
+variable "mail_server_cname_target" {
+  description = "CNAME target for autoconfig/autodiscover in module.dns (FQDN hostname)"
+  type        = string
+  default     = "mail.henrystadthagen.de"
+
+  validation {
+    condition = can(regex(
+      "^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$",
+      var.mail_server_cname_target
+    ))
+    error_message = "mail_server_cname_target must be a valid DNS hostname (no scheme, no trailing dot required)."
+  }
+}
+
+variable "dns_tlsa_name" {
+  description = "TLSA record name (e.g. _25._tcp.mail.example.com) passed to module.dns"
+  type        = string
+  default     = "_25._tcp.mail.henrystadthagen.de"
+
+  validation {
+    condition = can(regex(
+      "^[a-zA-Z0-9_][a-zA-Z0-9_.-]*[a-zA-Z0-9]$|^[a-zA-Z0-9_]$",
+      var.dns_tlsa_name
+    ))
+    error_message = "dns_tlsa_name must be a non-empty DNS name (labels, dots, underscores)."
+  }
+}

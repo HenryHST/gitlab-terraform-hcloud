@@ -110,9 +110,9 @@ module "dns" {
   ipv4_a_record_name = local.dns_ipv4_name
 
   # Mail server configuration
-  mail_ipv4         = "91.107.238.126"
-  mail_ipv6         = "2a01:4f8:1c0c:5bc1::1"
-  mail_cname_target = "mail.henrystadthagen.de"
+  mail_ipv4         = var.mail_server_ipv4
+  mail_ipv6         = var.mail_server_ipv6
+  mail_cname_target = var.mail_server_cname_target
   mail_mx_value     = var.mail_mx_value
 
   # Security records
@@ -126,7 +126,7 @@ module "dns" {
   contact_value      = var.contact_value
 
   # TLSA and SRV records
-  tlsa_name  = "_25._tcp.mail.henrystadthagen.de"
+  tlsa_name  = var.dns_tlsa_name
   tlsa_value = var.tlsa_value
   srv_name   = "_autodiscover._tcp"
   srv_value  = var.srv_value
@@ -143,4 +143,18 @@ resource "hcloud_zone_record" "gitlab_runner" {
   name     = var.gitlab_runner_dns_label
   type     = "A"
   value    = module.gitlab_runner[0].server_ipv4
+}
+
+check "ssh_public_key_configured" {
+  assert {
+    condition     = length(local.ssh_public_key_effective) > 0
+    error_message = "Configure ssh_public_key_file or ssh_public_key so Hetzner can provision SSH access."
+  }
+}
+
+check "gitlab_letsencrypt_implies_app" {
+  assert {
+    condition     = !var.gitlab_letsencrypt_enabled || var.enable_gitlab_app
+    error_message = "gitlab_letsencrypt_enabled requires enable_gitlab_app = true."
+  }
 }

@@ -1,0 +1,38 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values. Do not commit secrets.
+
+# hcloud_token = "…"   # prefer: export TF_VAR_hcloud_token="…"
+
+ssh_public_key_file = "~/.ssh/id_ed25519.pub"
+ssh_public_key      = ""
+
+ssh_private_key_path = "~/.ssh/id_rsa"
+
+server_name  = "git04"
+server_type  = "cx23"
+location     = "fsn1"
+
+hetzner_api_key               = "your_hetzner_dns_api_key_here"
+traefik_dashboard_credentials = "admin:$$apr1$$hash$$here"
+
+domain_cicd_showcase_de = "example.com"
+create_hcloud_dns_zone  = false
+
+mail_mx_value = "10 mail.example.com"
+dmarc_value   = "v=DMARC1;p=quarantine;pct=100;rua=mailto:info@example.com"
+dkim_value    = ""
+spf_value     = "v=spf1 mx -all"
+tlsa_value    = ""
+srv_value     = "0 0 443 example.com."
+
+# Mail A/AAAA/CNAME/TLSA name (see variables.tf); align spf_value ip4: with mail_server_ipv4 if used
+# mail_server_ipv4         = "203.0.113.10"
+# mail_server_ipv6         = "2001:db8::10"
+# mail_server_cname_target = "mail.example.com"
+# dns_tlsa_name            = "_25._tcp.mail.example.com"
+
+iodef_value   = "mailto:info@example.com"
+contact_value = "mailto:info@example.com"
+
+gitlab_letsencrypt_enabled = false
+enable_gitlab_app         = false
+enable_gitlab_runner      = false

@@ -1,8 +1,27 @@
 # gitlab-terraform-hcloud
 
-Terraform-Konfiguration für **Hetzner Cloud**: Server mit Firewall, optionalem Reverse-DNS (PTR) und einer **Hetzner-DNS-Primärzone** inklusive Web- und Mail-bezogener Records. Optional: **GitLab CE** über das Hetzner-App-Image mit automatischer `external_url` per Cloud-Init; **integriertes Let’s Encrypt ist standardmäßig aus** (`gitlab_letsencrypt_enabled = false`), damit der erste `gitlab-ctl reconfigure` nicht an HTTP-01 scheitert. Optional: **zweite VM als GitLab Runner** (Typ **cpx22**), gesteuert über `enable_gitlab_runner` und optionales Paket-Install per `gitlab_runner_install_package`.
+Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Optional werden **GitLab CE** (Hetzner-App-Image plus Cloud-Init; integriertes Let’s Encrypt ist standardmäßig aus, `gitlab_letsencrypt_enabled = false`) und eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete abgebildet.
 
 Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs) (siehe [`provider.tf`](provider.tf)).
+
+## Inhaltsverzeichnis
+
+- [Architektur](#architektur)
+  - [Zwei `hcloud`-Provider](#zwei-hcloud-provider)
+- [Voraussetzungen](#voraussetzungen)
+- [Schnellstart](#schnellstart)
+- [Variablen (Root)](#variablen-root)
+  - [Ohne Default (bei `apply` erforderlich)](#ohne-default-bei-apply-erforderlich)
+  - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
+- [Outputs](#outputs)
+- [GitLab (Hetzner App-Image)](#gitlab-hetzner-app-image)
+- [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
+- [Module im Detail](#module-im-detail)
+- [Sicherheit und Betrieb](#sicherheit-und-betrieb)
+- [Cloud-Init und user_data](#cloud-init-und-user_data)
+- [Qualitätssicherung (lokal / CI)](#qualitätssicherung-lokal--ci)
+- [Bekannte Einschränkungen](#bekannte-einschränkungen)
+- [Weiterführende Links](#weiterführende-links)
 
 ## Architektur
 
@@ -52,7 +71,7 @@ In [`provider.tf`](provider.tf) gibt es den Standard-Provider `hcloud` und einen
 ## Schnellstart
 
 1. Repository klonen und ins Verzeichnis wechseln.
-2. **`terraform.tfvars`** anlegen (wird per [`.gitignore`](.gitignore) ignoriert – keine Secrets committen). Mindestens die in der Tabelle unten als **ohne Default** geführten Variablen setzen.
+2. **`terraform.tfvars`** anlegen (wird per [`.gitignore`](.gitignore) ignoriert – keine Secrets committen). Orientierung: [`terraform.tfvars.example`](terraform.tfvars.example). Mindestens die in der Tabelle unten als **ohne Default** geführten Variablen setzen.
 3. Module und Provider laden:
 
    ```bash
@@ -96,7 +115,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_letsencrypt_enabled` | `false` | `true`: `https` + integriertes LE (HTTP-01). `false`: HTTP-first ohne LE (empfohlen bis DNS und Port 80 stabil sind). |
 | `gitlab_bootstrap_wait_seconds` | `120` | Wartezeit im **per-instance**-Skript vor `gitlab-ctl reconfigure` (DNS) |
 | `enable_gitlab_runner` | `false` | `true`: zweite VM (**cpx22**), Runner-Firewall, A-Record + PTR auf `<gitlab_runner_dns_label>.<zone>` |
-| `gitlab_runner_install_package` | `true` | Bei aktivem Runner: Cloud-Init installiert `gitlab-runner` aus dem offiziellen GitLab-APT-Repo; `false`: nur Ubuntu, Installation manuell |
+| `gitlab_runner_install_package` | `true` | Bei aktivem Runner: Cloud-Init installiert **.deb**-Pakete von GitLab S3 (siehe [manuelle Installation](https://docs.gitlab.com/runner/install/linux-manually/)), Log `/var/log/gitlab-runner-terraform-bootstrap.log`; `false`: nur Ubuntu |
 | `gitlab_runner_server_name` | `runner05` | Name des `hcloud_server` für den Runner |
 | `gitlab_runner_dns_label` | `runner05` | Relativer A-Record-Name; FQDN = `<label>.<domain_cicd_showcase_de>` (z. B. `runner05.cicd-showcase.de`; ursprünglich oft als Platzhalter `runner05.example.com` gedacht) |
 | `gitlab_runner_image` | `ubuntu-24.04` | Hetzner-Image-Slug für die Runner-VM |
@@ -106,6 +125,10 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `github_repo` | HTTPS-URL | **Nicht** in Root-`main.tf` verwendet; gedacht für Cloud-Init/Beispiele (s. Modul-README) |
 | `site_url` | `https://cicd-showcase.de` | Wird als Output `website_url` ausgegeben |
 | `domain_cicd_showcase_de` | `cicd-showcase.de` | DNS-Zonenname; bei GitLab auch Basis für `gitlab_fqdn` und PTR |
+| `mail_server_ipv4` | IPv4 | Mail-**A**-Record (`module.dns`) |
+| `mail_server_ipv6` | IPv6 | Mail-**AAAA**-Record |
+| `mail_server_cname_target` | Hostname | CNAME-Ziel Autoconfig/Autodiscover |
+| `dns_tlsa_name` | TLSA-Name | z. B. `_25._tcp.mail.example.com` |
 | `mail_mx_value` | Priorität + Mail-Host | MX-Record in der Zone |
 | `dmarc_value` | DMARC-String | muss `v=DMARC1` enthalten |
 | `dkim_value` | DKIM-String | Lange Werte werden im DNS-Modul in Chunks aufgeteilt |
@@ -114,7 +137,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `srv_value` | SRV-Ziel | Ziel-Hostnamen mit **trailing dot** |
 | `iodef_value` / `contact_value` | `mailto:…` | CAA iodef/contact |
 
-Zusätzlich setzt [`main.tf`](main.tf) im DNS-Modul **fest** u. a. `mail_ipv4`, `mail_ipv6`, `mail_cname_target` und TLSA-/SRV-Namen – das sind projektspezifische Werte und sollten für andere Umgebungen in Terraform angepasst werden.
+[`main.tf`](main.tf) übergibt an `module.dns` u. a. **`mail_server_ipv4`**, **`mail_server_ipv6`**, **`mail_server_cname_target`**, **`dns_tlsa_name`** (Defaults in [`variables.tf`](variables.tf)). **`spf_value`** ist separat; bei `ip4:` in SPF zur Mail-A-Record-IP passend halten.
 
 ## Outputs
 
@@ -156,14 +179,14 @@ Wenn `enable_gitlab_runner = true`:
 - **Server:** Zweites [`modules/server`](modules/server) mit festem Typ **`cpx22`**, Image `gitlab_runner_image` (Standard Ubuntu 24.04), Region `gitlab_runner_location` oder wie `location`.
 - **Firewall:** [`module.firewall_runner`](modules/firewall) mit nur **SSH (22)** und **ICMP**; kein HTTP/HTTPS/DNS/Node-Exporter nach außen (Runner zieht Jobs typischerweise **ausgehend** zu GitLab).
 - **DNS:** [`hcloud_zone_record.gitlab_runner`](main.tf) in derselben Zone wie `domain_cicd_showcase_de`; PTR zeigt auf **`gitlab_runner_fqdn`** (Standard `runner05.<zone>`).
-- **Paket-Install:** `gitlab_runner_install_package` steuert Cloud-Init ([`templates/gitlab-runner-cloud-init.yaml.tpl`](templates/gitlab-runner-cloud-init.yaml.tpl)): bei `true` offizielles [GitLab-Runner-APT-Repository](https://docs.gitlab.com/runner/install/linux-repository.html) und Installation von `gitlab-runner`; bei `false` bleibt die VM ohne Runner-Paket.
+- **Paket-Install:** `gitlab_runner_install_package` steuert Cloud-Init ([`templates/gitlab-runner-cloud-init.yaml.tpl`](templates/gitlab-runner-cloud-init.yaml.tpl)): bei `true` [manuelle .deb-Installation](https://docs.gitlab.com/runner/install/linux-manually/) inkl. Arch-Mapping (`armhf`→`arm`), `dpkg`/`apt-get install -f`, `systemctl enable --now gitlab-runner`; bei `false` bleibt die VM ohne Runner-Paket.
 - **Registrierung:** Kein `gitlab-runner register` in Terraform (Token würde im State landen). Nach dem Apply per SSH auf die Runner-VM verbinden und [Runner registrieren](https://docs.gitlab.com/runner/register/) (URL z. B. `terraform output -raw gitlab_url`, Token aus GitLab UI / CI-Variable).
 
 ```mermaid
 flowchart TD
   boot[Cloud-Init]
   dec{gitlab_runner_install_package}
-  install[Repo plus apt install gitlab-runner]
+  install[Deb von S3 dpkg und systemd]
   skip[Nur Basis-OS]
   reg[Manuell gitlab-runner register]
   boot --> dec
@@ -184,13 +207,32 @@ flowchart TD
 - **Firewall:** Standard im Modul erlaubt typischerweise Zugriff von `0.0.0.0/0` und `::/0` auf die genannten Ports. Für Produktion Quell-IP-Listen einschränken oder `custom_rules` gezielt nutzen.
 - **Token:** `hcloud_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren.
 - **PTR/rDNS:** Bei `enable_gitlab_app` auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de`. Sobald `gitlab_letsencrypt_enabled = true` und HTTPS aktiv ist, sollte der Hostname zu dem Zertifikat passen, das Clients sehen.
-- **Mail/DNS:** In `main.tf` hinterlegte Mail-IPs und Zielnamen an die eigene Infrastruktur anpassen, sonst zeigen Records ins Leere oder auf fremde Systeme.
+- **Mail/DNS:** Über die Variablen **`mail_server_ipv4`**, **`mail_server_ipv6`**, **`mail_server_cname_target`**, **`dns_tlsa_name`** (und bestehende MX/SPF/DMARC/…) an die eigene Infrastruktur anpassen.
+
+## Cloud-Init und user_data
+
+Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl) oder [`templates/gitlab-runner-cloud-init.yaml.tpl`](templates/gitlab-runner-cloud-init.yaml.tpl) wirken auf **bestehende** VMs oft **erst**, wenn die Instanz **ersetzt** wird.
+
+Vorgehen (Beispiel Runner):
+
+```bash
+terraform apply -replace='module.gitlab_runner[0].hcloud_server.main'
+```
+
+Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort `user_data` geändert wurde. **Hinweis:** Replace löscht die Root-Disk der VM (keine Daten auf zusätzlichen Volumes, sofern nicht separat angebunden).
+
+**Troubleshooting:** `sudo tail -n 200 /var/log/cloud-init-output.log` auf der VM; Runner zusätzlich `/var/log/gitlab-runner-terraform-bootstrap.log`. Typischer Fehler: falsche **.deb-URL** (z. B. Bindestrich statt Unterstrich im Dateinamen) → `curl` **403**.
+
+## Qualitätssicherung (lokal / CI)
+
+- **Makefile:** `make fmt` formatiert, `make validate` prüft Format (`fmt -check`) und führt `terraform validate` aus (nach `terraform init` im Repo).
+- **GitHub Actions:** [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) – bei Push/PR: `terraform fmt -check`, `init -backend=false`, `validate` (ohne Cloud-Token für `apply`).
 
 ## Bekannte Einschränkungen
 
 1. **Variablen ohne Modul-Anbindung im Root:** `github_repo`, `hetzner_api_key`, `traefik_dashboard_credentials` und `ssh_private_key_path` werden in **`main.tf` nicht** an Module übergeben. `site_url` wird nur für den Output `website_url` gelesen, ebenfalls ohne Modulbezug. `terraform apply` verlangt dennoch Werte für alle Variablen **ohne** Default (`hetzner_api_key`, `traefik_dashboard_credentials`). Du kannst Platzhalter setzen, bis Cloud-Init o. Ä. angebunden ist – oder die Variablen später in Terraform bereinigen.
 2. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
-3. **Harte Werte im Root:** Mail-IPv4/IPv6 und einige Hostnamen sind in `main.tf` literal gesetzt – für Forks explizit durch Variablen ersetzen.
+3. **Beispiel-Konfiguration:** [`terraform.tfvars.example`](terraform.tfvars.example) als Vorlage für `terraform.tfvars` (ohne echte Secrets).
 
 ## Weiterführende Links
 
