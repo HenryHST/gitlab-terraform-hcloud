@@ -5,7 +5,13 @@ variable "domain_name" {
 
 variable "server_ipv4" {
   type        = string
-  description = "IPv4 address for the web1 A record"
+  description = "IPv4 address for the application A record"
+}
+
+variable "ipv4_a_record_name" {
+  type        = string
+  default     = "web1"
+  description = "Relative hostname (zone suffix) for the A record pointing at server_ipv4"
 }
 
 variable "dmarc_value" {

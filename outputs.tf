@@ -62,3 +62,13 @@ output "domain_cicd_showcase_de" {
   description = "Domain for the website cicd-showcase.de"
   value       = module.dns.zone_name
 }
+
+output "gitlab_url" {
+  description = "GitLab HTTPS URL when enable_gitlab_app is true"
+  value       = var.enable_gitlab_app ? "https://${local.gitlab_fqdn}" : null
+}
+
+output "gitlab_fqdn" {
+  description = "GitLab hostname (A record target) when enable_gitlab_app is true"
+  value       = var.enable_gitlab_app ? local.gitlab_fqdn : null
+}

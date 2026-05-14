@@ -1,12 +1,12 @@
 # gitlab-terraform-hcloud
 
-Terraform-Konfiguration für **Hetzner Cloud**: ein Ubuntu-Server mit Firewall, optionalem Reverse-DNS (PTR) und einer **Hetzner-DNS-Primärzone** inklusive Web- und Mail-bezogener Records (SPF, DKIM, DMARC, CAA, TLSA, SRV usw.).
+Terraform-Konfiguration für **Hetzner Cloud**: Server mit Firewall, optionalem Reverse-DNS (PTR) und einer **Hetzner-DNS-Primärzone** inklusive Web- und Mail-bezogener Records. Optional: **GitLab CE** über das Hetzner-App-Image mit automatischer `external_url`- und Let’s-Encrypt-Konfiguration per Cloud-Init.
 
 Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs) (siehe [`provider.tf`](provider.tf)).
 
 ## Architektur
 
-Die Wurzelkonfiguration [`main.tf`](main.tf) bindet drei lokale Module: **Firewall** → **Server** (Firewall wird angehängt) → **DNS** (A-Record für den Web-Host zeigt auf die IPv4 des Servers). Alle Ressourcen sprechen dieselbe Hetzner-Cloud-API an.
+Die Wurzelkonfiguration [`main.tf`](main.tf) bindet drei lokale Module: **Firewall** → **Server** (Firewall wird angehängt) → **DNS** (A-Record für den App-Host zeigt auf die IPv4 des Servers). Alle Ressourcen sprechen dieselbe Hetzner-Cloud-API an.
 
 ```mermaid
 flowchart LR
@@ -26,7 +26,7 @@ flowchart LR
 | Modul | Inhalt (Kurz) |
 |--------|----------------|
 | [`modules/firewall`](modules/firewall) | `hcloud_firewall`: u. a. SSH 22, HTTP 80, HTTPS 443, DNS 53 (TCP/UDP), optional Node Exporter, ICMP; Quell-IPs standardmäßig weltweit konfigurierbar. |
-| [`modules/server`](modules/server) | `hcloud_ssh_key`, `hcloud_server` (Image z. B. Ubuntu 24.04 im Root gesetzt), Firewall-IDs, optional `hcloud_rdns` für IPv4/IPv6. |
+| [`modules/server`](modules/server) | `hcloud_ssh_key`, `hcloud_server` (Image z. B. Ubuntu 24.04 oder `gitlab` im Root), Firewall-IDs, optional `hcloud_rdns`, optional `user_data` (Cloud-Init für GitLab). |
 | [`modules/dns`](modules/dns) | `hcloud_zone` (primary) und Records: Web-A-Record, Mail-A/AAAA/MX, Autoconfig/Autodiscover, DMARC/DKIM/SPF, CAA, TLSA, SRV. |
 
 ### Zwei `hcloud`-Provider
@@ -79,10 +79,16 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `ssh_private_key_path` | `~/.ssh/id_rsa` | Nur relevant, falls du Skripte/Tooling außerhalb dieses Roots nutzt – **nicht** von `main.tf` referenziert |
 | `server_name` | `web1` | Name des `hcloud_server` |
 | `server_type` | `cx23` | Hetzner-Typ (`cx*`, `cpx*`, `ccx*`) |
-| `location` | `fsn1` | z. B. `fsn1`, `nbg1`, `hel1`, `ash`, `hil` |
+| `location` | `fsn1` | z. B. `fsn1`, `nbg1`, `hel1`, `ash`, `hil` |
+| `enable_gitlab_app` | `false` | `true`: Image `gitlab`, Cloud-Init aus [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl), A-Record = `gitlab_dns_record_name` |
+| `server_image` | `ubuntu-24.04` | Nur bei `enable_gitlab_app = false` (Hetzner-Image-Slug) |
+| `gitlab_dns_record_name` | `gitlab` | Relativer A-Record bei GitLab: FQDN = `<name>.<zone>` |
+| `gitlab_letsencrypt_email` | leer | ACME-Kontakt; leer → `gitlab-acme@<zone>` |
+| `gitlab_bootstrap_wait_seconds` | `120` | Wartezeit vor `gitlab-ctl reconfigure` (DNS-Propagation) |
+| `dns_ipv4_record_name` | `web1` | A-Record bei `enable_gitlab_app = false` |
 | `github_repo` | HTTPS-URL | **Nicht** in Root-`main.tf` verwendet; gedacht für Cloud-Init/Beispiele (s. Modul-README) |
 | `site_url` | `https://cicd-showcase.de` | Wird als Output `website_url` ausgegeben |
-| `domain_cicd_showcase_de` | `cicd-showcase.de` | DNS-Zonenname und PTR-Domain im Root |
+| `domain_cicd_showcase_de` | `cicd-showcase.de` | DNS-Zonenname; bei GitLab auch Basis für `gitlab_fqdn` und PTR |
 | `mail_mx_value` | Priorität + Mail-Host | MX-Record in der Zone |
 | `dmarc_value` | DMARC-String | muss `v=DMARC1` enthalten |
 | `dkim_value` | DKIM-String | Lange Werte werden im DNS-Modul in Chunks aufgeteilt |
@@ -107,24 +113,37 @@ Zusätzlich setzt [`main.tf`](main.tf) im DNS-Modul **fest** u. a. `mail_ipv4`, 
 | `dns_zone_id` / `dns_zone_name` | DNS-Zone |
 | `website_url` | Wert von `var.site_url` |
 | `domain_cicd_showcase_de` | Entspricht dem Zonennamen aus dem DNS-Modul |
+| `gitlab_url` | `https://<gitlab_dns_record_name>.<zone>` oder `null` |
+| `gitlab_fqdn` | FQDN des GitLab-A-Records oder `null` |
+
+## GitLab (Hetzner App-Image)
+
+Wenn `enable_gitlab_app = true`:
+
+- Server-Image: **`gitlab`** (vgl. [hetznercloud/apps – GitLab](https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)).
+- Das interaktive Erstlogin-Skript `/opt/hcloud/gitlab_setup.sh` wird per Cloud-Init umgangen; `external_url` und Let’s Encrypt werden gesetzt und `gitlab-ctl reconfigure` ausgeführt.
+- DNS: A-Record **`gitlab_dns_record_name`** (Standard `gitlab`) → Server-IPv4; PTR (IPv4/IPv6) auf dieselbe FQDN, damit Zertifikatsprüfungen konsistent bleiben.
+- **Reihenfolge:** Namensserver der Zone müssen bei deiner Domain-Registrar auf Hetzner zeigen, bevor Let’s Encrypt HTTP-01 zuverlässig klappt. `gitlab_bootstrap_wait_seconds` kannst du erhöhen, falls der erste `reconfigure` noch vor DNS-Propagation läuft – ggf. einmal `sudo gitlab-ctl reconfigure` auf dem Server nachholen.
+
+Offizielle App-Doku: [Hetzner Cloud Apps – GitLab CE](https://docs.hetzner.com/cloud/apps/list/gitlab-ce/).
 
 ## Module im Detail
 
 - **Firewall** ([`modules/firewall`](modules/firewall)): Regeln per Variablen im Modul schaltbar; für Restriktionen z. B. `ssh_source_ips` im Modulaufruf erweitern (aktuell nutzt der Root nur `firewall_name`).
-- **Server** ([`modules/server`](modules/server)): Vollständigere Modul-Doku in [`modules/server/README.md`](modules/server/README.md) (inkl. Beispiel mit `user_data` / `templatefile`). Im **Root** wird kein `user_data` gesetzt.
+- **Server** ([`modules/server`](modules/server)): Vollständigere Modul-Doku in [`modules/server/README.md`](modules/server/README.md). Im **Root** wird bei `enable_gitlab_app` Cloud-Init aus dem Template gesetzt, sonst kein `user_data`.
 - **DNS** ([`modules/dns`](modules/dns)): Zone + Records; DKIM-Längen >255 werden automatisch gesplittet.
 
 ## Sicherheit und Betrieb
 
 - **Firewall:** Standard im Modul erlaubt typischerweise Zugriff von `0.0.0.0/0` und `::/0` auf die genannten Ports. Für Produktion Quell-IP-Listen einschränken oder `custom_rules` gezielt nutzen.
 - **Token:** `hcloud_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren.
-- **PTR/rDNS:** Im Root für IPv4/IPv6 auf die gewählte Domain gesetzt – PTR muss zur tatsächlichen Nutzung passen.
+- **PTR/rDNS:** Bei `enable_gitlab_app` auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de` – PTR sollte zur erreichbaren HTTPS-Adresse passen.
 - **Mail/DNS:** In `main.tf` hinterlegte Mail-IPs und Zielnamen an die eigene Infrastruktur anpassen, sonst zeigen Records ins Leere oder auf fremde Systeme.
 
 ## Bekannte Einschränkungen
 
 1. **Variablen ohne Modul-Anbindung im Root:** `github_repo`, `hetzner_api_key`, `traefik_dashboard_credentials` und `ssh_private_key_path` werden in **`main.tf` nicht** an Module übergeben. `site_url` wird nur für den Output `website_url` gelesen, ebenfalls ohne Modulbezug. `terraform apply` verlangt dennoch Werte für alle Variablen **ohne** Default (`hetzner_api_key`, `traefik_dashboard_credentials`). Du kannst Platzhalter setzen, bis Cloud-Init o. Ä. angebunden ist – oder die Variablen später in Terraform bereinigen.
-2. **Fester DNS-Hostname `web1`:** Der A-Record in [`modules/dns/main.tf`](modules/dns/main.tf) heißt fest `web1`, nicht abgeleitet von `var.server_name`. Änderst du nur `server_name`, bleibt der öffentliche DNS-Name `web1.<zone>` unverändert, bis du Modul oder Record anpasst.
+2. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
 3. **Harte Werte im Root:** Mail-IPv4/IPv6 und einige Hostnamen sind in `main.tf` literal gesetzt – für Forks explizit durch Variablen ersetzen.
 
 ## Weiterführende Links

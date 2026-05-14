@@ -53,6 +53,62 @@ variable "location" {
   }
 }
 
+variable "server_image" {
+  description = "hcloud server image slug when enable_gitlab_app is false (e.g. ubuntu-24.04)"
+  type        = string
+  default     = "ubuntu-24.04"
+}
+
+variable "enable_gitlab_app" {
+  description = "If true, use Hetzner GitLab app image and cloud-init to set external_url + Let's Encrypt"
+  type        = bool
+  default     = false
+}
+
+variable "gitlab_dns_record_name" {
+  description = "DNS A record (relative to zone) for GitLab when enable_gitlab_app is true"
+  type        = string
+  default     = "gitlab"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.gitlab_dns_record_name))
+    error_message = "gitlab_dns_record_name must be a valid DNS label (lowercase letters, digits, hyphen)."
+  }
+}
+
+variable "gitlab_letsencrypt_email" {
+  description = "ACME contact for GitLab Let's Encrypt; if empty, gitlab-acme@<zone> is used when GitLab is enabled"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitlab_letsencrypt_email == "" || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.gitlab_letsencrypt_email))
+    error_message = "gitlab_letsencrypt_email must be empty or a simple email without spaces or quotes."
+  }
+}
+
+variable "gitlab_bootstrap_wait_seconds" {
+  description = "Seconds to wait after cloud-init before gitlab-ctl reconfigure (DNS propagation)"
+  type        = number
+  default     = 120
+
+  validation {
+    condition     = var.gitlab_bootstrap_wait_seconds >= 0 && var.gitlab_bootstrap_wait_seconds <= 3600
+    error_message = "gitlab_bootstrap_wait_seconds must be between 0 and 3600."
+  }
+}
+
+variable "dns_ipv4_record_name" {
+  description = "DNS A record name when enable_gitlab_app is false (points to server public IPv4)"
+  type        = string
+  default     = "web1"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.dns_ipv4_record_name))
+    error_message = "dns_ipv4_record_name must be a valid DNS label."
+  }
+}
+
 variable "github_repo" {
   description = "GitHub repository URL to clone"
   type        = string

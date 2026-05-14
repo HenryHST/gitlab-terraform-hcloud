@@ -1,3 +1,17 @@
+locals {
+  gitlab_fqdn = "${var.gitlab_dns_record_name}.${var.domain_cicd_showcase_de}"
+  # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
+  server_image_effective     = var.enable_gitlab_app ? "gitlab" : var.server_image
+  gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
+  gitlab_user_data = var.enable_gitlab_app ? templatefile("${path.module}/templates/gitlab-cloud-init.yaml.tpl", {
+    gitlab_fqdn       = local.gitlab_fqdn
+    letsencrypt_email = local.gitlab_letsencrypt_contact
+    bootstrap_wait    = var.gitlab_bootstrap_wait_seconds
+  }) : ""
+  rdns_fqdn     = var.enable_gitlab_app ? local.gitlab_fqdn : var.domain_cicd_showcase_de
+  dns_ipv4_name = var.enable_gitlab_app ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
+}
+
 # Firewall Module
 module "firewall" {
   source = "./modules/firewall"
@@ -12,7 +26,7 @@ module "server" {
   server_name    = var.server_name
   server_type    = var.server_type
   location       = var.location
-  image          = "ubuntu-24.04"
+  image          = local.server_image_effective
   ssh_public_key = var.ssh_public_key
 
   firewall_ids = [module.firewall.firewall_id]
@@ -23,19 +37,20 @@ module "server" {
     project     = "git"
   }
 
-  
+  user_data = local.gitlab_user_data
 
   enable_rdns      = true
-  rdns_ipv4_domain = var.domain_cicd_showcase_de
-  rdns_ipv6_domain = var.domain_cicd_showcase_de
+  rdns_ipv4_domain = local.rdns_fqdn
+  rdns_ipv6_domain = local.rdns_fqdn
 }
 
 # DNS Module
 module "dns" {
   source = "./modules/dns"
 
-  domain_name = var.domain_cicd_showcase_de
-  server_ipv4 = module.server.server_ipv4
+  domain_name        = var.domain_cicd_showcase_de
+  server_ipv4        = module.server.server_ipv4
+  ipv4_a_record_name = local.dns_ipv4_name
 
   # Mail server configuration
   mail_ipv4         = "91.107.238.126"

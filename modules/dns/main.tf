@@ -12,7 +12,7 @@ resource "hcloud_zone" "main" {
 resource "hcloud_zone_record" "web-web1" {
   provider = hcloud.dns
   zone     = hcloud_zone.main.name
-  name     = "web1"
+  name     = var.ipv4_a_record_name
   type     = "A"
   value    = var.server_ipv4
 }

@@ -18,6 +18,7 @@ module "dns" {
 
   domain_name = "example.com"
   server_ipv4 = "1.2.3.4"
+  ipv4_a_record_name = "web1"
 
   # Mail server configuration
   mail_ipv4         = "91.107.238.126"
@@ -69,7 +70,8 @@ provider "hcloud" {
 | Name                 | Type     | Default                                                       | Required | Description                                                 |
 | -------------------- | -------- | ------------------------------------------------------------- | -------- | ----------------------------------------------------------- |
 | `domain_name`        | `string` | -                                                             | yes      | Domain name for the DNS zone                                |
-| `server_ipv4`        | `string` | -                                                             | yes      | IPv4 address for the web1 A record                          |
+| `server_ipv4`        | `string` | -                                                             | yes      | IPv4 address for the application A record                   |
+| `ipv4_a_record_name` | `string` | `"web1"`                                                      | no       | Relative DNS name for the A record (e.g. `web1`, `gitlab`)  |
 | `dmarc_value`        | `string` | `"v=DMARC1;p=quarantine;pct=100;rua=mailto:info@example.com"` | no       | DMARC TXT record value                                      |
 | `dkim_value`         | `string` | `""`                                                          | no       | DKIM TXT record value (automatically chunked if >255 chars) |
 | `spf_value`          | `string` | `"v=spf1 mx -all"`                                            | no       | SPF TXT record value                                        |
