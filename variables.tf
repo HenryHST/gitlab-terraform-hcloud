@@ -101,7 +101,7 @@ variable "gitlab_letsencrypt_email" {
 }
 
 variable "gitlab_bootstrap_wait_seconds" {
-  description = "Seconds to wait after cloud-init before gitlab-ctl reconfigure (DNS propagation)"
+  description = "Seconds to wait in bootstrap script before gitlab-ctl reconfigure (DNS propagation)"
   type        = number
   default     = 120
 

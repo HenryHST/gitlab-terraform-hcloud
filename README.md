@@ -84,7 +84,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `server_image` | `ubuntu-24.04` | Nur bei `enable_gitlab_app = false` (Hetzner-Image-Slug) |
 | `gitlab_dns_record_name` | `gitlab` | Relativer A-Record bei GitLab: FQDN = `<name>.<zone>` |
 | `gitlab_letsencrypt_email` | leer | ACME-Kontakt; leer → `gitlab-acme@<zone>` |
-| `gitlab_bootstrap_wait_seconds` | `120` | Wartezeit vor `gitlab-ctl reconfigure` (DNS-Propagation) |
+| `gitlab_bootstrap_wait_seconds` | `120` | Wartezeit im **per-instance**-Skript vor `gitlab-ctl reconfigure` (DNS) |
 | `create_hcloud_dns_zone` | `true` | `false`, wenn die Zone in Hetzner DNS schon existiert (vermeidet 409 *Zone already exists*) |
 | `ssh_public_key_file` | `""` | Optional: Pfad zur `.pub`-Datei (z. B. `~/.ssh/id_ed25519.pub`), überschreibt `ssh_public_key` |
 | `github_repo` | HTTPS-URL | **Nicht** in Root-`main.tf` verwendet; gedacht für Cloud-Init/Beispiele (s. Modul-README) |
@@ -122,7 +122,7 @@ Zusätzlich setzt [`main.tf`](main.tf) im DNS-Modul **fest** u. a. `mail_ipv4`, 
 Wenn `enable_gitlab_app = true`:
 
 - Server-Image: **`gitlab`** (vgl. [hetznercloud/apps – GitLab](https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)).
-- Das interaktive Erstlogin-Skript `/opt/hcloud/gitlab_setup.sh` wird per Cloud-Init umgangen; `external_url` und Let’s Encrypt werden gesetzt und `gitlab-ctl reconfigure` ausgeführt.
+- Automatisierung: **systemd-Oneshot** `gitlab-terraform-bootstrap.service` + Hintergrund-**Scheduler** `/usr/local/sbin/gitlab-terraform-schedule-bootstrap.sh` (wartet bis `gitlab_setup` in `/root/.bashrc` sichtbar ist oder Timeout, dann `systemctl start`), damit der Dienst auch startet, wenn `enable` bei bereits aktivem `multi-user` nicht ausreicht. Zusätzlich wird **`/opt/hcloud/gitlab_setup.sh`** durch ein No-Op-Skript ersetzt (Fallback, falls noch ein Aufruf in der Shell-RC bleibt).
 - DNS: A-Record **`gitlab_dns_record_name`** (Standard `gitlab`) → Server-IPv4; PTR (IPv4/IPv6) auf dieselbe FQDN, damit Zertifikatsprüfungen konsistent bleiben.
 - **Reihenfolge:** Namensserver der Zone müssen bei deiner Domain-Registrar auf Hetzner zeigen, bevor Let’s Encrypt HTTP-01 zuverlässig klappt. `gitlab_bootstrap_wait_seconds` kannst du erhöhen, falls der erste `reconfigure` noch vor DNS-Propagation läuft – ggf. einmal `sudo gitlab-ctl reconfigure` auf dem Server nachholen.
 

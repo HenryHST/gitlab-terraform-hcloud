@@ -2,6 +2,10 @@
 locals {
   dkim_chunks = [for i in range(ceil(length(var.dkim_value) / 255)) : substr(var.dkim_value, i * 255, 255)]
   zone_name   = var.create_zone ? hcloud_zone.main[0].name : data.hcloud_zone.existing[0].name
+
+  # Hetzner API rejects TLSA unless certificate association data is hex (RFC 6698).
+  tlsa_value_trimmed  = trimspace(var.tlsa_value)
+  tlsa_record_enabled = local.tlsa_value_trimmed != "" && can(regex("^[0-3] [0-1] [0-2] [a-fA-F0-9]+$", local.tlsa_value_trimmed))
 }
 
 resource "hcloud_zone" "main" {
@@ -127,11 +131,12 @@ resource "hcloud_zone_record" "web-spf" {
 }
 
 resource "hcloud_zone_record" "web-tlsa-selector" {
+  count    = local.tlsa_record_enabled ? 1 : 0
   provider = hcloud.dns
   zone     = local.zone_name
   name     = var.tlsa_name
   type     = "TLSA"
-  value    = var.tlsa_value
+  value    = local.tlsa_value_trimmed
 }
 
 resource "hcloud_zone_record" "web-srv-selector" {
