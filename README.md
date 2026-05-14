@@ -1,6 +1,6 @@
 # gitlab-terraform-hcloud
 
-Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Optional werden **GitLab CE** (Hetzner-App-Image plus Cloud-Init; integriertes Let’s Encrypt ist standardmäßig aus, `gitlab_letsencrypt_enabled = false`) und eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete abgebildet.
+Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du GitLab: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (GitLab CE + Traefik, `docker_compose`). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
 
 Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs) (siehe [`provider.tf`](provider.tf)).
 
@@ -14,7 +14,7 @@ Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetzne
   - [Ohne Default (bei `apply` erforderlich)](#ohne-default-bei-apply-erforderlich)
   - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
 - [Outputs](#outputs)
-- [GitLab (Hetzner App-Image)](#gitlab-hetzner-app-image)
+- [GitLab-Installationsmodi](#gitlab-installationsmodi)
 - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
 - [Module im Detail](#module-im-detail)
 - [Sicherheit und Betrieb](#sicherheit-und-betrieb)
@@ -53,7 +53,7 @@ flowchart LR
 | Modul / Ressource | Inhalt (Kurz) |
 |--------|----------------|
 | [`modules/firewall`](modules/firewall) | `hcloud_firewall`: u. a. SSH 22, HTTP 80, HTTPS 443, DNS 53 (TCP/UDP), optional Node Exporter, ICMP; Quell-IPs standardmäßig weltweit konfigurierbar. |
-| [`modules/server`](modules/server) | `hcloud_ssh_key`, `hcloud_server` (Image z. B. Ubuntu 24.04 oder `gitlab` im Root), Firewall-IDs, optional `hcloud_rdns`, optional `user_data` (Cloud-Init für GitLab oder Runner). |
+| [`modules/server`](modules/server) | `hcloud_ssh_key`, `hcloud_server` (Image z. B. Ubuntu 24.04, `gitlab` bei `hetzner_app`, oder `gitlab_docker_host_image` bei `docker_compose` im Root), Firewall-IDs, optional `hcloud_rdns`, optional `user_data` (Cloud-Init für GitLab oder Runner). |
 | [`modules/dns`](modules/dns) | `hcloud_zone` (primary) und Records: Web-A-Record, Mail-A/AAAA/MX, Autoconfig/Autodiscover, DMARC/DKIM/SPF, CAA, TLSA, SRV. |
 | `module.firewall_runner` + `module.gitlab_runner` + `hcloud_zone_record.gitlab_runner` | Nur bei `enable_gitlab_runner = true`: minimale Firewall (SSH, ICMP), **cpx22**-Server, A-Record **`<gitlab_runner_dns_label>.<zone>`** (Standard: `runner05.<zone>`). |
 
@@ -108,11 +108,15 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `server_name` | `web1` | Name des `hcloud_server` |
 | `server_type` | `cx23` | Hetzner-Typ (`cx*`, `cpx*`, `ccx*`) |
 | `location` | `fsn1` | z. B. `fsn1`, `nbg1`, `hel1`, `ash`, `hil` |
-| `enable_gitlab_app` | `false` | `true`: Image `gitlab`, Cloud-Init aus [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl), A-Record = `gitlab_dns_record_name` |
-| `server_image` | `ubuntu-24.04` | Nur bei `enable_gitlab_app = false` (Hetzner-Image-Slug) |
+| `gitlab_install_mode` | `none` | `none`: kein GitLab; `hetzner_app`: Image `gitlab` + [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl); `docker_compose`: `gitlab_docker_host_image` (Standard `debian-13`) + [`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl), Stack unter `/opt/gitlab` |
+| `gitlab_docker_host_image` | `debian-13` | Nur `docker_compose`: Hetzner-Image-Slug für den Hauptserver (vor Apply mit `hcloud image list` prüfen; bei abweichendem Slug z. B. `debian-12` setzen) |
+| `gitlab_docker_traefik_image` | `traefik:v3.7.1` | Traefik-Container in `docker_compose` |
+| `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:17.7.0-ce.0` | GitLab-CE-Image-Tag in `docker_compose` |
+| `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (HTTP-01); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail wie Omnibus über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
+| `server_image` | `ubuntu-24.04` | Nur bei `gitlab_install_mode = none` (Hetzner-Image-Slug) |
 | `gitlab_dns_record_name` | `gitlab` | Relativer A-Record bei GitLab: FQDN = `<name>.<zone>` |
 | `gitlab_letsencrypt_email` | leer | ACME-Kontakt; leer → `gitlab-acme@<zone>` (nur relevant, wenn LE aktiv) |
-| `gitlab_letsencrypt_enabled` | `false` | `true`: `https` + integriertes LE (HTTP-01). `false`: HTTP-first ohne LE (empfohlen bis DNS und Port 80 stabil sind). |
+| `gitlab_letsencrypt_enabled` | `false` | Nur **`hetzner_app`**: `https` + integriertes LE (HTTP-01). Bei `docker_compose` **`gitlab_docker_traefik_acme_enabled`** verwenden. |
 | `gitlab_bootstrap_wait_seconds` | `120` | Wartezeit im **per-instance**-Skript vor `gitlab-ctl reconfigure` (DNS) |
 | `enable_gitlab_runner` | `false` | `true`: zweite VM (**cpx22**), Runner-Firewall, A-Record + PTR auf `<gitlab_runner_dns_label>.<zone>` |
 | `gitlab_runner_install_package` | `true` | Bei aktivem Runner: Cloud-Init installiert **.deb**-Pakete von GitLab S3 (siehe [manuelle Installation](https://docs.gitlab.com/runner/install/linux-manually/)), Log `/var/log/gitlab-runner-terraform-bootstrap.log`; `false`: nur Ubuntu |
@@ -153,16 +157,23 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `dns_zone_id` / `dns_zone_name` | DNS-Zone |
 | `website_url` | Wert von `var.site_url` |
 | `domain_cicd_showcase_de` | Entspricht dem Zonennamen aus dem DNS-Modul |
-| `gitlab_url` | Bei GitLab: `http://…` oder `https://…` je nach `gitlab_letsencrypt_enabled`, sonst `null` |
+| `gitlab_url` | Bei aktivem GitLab-Modus: `http://…` oder `https://…` (Omnibus: `gitlab_letsencrypt_enabled`; Docker: `gitlab_docker_traefik_acme_enabled`), sonst `null` |
 | `gitlab_fqdn` | FQDN des GitLab-A-Records oder `null` |
+| `gitlab_docker_initial_root_password` | Nur `docker_compose`: initiales `root`-Passwort (sensitiv; liegt im **Terraform State**) |
 | `gitlab_runner_ipv4` | Öffentliche IPv4 der Runner-VM oder `null` |
 | `gitlab_runner_fqdn` | FQDN des Runner-A-Records oder `null` |
 | `gitlab_runner_ssh_connection` | `ssh root@<runner_ipv4>` oder `null` |
 | `gitlab_runner_firewall_id` | ID der Runner-Firewall oder `null` |
 
-## GitLab (Hetzner App-Image)
+## GitLab-Installationsmodi
 
-Wenn `enable_gitlab_app = true`:
+Steuerung über **`gitlab_install_mode`**: `none` | `hetzner_app` | `docker_compose` (Default: `none`).
+
+**Migration** von der früheren Variable `enable_gitlab_app`: `enable_gitlab_app = true` → `gitlab_install_mode = "hetzner_app"`; `false` → `"none"`.
+
+### `hetzner_app` (Hetzner App-Image)
+
+Wenn `gitlab_install_mode = "hetzner_app"`:
 
 - Server-Image: **`gitlab`** (vgl. [hetznercloud/apps – GitLab](https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)).
 - Automatisierung: **systemd-Oneshot** `gitlab-terraform-bootstrap.service` + Hintergrund-**Scheduler** `/usr/local/sbin/gitlab-terraform-schedule-bootstrap.sh` (wartet bis `gitlab_setup` in `/root/.bashrc` sichtbar ist oder Timeout, dann `systemctl start`), damit der Dienst auch startet, wenn `enable` bei bereits aktivem `multi-user` nicht ausreicht. Zusätzlich wird **`/opt/hcloud/gitlab_setup.sh`** durch ein No-Op-Skript ersetzt (Fallback, falls noch ein Aufruf in der Shell-RC bleibt).
@@ -171,6 +182,17 @@ Wenn `enable_gitlab_app = true`:
 - **Bootstrap erneut:** War früher `ExecStartPost` mit `touch` aktiv, kann **`/var/lib/gitlab-terraform/.bootstrap-done`** trotz fehlgeschlagenem `reconfigure` existieren — entfernen und `systemctl start gitlab-terraform-bootstrap.service` erneut ausführen (oder Server mit neuem `user_data` ersetzen). Aktuelles Template setzt `.bootstrap-done` **nur nach erfolgreichem** `gitlab-ctl reconfigure`.
 
 Offizielle App-Doku: [Hetzner Cloud Apps – GitLab CE](https://docs.hetzner.com/cloud/apps/list/gitlab-ce/).
+
+### `docker_compose` (GitLab CE + Traefik)
+
+Wenn `gitlab_install_mode = "docker_compose"`:
+
+- Server-Image: **`gitlab_docker_host_image`** (Standard **`debian-13`**). Vor Produktion den Slug mit `hcloud image list` / Konsole prüfen.
+- Cloud-Init ([`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl)): Docker Engine + Compose-Plugin (offizielles Docker-APT-Repo), **`write_files`** für **`/opt/gitlab/docker-compose.yml`** und **`/opt/gitlab/traefik/traefik.yml`**, **`runcmd`**: `docker compose up -d`; Log **`/var/log/gitlab-docker-bootstrap.log`**.
+- Stack: **Traefik** (`gitlab_docker_traefik_image`, Standard `traefik:v3.7.1`) vor **GitLab CE** (`gitlab_docker_gitlab_ce_image`), gemeinsames Docker-Netz `gitlab_web`, Router per Host-Regel auf `gitlab_fqdn`.
+- TLS: **`gitlab_docker_traefik_acme_enabled`** schaltet ACME auf Traefik; **`gitlab_letsencrypt_enabled`** gilt nur für Omnibus (`hetzner_app`).
+- Initiales **`root`**: [`random_password`](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) in Terraform; Output **`gitlab_docker_initial_root_password`** (sensitiv) — **Passwort steht im State**, nach erstem Login rotieren.
+- DNS/PTR: wie bei `hetzner_app` (A-Record `gitlab_dns_record_name`, PTR auf `gitlab_fqdn`).
 
 ## GitLab Runner (optionale zweite VM)
 
@@ -199,19 +221,19 @@ flowchart TD
 ## Module im Detail
 
 - **Firewall** ([`modules/firewall`](modules/firewall)): Regeln per Variablen im Modul schaltbar; für Restriktionen z. B. `ssh_source_ips` im Modulaufruf erweitern (aktuell nutzt der Root nur `firewall_name`).
-- **Server** ([`modules/server`](modules/server)): Vollständigere Modul-Doku in [`modules/server/README.md`](modules/server/README.md). Im **Root** wird bei `enable_gitlab_app` Cloud-Init aus dem Template gesetzt, sonst kein `user_data`.
+- **Server** ([`modules/server`](modules/server)): Vollständigere Modul-Doku in [`modules/server/README.md`](modules/server/README.md). Im **Root** setzt Cloud-Init **`user_data`** bei `gitlab_install_mode` `hetzner_app` oder `docker_compose` (jeweils eigenes Template), sonst leer.
 - **DNS** ([`modules/dns`](modules/dns)): Zone + Records; DKIM-Längen >255 werden automatisch gesplittet.
 
 ## Sicherheit und Betrieb
 
 - **Firewall:** Standard im Modul erlaubt typischerweise Zugriff von `0.0.0.0/0` und `::/0` auf die genannten Ports. Für Produktion Quell-IP-Listen einschränken oder `custom_rules` gezielt nutzen.
 - **Token:** `hcloud_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren.
-- **PTR/rDNS:** Bei `enable_gitlab_app` auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de`. Sobald `gitlab_letsencrypt_enabled = true` und HTTPS aktiv ist, sollte der Hostname zu dem Zertifikat passen, das Clients sehen.
+- **PTR/rDNS:** Wenn `gitlab_install_mode` **nicht** `none`, zeigt PTR auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de`. Bei HTTPS (Omnibus-LE oder Traefik-ACME) sollte der Hostname zum Zertifikat passen.
 - **Mail/DNS:** Über die Variablen **`mail_server_ipv4`**, **`mail_server_ipv6`**, **`mail_server_cname_target`**, **`dns_tlsa_name`** (und bestehende MX/SPF/DMARC/…) an die eigene Infrastruktur anpassen.
 
 ## Cloud-Init und user_data
 
-Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl) oder [`templates/gitlab-runner-cloud-init.yaml.tpl`](templates/gitlab-runner-cloud-init.yaml.tpl) wirken auf **bestehende** VMs oft **erst**, wenn die Instanz **ersetzt** wird.
+Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl), [`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl) oder [`templates/gitlab-runner-cloud-init.yaml.tpl`](templates/gitlab-runner-cloud-init.yaml.tpl) wirken auf **bestehende** VMs oft **erst**, wenn die Instanz **ersetzt** wird.
 
 Vorgehen (Beispiel Runner):
 

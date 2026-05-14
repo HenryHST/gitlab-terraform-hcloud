@@ -64,13 +64,26 @@ output "domain_cicd_showcase_de" {
 }
 
 output "gitlab_url" {
-  description = "GitLab URL when enable_gitlab_app is true (https only if gitlab_letsencrypt_enabled)"
-  value       = var.enable_gitlab_app ? (var.gitlab_letsencrypt_enabled ? "https://${local.gitlab_fqdn}" : "http://${local.gitlab_fqdn}") : null
+  description = "GitLab URL when gitlab_install_mode is hetzner_app or docker_compose (https when Omnibus LE or Traefik ACME is enabled)"
+  value = (
+    var.gitlab_install_mode == "hetzner_app" ? (
+      var.gitlab_letsencrypt_enabled ? "https://${local.gitlab_fqdn}" : "http://${local.gitlab_fqdn}"
+    ) :
+    var.gitlab_install_mode == "docker_compose" ? (
+      var.gitlab_docker_traefik_acme_enabled ? "https://${local.gitlab_fqdn}" : "http://${local.gitlab_fqdn}"
+    ) : null
+  )
 }
 
 output "gitlab_fqdn" {
-  description = "GitLab hostname (A record target) when enable_gitlab_app is true"
-  value       = var.enable_gitlab_app ? local.gitlab_fqdn : null
+  description = "GitLab hostname (A record target) when gitlab_install_mode is hetzner_app or docker_compose"
+  value       = local.gitlab_enabled ? local.gitlab_fqdn : null
+}
+
+output "gitlab_docker_initial_root_password" {
+  description = "Initial GitLab root password in docker_compose mode (stored in Terraform state; rotate after first login)."
+  value       = var.gitlab_install_mode == "docker_compose" ? random_password.gitlab_docker_root[0].result : null
+  sensitive   = true
 }
 
 output "gitlab_runner_ipv4" {

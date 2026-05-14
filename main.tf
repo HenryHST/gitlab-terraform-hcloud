@@ -1,16 +1,37 @@
 locals {
-  gitlab_fqdn = "${var.gitlab_dns_record_name}.${var.domain_cicd_showcase_de}"
-  # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
-  server_image_effective     = var.enable_gitlab_app ? "gitlab" : var.server_image
+  gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.domain_cicd_showcase_de}"
+  gitlab_enabled             = var.gitlab_install_mode != "none"
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
-  gitlab_user_data = var.enable_gitlab_app ? templatefile("${path.module}/templates/gitlab-cloud-init.yaml.tpl", {
-    gitlab_fqdn                = local.gitlab_fqdn
-    letsencrypt_email          = local.gitlab_letsencrypt_contact
-    bootstrap_wait             = var.gitlab_bootstrap_wait_seconds
-    gitlab_letsencrypt_enabled = var.gitlab_letsencrypt_enabled
-  }) : ""
-  rdns_fqdn     = var.enable_gitlab_app ? local.gitlab_fqdn : var.domain_cicd_showcase_de
-  dns_ipv4_name = var.enable_gitlab_app ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
+
+  # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
+  server_image_effective = (
+    var.gitlab_install_mode == "hetzner_app" ? "gitlab" :
+    var.gitlab_install_mode == "docker_compose" ? coalesce(var.gitlab_docker_host_image, "debian-13") :
+    var.server_image
+  )
+
+  gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
+
+  gitlab_user_data = (
+    var.gitlab_install_mode == "hetzner_app" ? templatefile("${path.module}/templates/gitlab-cloud-init.yaml.tpl", {
+      gitlab_fqdn                = local.gitlab_fqdn
+      letsencrypt_email          = local.gitlab_letsencrypt_contact
+      bootstrap_wait             = var.gitlab_bootstrap_wait_seconds
+      gitlab_letsencrypt_enabled = var.gitlab_letsencrypt_enabled
+    }) :
+    var.gitlab_install_mode == "docker_compose" ? templatefile("${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl", {
+      gitlab_fqdn          = local.gitlab_fqdn
+      gitlab_root_password = random_password.gitlab_docker_root[0].result
+      traefik_image        = var.gitlab_docker_traefik_image
+      gitlab_ce_image      = var.gitlab_docker_gitlab_ce_image
+      acme_enabled         = var.gitlab_docker_traefik_acme_enabled
+      acme_email           = local.gitlab_letsencrypt_contact
+      external_url_scheme  = local.gitlab_docker_external_url_scheme
+    }) : ""
+  )
+
+  rdns_fqdn     = local.gitlab_enabled ? local.gitlab_fqdn : var.domain_cicd_showcase_de
+  dns_ipv4_name = local.gitlab_enabled ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
 
   gitlab_runner_fqdn = "${var.gitlab_runner_dns_label}.${var.domain_cicd_showcase_de}"
   gitlab_runner_location_effective = (
@@ -25,6 +46,12 @@ locals {
     ? chomp(file(pathexpand(var.ssh_public_key_file)))
     : var.ssh_public_key
   )
+}
+
+resource "random_password" "gitlab_docker_root" {
+  count   = var.gitlab_install_mode == "docker_compose" ? 1 : 0
+  length  = 24
+  special = false
 }
 
 # Firewall Module
@@ -154,7 +181,7 @@ check "ssh_public_key_configured" {
 
 check "gitlab_letsencrypt_implies_app" {
   assert {
-    condition     = !var.gitlab_letsencrypt_enabled || var.enable_gitlab_app
-    error_message = "gitlab_letsencrypt_enabled requires enable_gitlab_app = true."
+    condition     = !var.gitlab_letsencrypt_enabled || var.gitlab_install_mode == "hetzner_app"
+    error_message = "gitlab_letsencrypt_enabled is only for hetzner_app (Omnibus integrated LE); use gitlab_docker_traefik_acme_enabled for docker_compose."
   }
 }

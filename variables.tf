@@ -67,25 +67,64 @@ variable "location" {
 }
 
 variable "server_image" {
-  description = "hcloud server image slug when enable_gitlab_app is false (e.g. ubuntu-24.04)"
+  description = "hcloud server image slug when gitlab_install_mode is none (e.g. ubuntu-24.04)"
   type        = string
   default     = "ubuntu-24.04"
 }
 
-variable "enable_gitlab_app" {
-  description = "If true, use Hetzner GitLab app image and cloud-init to configure external_url (and optional Let's Encrypt)"
+variable "gitlab_install_mode" {
+  description = "GitLab platform: none (no GitLab), hetzner_app (Hetzner GitLab image + Omnibus cloud-init), docker_compose (Debian VM + Docker Compose GitLab CE + Traefik v3.7)"
+  type        = string
+  default     = "none"
+
+  validation {
+    condition     = contains(["none", "hetzner_app", "docker_compose"], var.gitlab_install_mode)
+    error_message = "gitlab_install_mode must be one of: none, hetzner_app, docker_compose."
+  }
+}
+
+variable "gitlab_docker_host_image" {
+  description = "hcloud image slug for the main server when gitlab_install_mode is docker_compose (default debian-13)"
+  type        = string
+  default     = "debian-13"
+}
+
+variable "gitlab_docker_traefik_image" {
+  description = "Traefik container image (pin v3.7.x as required)"
+  type        = string
+  default     = "traefik:v3.7.1"
+}
+
+variable "gitlab_docker_gitlab_ce_image" {
+  description = "gitlab/gitlab-ce image tag for Docker Compose mode"
+  type        = string
+  default     = "gitlab/gitlab-ce:17.7.0-ce.0"
+}
+
+variable "gitlab_docker_traefik_acme_enabled" {
+  description = "When gitlab_install_mode is docker_compose, enable Let's Encrypt on Traefik (HTTP-01 on port 80). Requires DNS A record pointing to this server."
   type        = bool
   default     = false
+
+  validation {
+    condition     = !var.gitlab_docker_traefik_acme_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_docker_traefik_acme_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
 }
 
 variable "gitlab_letsencrypt_enabled" {
-  description = "If true, bootstrap sets https + integrated Let's Encrypt (HTTP-01); only use when DNS already resolves to this server and port 80 is reachable from the internet. If false (default), bootstrap uses http and turns off LE/secrets auto_enabled to avoid first-boot ACME failures."
+  description = "If true (only when gitlab_install_mode is hetzner_app), bootstrap sets https + integrated Let's Encrypt (HTTP-01). Ignored for docker_compose (use gitlab_docker_traefik_acme_enabled there)."
   type        = bool
   default     = false
+
+  validation {
+    condition     = !var.gitlab_letsencrypt_enabled || var.gitlab_install_mode == "hetzner_app"
+    error_message = "gitlab_letsencrypt_enabled is only supported when gitlab_install_mode is hetzner_app (use gitlab_docker_traefik_acme_enabled for docker_compose)."
+  }
 }
 
 variable "gitlab_dns_record_name" {
-  description = "DNS A record (relative to zone) for GitLab when enable_gitlab_app is true"
+  description = "DNS A record (relative to zone) for GitLab when gitlab_install_mode is hetzner_app or docker_compose"
   type        = string
   default     = "gitlab"
 
@@ -96,7 +135,7 @@ variable "gitlab_dns_record_name" {
 }
 
 variable "gitlab_letsencrypt_email" {
-  description = "ACME contact for GitLab Let's Encrypt; if empty, gitlab-acme@<zone> is used when GitLab is enabled"
+  description = "ACME contact for Omnibus LE (hetzner_app) and Traefik ACME (docker_compose); if empty, gitlab-acme@<zone> is used"
   type        = string
   default     = ""
 
@@ -169,7 +208,7 @@ variable "gitlab_runner_location" {
 }
 
 variable "dns_ipv4_record_name" {
-  description = "DNS A record name when enable_gitlab_app is false (points to server public IPv4)"
+  description = "DNS A record name when gitlab_install_mode is none (points to server public IPv4)"
   type        = string
   default     = "web1"
 

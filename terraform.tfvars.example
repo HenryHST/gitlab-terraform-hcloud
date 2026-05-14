@@ -34,5 +34,5 @@ iodef_value   = "mailto:info@example.com"
 contact_value = "mailto:info@example.com"
 
 gitlab_letsencrypt_enabled = false
-enable_gitlab_app         = false
-enable_gitlab_runner      = false
+gitlab_install_mode        = "none"
+enable_gitlab_runner       = false
