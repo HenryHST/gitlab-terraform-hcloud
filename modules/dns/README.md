@@ -72,6 +72,7 @@ provider "hcloud" {
 | `domain_name`        | `string` | -                                                             | yes      | Domain name for the DNS zone                                |
 | `server_ipv4`        | `string` | -                                                             | yes      | IPv4 address for the application A record                   |
 | `ipv4_a_record_name` | `string` | `"web1"`                                                      | no       | Relative DNS name for the A record (e.g. `web1`, `gitlab`)  |
+| `create_zone`        | `bool`   | `true`                                                        | no       | If `false`, use existing zone `domain_name` (data source)   |
 | `dmarc_value`        | `string` | `"v=DMARC1;p=quarantine;pct=100;rua=mailto:info@example.com"` | no       | DMARC TXT record value                                      |
 | `dkim_value`         | `string` | `""`                                                          | no       | DKIM TXT record value (automatically chunked if >255 chars) |
 | `spf_value`          | `string` | `"v=spf1 mx -all"`                                            | no       | SPF TXT record value                                        |

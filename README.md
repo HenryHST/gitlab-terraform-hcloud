@@ -68,7 +68,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | Name | Typ | Sensitiv | Beschreibung |
 |------|-----|----------|--------------|
 | `hcloud_token` | string | ja | Hetzner Cloud API-Token |
-| `ssh_public_key` | string | nein | Öffentlicher SSH-Key (Format wird validiert) |
+| `ssh_public_key` | string | nein | Eine Zeile aus `*.pub`, **oder** leer lassen und `ssh_public_key_file` setzen |
 | `hetzner_api_key` | string | ja | In `variables.tf` für Traefik/DNS bei ACME beschrieben; **Root-`main.tf` übergibt sie aktuell an kein Modul** |
 | `traefik_dashboard_credentials` | string | ja | BasicAuth-artig `user:…`; **ebenfalls nicht an Module gebunden** |
 
@@ -85,7 +85,8 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_dns_record_name` | `gitlab` | Relativer A-Record bei GitLab: FQDN = `<name>.<zone>` |
 | `gitlab_letsencrypt_email` | leer | ACME-Kontakt; leer → `gitlab-acme@<zone>` |
 | `gitlab_bootstrap_wait_seconds` | `120` | Wartezeit vor `gitlab-ctl reconfigure` (DNS-Propagation) |
-| `dns_ipv4_record_name` | `web1` | A-Record bei `enable_gitlab_app = false` |
+| `create_hcloud_dns_zone` | `true` | `false`, wenn die Zone in Hetzner DNS schon existiert (vermeidet 409 *Zone already exists*) |
+| `ssh_public_key_file` | `""` | Optional: Pfad zur `.pub`-Datei (z. B. `~/.ssh/id_ed25519.pub`), überschreibt `ssh_public_key` |
 | `github_repo` | HTTPS-URL | **Nicht** in Root-`main.tf` verwendet; gedacht für Cloud-Init/Beispiele (s. Modul-README) |
 | `site_url` | `https://cicd-showcase.de` | Wird als Output `website_url` ausgegeben |
 | `domain_cicd_showcase_de` | `cicd-showcase.de` | DNS-Zonenname; bei GitLab auch Basis für `gitlab_fqdn` und PTR |

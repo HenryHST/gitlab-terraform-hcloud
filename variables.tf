@@ -4,13 +4,26 @@ variable "hcloud_token" {
   sensitive   = true
 }
 
-variable "ssh_public_key" {
-  description = "Public SSH key for server access"
+variable "ssh_public_key_file" {
+  description = "Path to your SSH public key file (e.g. ~/.ssh/id_ed25519.pub). If set, overrides ssh_public_key."
   type        = string
+  default     = ""
+}
+
+variable "ssh_public_key" {
+  description = "Public SSH key for server access (single line). Ignored if ssh_public_key_file is set."
+  type        = string
+  default     = ""
 
   validation {
-    condition     = can(regex("^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521)\\s+", var.ssh_public_key))
-    error_message = "SSH public key must start with ssh-rsa, ssh-ed25519, or ecdsa-sha2-nistp***."
+    condition = (
+      trimspace(var.ssh_public_key_file) != "" ||
+      (trimspace(var.ssh_public_key) != "" && can(regex(
+        "^(ssh-rsa|ssh-ed25519|ecdsa-sha2-nistp256|ecdsa-sha2-nistp384|ecdsa-sha2-nistp521|sk-ssh-ed25519@openssh\\.com|sk-ecdsa-sha2-nistp256@openssh\\.com)\\s+",
+        var.ssh_public_key
+      )))
+    )
+    error_message = "Set ssh_public_key_file to your .pub path, or set ssh_public_key to the full single-line key (supported OpenSSH types per Hetzner API)."
   }
 }
 
@@ -107,6 +120,12 @@ variable "dns_ipv4_record_name" {
     condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.dns_ipv4_record_name))
     error_message = "dns_ipv4_record_name must be a valid DNS label."
   }
+}
+
+variable "create_hcloud_dns_zone" {
+  description = "If false, use an existing Hetzner DNS zone named domain_cicd_showcase_de (no hcloud_zone create; avoids 409 uniqueness_error)"
+  type        = bool
+  default     = true
 }
 
 variable "github_repo" {

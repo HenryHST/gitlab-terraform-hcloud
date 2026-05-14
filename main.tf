@@ -10,6 +10,12 @@ locals {
   }) : ""
   rdns_fqdn     = var.enable_gitlab_app ? local.gitlab_fqdn : var.domain_cicd_showcase_de
   dns_ipv4_name = var.enable_gitlab_app ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
+
+  ssh_public_key_effective = trimspace(
+    var.ssh_public_key_file != ""
+    ? chomp(file(pathexpand(var.ssh_public_key_file)))
+    : var.ssh_public_key
+  )
 }
 
 # Firewall Module
@@ -27,7 +33,7 @@ module "server" {
   server_type    = var.server_type
   location       = var.location
   image          = local.server_image_effective
-  ssh_public_key = var.ssh_public_key
+  ssh_public_key = local.ssh_public_key_effective
 
   firewall_ids = [module.firewall.firewall_id]
 
@@ -48,6 +54,7 @@ module "server" {
 module "dns" {
   source = "./modules/dns"
 
+  create_zone        = var.create_hcloud_dns_zone
   domain_name        = var.domain_cicd_showcase_de
   server_ipv4        = module.server.server_ipv4
   ipv4_a_record_name = local.dns_ipv4_name

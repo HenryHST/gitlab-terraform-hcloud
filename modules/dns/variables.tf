@@ -1,3 +1,9 @@
+variable "create_zone" {
+  type        = bool
+  default     = true
+  description = "If false, look up an existing Hetzner DNS zone with domain_name (no new zone is created)"
+}
+
 variable "domain_name" {
   type        = string
   description = "Domain name for the DNS zone"
