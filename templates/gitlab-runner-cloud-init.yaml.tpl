@@ -15,10 +15,10 @@ runcmd:
     apt-get install -y -qq ca-certificates curl
     curl -fsSL -o gitlab-runner-helper-images.deb \
       "https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/deb/gitlab-runner-helper-images.deb"
-    curl -fsSL -o "gitlab-runner-$${ARCH}.deb" \
-      "https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/deb/gitlab-runner-$${ARCH}.deb"
+    curl -fsSL -o "gitlab-runner_$${ARCH}.deb" \
+      "https://s3.dualstack.us-east-1.amazonaws.com/gitlab-runner-downloads/latest/deb/gitlab-runner_$${ARCH}.deb"
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq \
-      "./gitlab-runner-helper-images.deb" "./gitlab-runner-$${ARCH}.deb"
+      "./gitlab-runner-helper-images.deb" "./gitlab-runner_$${ARCH}.deb"
     systemctl enable --now gitlab-runner
 %{ else }
 # gitlab_runner_install_package is false: keine automatische Installation (Runner später selbst einrichten).

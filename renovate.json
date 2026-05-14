@@ -1,0 +1,22 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": [
+      "config:recommended",
+      ":dependencyDashboard",
+      ":enableVulnerabilityAlertsWithLabel('security')",
+      ":preserveSemverRanges",
+      ":rebaseStalePrs",
+      "group:recommended"
+    ],
+    "labels": ["dependencies"],
+    "timezone": "Europe/Berlin",
+    "rangeStrategy": "bump",
+    "automerge": true,
+    "automergeType": "branch",
+    "automergeStrategy": "rebase",
+    "commitMessagePrefix": "chore(deps): ",
+    "commitBodyTable": true,
+    "dependencyDashboard": true,
+    "dependencyDashboardAutoclose": true,
+    "assignees": ["@henryhst"]
+  }
