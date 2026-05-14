@@ -4,9 +4,10 @@ locals {
   server_image_effective     = var.enable_gitlab_app ? "gitlab" : var.server_image
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
   gitlab_user_data = var.enable_gitlab_app ? templatefile("${path.module}/templates/gitlab-cloud-init.yaml.tpl", {
-    gitlab_fqdn       = local.gitlab_fqdn
-    letsencrypt_email = local.gitlab_letsencrypt_contact
-    bootstrap_wait    = var.gitlab_bootstrap_wait_seconds
+    gitlab_fqdn                = local.gitlab_fqdn
+    letsencrypt_email          = local.gitlab_letsencrypt_contact
+    bootstrap_wait             = var.gitlab_bootstrap_wait_seconds
+    gitlab_letsencrypt_enabled = var.gitlab_letsencrypt_enabled
   }) : ""
   rdns_fqdn     = var.enable_gitlab_app ? local.gitlab_fqdn : var.domain_cicd_showcase_de
   dns_ipv4_name = var.enable_gitlab_app ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
