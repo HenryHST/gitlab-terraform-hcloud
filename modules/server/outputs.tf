@@ -24,13 +24,13 @@ output "server_status" {
 }
 
 output "ssh_key_id" {
-  description = "ID of the created SSH key"
-  value       = hcloud_ssh_key.default.id
+  description = "ID of the SSH key created in this module, or the first entry in attach_ssh_key_ids when create_ssh_key is false"
+  value       = var.create_ssh_key ? hcloud_ssh_key.default[0].id : var.attach_ssh_key_ids[0]
 }
 
 output "ssh_key_name" {
-  description = "Name of the SSH key"
-  value       = hcloud_ssh_key.default.name
+  description = "Name of the created SSH key (empty when an existing key was attached)"
+  value       = var.create_ssh_key ? hcloud_ssh_key.default[0].name : ""
 }
 
 output "ssh_connection" {

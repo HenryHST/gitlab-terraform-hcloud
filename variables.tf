@@ -73,7 +73,13 @@ variable "server_image" {
 }
 
 variable "enable_gitlab_app" {
-  description = "If true, use Hetzner GitLab app image and cloud-init to set external_url + Let's Encrypt"
+  description = "If true, use Hetzner GitLab app image and cloud-init to configure external_url (and optional Let's Encrypt)"
+  type        = bool
+  default     = false
+}
+
+variable "gitlab_letsencrypt_enabled" {
+  description = "If true, bootstrap sets https + integrated Let's Encrypt (HTTP-01); only use when DNS already resolves to this server and port 80 is reachable from the internet. If false (default), bootstrap uses http and turns off LE/secrets auto_enabled to avoid first-boot ACME failures."
   type        = bool
   default     = false
 }
@@ -108,6 +114,57 @@ variable "gitlab_bootstrap_wait_seconds" {
   validation {
     condition     = var.gitlab_bootstrap_wait_seconds >= 0 && var.gitlab_bootstrap_wait_seconds <= 3600
     error_message = "gitlab_bootstrap_wait_seconds must be between 0 and 3600."
+  }
+}
+
+variable "enable_gitlab_runner" {
+  description = "If true, provision a dedicated GitLab Runner VM (cpx22), runner firewall, and A record in the same DNS zone"
+  type        = bool
+  default     = false
+}
+
+variable "gitlab_runner_install_package" {
+  description = "If true (and enable_gitlab_runner), cloud-init installs GitLab Runner from the official .deb packages (helper + arch-specific) per https://docs.gitlab.com/runner/install/linux-manually/ and enables the systemd unit. If false, only Ubuntu is provisioned (install manually)."
+  type        = bool
+  default     = true
+}
+
+variable "gitlab_runner_server_name" {
+  description = "hcloud_server name for the GitLab Runner host"
+  type        = string
+  default     = "runner05"
+
+  validation {
+    condition     = length(var.gitlab_runner_server_name) > 0 && length(var.gitlab_runner_server_name) <= 63
+    error_message = "gitlab_runner_server_name must be 1–63 characters."
+  }
+}
+
+variable "gitlab_runner_dns_label" {
+  description = "Relative DNS name (A record) for the runner in domain_cicd_showcase_de; FQDN becomes <label>.<zone> (e.g. runner05.cicd-showcase.de)"
+  type        = string
+  default     = "runner05"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.gitlab_runner_dns_label))
+    error_message = "gitlab_runner_dns_label must be a valid DNS label (lowercase letters, digits, hyphen)."
+  }
+}
+
+variable "gitlab_runner_image" {
+  description = "Hetzner image slug for the GitLab Runner server (e.g. ubuntu-24.04)"
+  type        = string
+  default     = "ubuntu-24.04"
+}
+
+variable "gitlab_runner_location" {
+  description = "Hetzner location for the GitLab Runner server; if empty, uses var.location"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitlab_runner_location == "" || contains(["fsn1", "nbg1", "hel1", "ash", "hil"], var.gitlab_runner_location)
+    error_message = "gitlab_runner_location must be empty or one of: fsn1, nbg1, hel1, ash, hil."
   }
 }
 

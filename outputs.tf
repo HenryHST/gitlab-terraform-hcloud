@@ -64,11 +64,31 @@ output "domain_cicd_showcase_de" {
 }
 
 output "gitlab_url" {
-  description = "GitLab HTTPS URL when enable_gitlab_app is true"
-  value       = var.enable_gitlab_app ? "https://${local.gitlab_fqdn}" : null
+  description = "GitLab URL when enable_gitlab_app is true (https only if gitlab_letsencrypt_enabled)"
+  value       = var.enable_gitlab_app ? (var.gitlab_letsencrypt_enabled ? "https://${local.gitlab_fqdn}" : "http://${local.gitlab_fqdn}") : null
 }
 
 output "gitlab_fqdn" {
   description = "GitLab hostname (A record target) when enable_gitlab_app is true"
   value       = var.enable_gitlab_app ? local.gitlab_fqdn : null
+}
+
+output "gitlab_runner_ipv4" {
+  description = "Public IPv4 of the GitLab Runner server when enable_gitlab_runner is true"
+  value       = var.enable_gitlab_runner ? module.gitlab_runner[0].server_ipv4 : null
+}
+
+output "gitlab_runner_fqdn" {
+  description = "FQDN of the GitLab Runner A record (<gitlab_runner_dns_label>.<zone>) when enable_gitlab_runner is true"
+  value       = var.enable_gitlab_runner ? local.gitlab_runner_fqdn : null
+}
+
+output "gitlab_runner_ssh_connection" {
+  description = "SSH command for the GitLab Runner host when enable_gitlab_runner is true"
+  value       = var.enable_gitlab_runner ? module.gitlab_runner[0].ssh_connection : null
+}
+
+output "gitlab_runner_firewall_id" {
+  description = "Firewall ID attached to the GitLab Runner when enable_gitlab_runner is true"
+  value       = var.enable_gitlab_runner ? module.firewall_runner[0].firewall_id : null
 }

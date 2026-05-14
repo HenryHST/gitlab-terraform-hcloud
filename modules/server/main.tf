@@ -1,5 +1,7 @@
-# SSH Key für Server-Zugriff
+# SSH Key für Server-Zugriff (optional: reuse an existing key via attach_ssh_key_ids)
 resource "hcloud_ssh_key" "default" {
+  count = var.create_ssh_key ? 1 : 0
+
   name       = var.ssh_key_name != "" ? var.ssh_key_name : "${var.server_name}-key"
   public_key = var.ssh_public_key
 
@@ -15,7 +17,7 @@ resource "hcloud_server" "main" {
   location    = var.location
   image       = var.image
   labels      = var.labels
-  ssh_keys    = [hcloud_ssh_key.default.id]
+  ssh_keys    = var.create_ssh_key ? [hcloud_ssh_key.default[0].id] : var.attach_ssh_key_ids
 
   firewall_ids = var.firewall_ids
 

@@ -21,8 +21,31 @@ variable "image" {
 
 variable "ssh_public_key" {
   type        = string
-  description = "Public SSH key for server access"
+  description = "Public SSH key for server access (used only when create_ssh_key is true)"
   sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.create_ssh_key || length(trimspace(var.ssh_public_key)) > 0
+    error_message = "ssh_public_key is required when create_ssh_key is true."
+  }
+}
+
+variable "create_ssh_key" {
+  type        = bool
+  default     = true
+  description = "If true, create an hcloud_ssh_key from ssh_public_key. If false, attach existing keys via attach_ssh_key_ids (avoids Hetzner uniqueness_error when the same key is reused)."
+}
+
+variable "attach_ssh_key_ids" {
+  type        = list(string)
+  default     = []
+  description = "Existing Hetzner SSH key IDs to attach to the server when create_ssh_key is false"
+
+  validation {
+    condition     = var.create_ssh_key || length(var.attach_ssh_key_ids) > 0
+    error_message = "attach_ssh_key_ids must be non-empty when create_ssh_key is false."
+  }
 }
 
 variable "ssh_key_name" {

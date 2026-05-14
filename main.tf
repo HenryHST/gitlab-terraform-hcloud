@@ -12,6 +12,14 @@ locals {
   rdns_fqdn     = var.enable_gitlab_app ? local.gitlab_fqdn : var.domain_cicd_showcase_de
   dns_ipv4_name = var.enable_gitlab_app ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
 
+  gitlab_runner_fqdn = "${var.gitlab_runner_dns_label}.${var.domain_cicd_showcase_de}"
+  gitlab_runner_location_effective = (
+    var.gitlab_runner_location != "" ? var.gitlab_runner_location : var.location
+  )
+  gitlab_runner_user_data = var.enable_gitlab_runner ? templatefile("${path.module}/templates/gitlab-runner-cloud-init.yaml.tpl", {
+    install_package = var.gitlab_runner_install_package
+  }) : ""
+
   ssh_public_key_effective = trimspace(
     var.ssh_public_key_file != ""
     ? chomp(file(pathexpand(var.ssh_public_key_file)))
@@ -51,6 +59,47 @@ module "server" {
   rdns_ipv6_domain = local.rdns_fqdn
 }
 
+module "firewall_runner" {
+  count  = var.enable_gitlab_runner ? 1 : 0
+  source = "./modules/firewall"
+
+  firewall_name = "${var.gitlab_runner_server_name}-firewall"
+
+  enable_http          = false
+  enable_https         = false
+  enable_dns           = false
+  enable_node_exporter = false
+  enable_icmp          = true
+}
+
+module "gitlab_runner" {
+  count  = var.enable_gitlab_runner ? 1 : 0
+  source = "./modules/server"
+
+  server_name = var.gitlab_runner_server_name
+  server_type = "cpx22"
+  location    = local.gitlab_runner_location_effective
+  image       = var.gitlab_runner_image
+
+  # Same fingerprint as module.server: Hetzner allows only one hcloud_ssh_key per key material.
+  create_ssh_key     = false
+  attach_ssh_key_ids = [module.server.ssh_key_id]
+  ssh_public_key     = ""
+
+  firewall_ids = [module.firewall_runner[0].firewall_id]
+
+  labels = {
+    role       = "gitlab-runner"
+    managed_by = "terraform"
+  }
+
+  user_data = local.gitlab_runner_user_data
+
+  enable_rdns      = true
+  rdns_ipv4_domain = local.gitlab_runner_fqdn
+  rdns_ipv6_domain = local.gitlab_runner_fqdn
+}
+
 # DNS Module
 module "dns" {
   source = "./modules/dns"
@@ -85,4 +134,13 @@ module "dns" {
   providers = {
     hcloud.dns = hcloud.dns
   }
+}
+
+resource "hcloud_zone_record" "gitlab_runner" {
+  count    = var.enable_gitlab_runner ? 1 : 0
+  provider = hcloud.dns
+  zone     = module.dns.zone_name
+  name     = var.gitlab_runner_dns_label
+  type     = "A"
+  value    = module.gitlab_runner[0].server_ipv4
 }
