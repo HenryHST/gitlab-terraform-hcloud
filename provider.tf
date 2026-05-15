@@ -27,7 +27,13 @@ provider "hcloud" {
   alias = "dns"
   token = var.hcloud_token
 }
+
+# Aliased provider for module.gitlab_api only (count = enable_gitlab_resources).
+# v18+ with an empty token tries glab config-file auth and fails with "unable to locate config file" on every plan.
 provider "gitlab" {
-  token    = var.gitlab_api_token
+  alias    = "gitlab"
+  token    = var.enable_gitlab_resources ? var.gitlab_api_token : "glpat-infrastructure-only-placeholder"
   base_url = var.gitlab_api_url
+  # Skip API probe when GitLab is not provisioned yet or API resources are disabled.
+  early_auth_check = var.enable_gitlab_resources
 }

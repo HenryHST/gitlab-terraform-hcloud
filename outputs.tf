@@ -107,17 +107,17 @@ output "gitlab_docker_postgres_password" {
 
 output "gitlab_devops_group_id" {
   description = "GitLab group ID from gitlab.tf when enable_gitlab_resources is true"
-  value       = var.enable_gitlab_resources ? gitlab_group.devops_group[0].id : null
+  value       = var.enable_gitlab_resources ? module.gitlab_api[0].devops_group_id : null
 }
 
 output "gitlab_devops_project_id" {
   description = "GitLab devops project ID from gitlab.tf when enable_gitlab_resources is true"
-  value       = var.enable_gitlab_resources ? gitlab_project.devops[0].id : null
+  value       = var.enable_gitlab_resources ? module.gitlab_api[0].devops_project_id : null
 }
 
 output "gitlab_terraform_project_id" {
   description = "GitLab terraform project ID from gitlab.tf when enable_gitlab_resources is true"
-  value       = var.enable_gitlab_resources ? gitlab_project.terraform[0].id : null
+  value       = var.enable_gitlab_resources ? module.gitlab_api[0].terraform_project_id : null
 }
 
 output "gitlab_runner_ipv4" {

@@ -233,7 +233,7 @@ variable "gitlab_api_token" {
 }
 
 variable "gitlab_api_url" {
-  description = "GitLab API URL for the GitLab API"
+  description = "GitLab instance URL for the Terraform provider (self-hosted root URL, e.g. https://gitlab.cicd-showcase.de — not gitlab.com when GitLab runs on your server)"
   type        = string
   default     = "https://gitlab.com"
 
