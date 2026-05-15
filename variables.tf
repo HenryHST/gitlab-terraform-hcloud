@@ -87,20 +87,90 @@ variable "gitlab_docker_host_image" {
   description = "hcloud image slug for the main server when gitlab_install_mode is docker_compose (default debian-13)"
   type        = string
   default     = "debian-13"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]+([.-][a-z0-9]+)*$", var.gitlab_docker_host_image))
+    error_message = "gitlab_docker_host_image must be a valid Hetzner image slug (e.g. debian-13, ubuntu-24.04)."
+  }
+
+  validation {
+    condition     = var.gitlab_install_mode != "docker_compose" || length(trimspace(var.gitlab_docker_host_image)) > 0
+    error_message = "gitlab_docker_host_image must not be empty when gitlab_install_mode is docker_compose."
+  }
 }
 
 variable "gitlab_docker_traefik_image" {
   description = "Traefik container image (pin v3.7.x as required)"
   type        = string
   default     = "traefik:v3.7.1"
+
+  validation {
+    condition = can(regex(
+      "^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_traefik_image,
+    ))
+    error_message = "gitlab_docker_traefik_image must be a Docker image reference with a tag (e.g. traefik:v3.7.1)."
+  }
+
+  validation {
+    condition = var.gitlab_install_mode != "docker_compose" || can(regex(
+      "^([a-z0-9.-]+/)?traefik:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_traefik_image,
+    ))
+    error_message = "gitlab_docker_traefik_image must name the traefik image (repository traefik or …/traefik) when gitlab_install_mode is docker_compose."
+  }
 }
 
 variable "gitlab_docker_gitlab_ce_image" {
   description = "gitlab/gitlab-ce image tag for Docker Compose mode"
   type        = string
-  default     = "gitlab/gitlab-ce:17.7.0-ce.0"
+  default     = "gitlab/gitlab-ce:18.10.5-ce.0"
+
+  validation {
+    condition = can(regex(
+      "^gitlab/gitlab-ce:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_gitlab_ce_image,
+    ))
+    error_message = "gitlab_docker_gitlab_ce_image must be gitlab/gitlab-ce:<tag> (e.g. gitlab/gitlab-ce:18.10.5-ce.0)."
+  }
 }
 
+variable "gitlab_docker_postgres_image" {
+  description = "PostgreSQL container image for Docker Compose mode (pin major version, e.g. postgres:16-alpine)"
+  type        = string
+  default     = "postgres:16-alpine"
+
+  validation {
+    condition = can(regex(
+      "^postgres:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_postgres_image,
+    ))
+    error_message = "gitlab_docker_postgres_image must be postgres:<tag> (e.g. postgres:16-alpine)."
+  }
+}
+
+variable "gitlab_api_token" {
+  description = "GitLab API token for the GitLab API"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = var.gitlab_api_token == "" || (!can(regex("\\s", var.gitlab_api_token)) && length(var.gitlab_api_token) >= 8)
+    error_message = "gitlab_api_token must be empty or at least 8 characters without spaces."
+  }
+}
+
+variable "gitlab_api_url" {
+  description = "GitLab API URL for the GitLab API"
+  type        = string
+  default     = "https://gitlab.com"
+
+  validation {
+    condition     = can(regex("^https?://[^\\s/]+(/[^\\s]*)?$", var.gitlab_api_url))
+    error_message = "gitlab_api_url must be an http or https URL without spaces (e.g. https://gitlab.example.com)."
+  }
+}
 variable "gitlab_docker_traefik_acme_enabled" {
   description = "When gitlab_install_mode is docker_compose, enable Let's Encrypt on Traefik (HTTP-01 on port 80). Requires DNS A record pointing to this server."
   type        = bool

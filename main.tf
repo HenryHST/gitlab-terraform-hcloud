@@ -22,8 +22,10 @@ locals {
     var.gitlab_install_mode == "docker_compose" ? templatefile("${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl", {
       gitlab_fqdn          = local.gitlab_fqdn
       gitlab_root_password = random_password.gitlab_docker_root[0].result
+      postgres_password    = random_password.gitlab_docker_postgres[0].result
       traefik_image        = var.gitlab_docker_traefik_image
       gitlab_ce_image      = var.gitlab_docker_gitlab_ce_image
+      postgres_image       = var.gitlab_docker_postgres_image
       acme_enabled         = var.gitlab_docker_traefik_acme_enabled
       acme_email           = local.gitlab_letsencrypt_contact
       external_url_scheme  = local.gitlab_docker_external_url_scheme
@@ -51,6 +53,12 @@ locals {
 resource "random_password" "gitlab_docker_root" {
   count   = var.gitlab_install_mode == "docker_compose" ? 1 : 0
   length  = 24
+  special = false
+}
+
+resource "random_password" "gitlab_docker_postgres" {
+  count   = var.gitlab_install_mode == "docker_compose" ? 1 : 0
+  length  = 32
   special = false
 }
 

@@ -86,6 +86,12 @@ output "gitlab_docker_initial_root_password" {
   sensitive   = true
 }
 
+output "gitlab_docker_postgres_password" {
+  description = "PostgreSQL password for the GitLab application DB in docker_compose mode (stored in Terraform state and cloud-init user_data)."
+  value       = var.gitlab_install_mode == "docker_compose" ? random_password.gitlab_docker_postgres[0].result : null
+  sensitive   = true
+}
+
 output "gitlab_runner_ipv4" {
   description = "Public IPv4 of the GitLab Runner server when enable_gitlab_runner is true"
   value       = var.enable_gitlab_runner ? module.gitlab_runner[0].server_ipv4 : null
