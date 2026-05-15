@@ -23,6 +23,7 @@ locals {
     }) :
     var.gitlab_install_mode == "docker_compose" ? templatefile("${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl", {
       gitlab_fqdn          = local.gitlab_fqdn
+      hetzner_api_token    = var.hetzner_api_key
       renovate_fqdn        = local.renovate_fqdn
       gitlab_root_password = random_password.gitlab_docker_root[0].result
       postgres_password    = random_password.gitlab_docker_postgres[0].result

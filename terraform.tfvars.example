@@ -11,6 +11,7 @@ server_name  = "git04"
 server_type  = "cx23"
 location     = "fsn1"
 
+# docker_compose: written to /opt/gitlab/traefik/.env as HETZNER_API_TOKEN
 hetzner_api_key               = "your_hetzner_dns_api_key_here"
 traefik_dashboard_credentials = "admin:$$apr1$$hash$$here"
 

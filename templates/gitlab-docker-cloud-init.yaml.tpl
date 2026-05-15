@@ -6,38 +6,94 @@ write_files:
     permissions: "0644"
     content: |
       entryPoints:
+        ping:
+          address: ":88"
         web:
           address: ":80"
+%{ if acme_enabled ~}
+          http:
+            redirections:
+              entryPoint:
+                to: websecure
+                scheme: https
+%{ endif ~}
         websecure:
           address: ":443"
+%{ if acme_enabled ~}
+          http:
+            tls:
+              certResolver: hetzner
+%{ endif ~}
         traefik:
           address: ":8080"
       ping:
-        entryPoint: traefik
+        entryPoint: "ping"
+%{ if acme_enabled ~}
+      certificatesResolvers:
+        hetzner:
+          acme:
+            email: "${acme_email}"
+            storage: "/letsencrypt/acme_letsencrypt.json"
+            dnsChallenge:
+              provider: "hetzner"
+              resolvers:
+                - "helium.ns.hetzner.de"
+                - "oxygen.ns.hetzner.com"
+              delayBeforeCheck: 30s
+%{ endif ~}
       providers:
         docker:
           endpoint: "unix:///var/run/docker.sock"
           exposedByDefault: false
+          network: $${NETWORKS_PROXY_NAME:-proxy}
+          watch: true
         file:
           directory: /etc/traefik/dynamic_conf
           watch: true
+        providersThrottleDuration: 10s
+      global:
+        sendAnonymousUsage: false
+        checkNewVersion: true
       api:
         dashboard: false
-%{ if acme_enabled ~}
-      certificatesResolvers:
-        letsencrypt:
-          acme:
-            email: "${acme_email}"
-            storage: /letsencrypt/acme.json
-            httpChallenge:
-              entryPoint: web
-%{ endif ~}
+        insecure: false
+        debug: false
+      experimental:
+        plugins:
+          fail2ban:
+            moduleName: "github.com/tomMoulard/fail2ban"
+            version: "v0.8.9"
+          sablier:
+            moduleName: "github.com/sablierapp/sablier"
+            version: "v1.10.1"
+      metrics:
+        prometheus:
+          addRoutersLabels: true
+      log:
+        level: DEBUG
+        filePath: "/var/log/traefik/traefik.log"
+        format: json
+        maxSize: 10
+        maxBackups: 10
+        maxAge: 14
+      accessLog:
+        filePath: "/var/log/traefik/access.log"
+        format: common
+        bufferingSize: 50
+        fields:
+          defaultMode: keep
+      serversTransport:
+        insecureSkipVerify: true
 
   - path: /opt/gitlab/traefik/.env
     owner: root:root
     permissions: "0600"
     content: |
-      # Optional: SERVICES_TRAEFIK_* overrides (see docker-compose Traefik service)
+      ABSOLUTE_PATH=/opt/gitlab
+      TZ=Europe/Berlin
+      SERVICES_TRAEFIK_LABELS_TRAEFIK_HOST=HOST(`${gitlab_fqdn}`)
+      HETZNER_API_TOKEN=${hetzner_api_token}
+      ACME_EMAIL=${acme_email}
 
   - path: /opt/gitlab/traefik/dynamic_conf/.gitkeep
     owner: root:root
@@ -83,9 +139,6 @@ write_files:
             start_period: 10s
           image: ${traefik_image}
           networks:
-            crowdsec:
-              ipv4_address: $${SERVICES_TRAEFIK_NETWORKS_CROWDSEC_IPV4:-172.31.127.253}
-              ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_CROWDSEC_IPV6:-fd00:1:be:a:7001:0:3e:6ffe}
             proxy:
               ipv4_address: $${SERVICES_TRAEFIK_NETWORKS_PROXY_IPV4:-172.31.191.247}
               ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7fff}
@@ -94,7 +147,7 @@ write_files:
               ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffe}
           ports:
             - "80:80"
-            - "8080:8080"
+            # - "8080:8080"
             - "443:443"
           restart: unless-stopped
           security_opt:
@@ -119,7 +172,9 @@ write_files:
           volumes:
             - "postgres_data:/var/lib/postgresql/data"
           networks:
-            - proxy
+            socket_proxy:
+              ipv4_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.252}
+              ipv6_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffd}
           healthcheck:
             test: ["CMD-SHELL", "pg_isready -U gitlab -d gitlabhq_production"]
             interval: 5s
@@ -152,8 +207,12 @@ write_files:
             - "gitlab_config:/etc/gitlab"
             - "gitlab_logs:/var/log/gitlab"
             - "gitlab_data:/var/opt/gitlab"
+          ports:
+            - "2424:22"
           networks:
-            - proxy
+            proxy:
+              ipv4_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV4:-172.31.127.254}
+              ipv6_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:6ffe}
           labels:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
@@ -162,7 +221,7 @@ write_files:
             - "traefik.http.routers.gitlab.rule=Host(`${gitlab_fqdn}`)"
             - "traefik.http.routers.gitlab.entrypoints=websecure"
             - "traefik.http.routers.gitlab.tls=true"
-            - "traefik.http.routers.gitlab.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.gitlab.tls.certresolver=hetzner"
 %{ else ~}
             - "traefik.http.routers.gitlab.rule=Host(`${gitlab_fqdn}`)"
             - "traefik.http.routers.gitlab.entrypoints=web"
@@ -187,7 +246,9 @@ write_files:
             - renovate_db:/db
             - /etc/localtime:/etc/localtime:ro
           networks:
-            - proxy
+            proxy:
+              ipv4_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV4:-172.31.127.251}
+              ipv6_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:6fff}
           labels:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
@@ -196,7 +257,7 @@ write_files:
             - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
             - "traefik.http.routers.renovate.entrypoints=websecure"
             - "traefik.http.routers.renovate.tls=true"
-            - "traefik.http.routers.renovate.tls.certresolver=letsencrypt"
+            - "traefik.http.routers.renovate.tls.certresolver=hetzner"
 %{ else ~}
             - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
             - "traefik.http.routers.renovate.entrypoints=web"
