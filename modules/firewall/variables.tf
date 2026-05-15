@@ -8,6 +8,11 @@ variable "enable_ssh" {
   default     = true
   description = "Enable SSH access on port 22"
 }
+variable "enable_ssh_high" {
+  type        = bool
+  default     = true
+  description = "Enable SSH access on port 2424 (e.g. GitLab git/SSH via Docker 2424:22)"
+}
 
 variable "ssh_source_ips" {
   type        = list(string)

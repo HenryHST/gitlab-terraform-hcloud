@@ -4,7 +4,7 @@ This Terraform module creates a Hetzner Cloud Firewall with configurable rules f
 
 ## Features
 
-- Configurable standard rules (SSH, HTTP, HTTPS, DNS, ICMP, Node Exporter)
+- Configurable standard rules (SSH 22, SSH/GitLab 2424, HTTP, HTTPS, DNS, ICMP, Node Exporter)
 - Custom rules support for additional firewall rules
 - Configurable source IPs for each rule
 - IPv4 and IPv6 support
@@ -62,7 +62,8 @@ module "firewall" {
 | -------------------------- | -------------- | ----------------------- | -------- | ------------------------------------------- |
 | `firewall_name`            | `string`       | -                       | yes      | Name of the firewall                        |
 | `enable_ssh`               | `bool`         | `true`                  | no       | Enable SSH access on port 22                |
-| `ssh_source_ips`           | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for SSH access           |
+| `enable_ssh_high`          | `bool`         | `true`                  | no       | Enable TCP port 2424 (e.g. GitLab `2424:22`) |
+| `ssh_source_ips`           | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for SSH and port 2424    |
 | `enable_http`              | `bool`         | `true`                  | no       | Enable HTTP access on port 80               |
 | `http_source_ips`          | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for HTTP access          |
 | `enable_https`             | `bool`         | `true`                  | no       | Enable HTTPS access on port 443             |
@@ -102,6 +103,7 @@ The `custom_rules` variable accepts a list of objects with the following structu
 By default, the module creates the following firewall rules:
 
 - **SSH** (TCP port 22) - Allowed from all IPs
+- **SSH / GitLab** (TCP port 2424) - Allowed from same IPs as SSH when `enable_ssh_high` is true
 - **HTTP** (TCP port 80) - Allowed from all IPs
 - **HTTPS** (TCP port 443) - Allowed from all IPs
 - **DNS** (TCP/UDP port 53) - Allowed from all IPs

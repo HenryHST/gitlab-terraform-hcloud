@@ -95,10 +95,91 @@ write_files:
       HETZNER_API_TOKEN=${hetzner_api_token}
       ACME_EMAIL=${acme_email}
 
-  - path: /opt/gitlab/traefik/dynamic_conf/.gitkeep
+  - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.gzip.yml
     owner: root:root
     permissions: "0644"
-    content: "#\n"
+    content: |
+      http:
+        middlewares:
+          gzip:
+            compress: {}
+
+  - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.fail2ban.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      http:
+        middlewares:
+          fail2ban:
+            plugin:
+              fail2ban:
+                allowlist:
+                  ip: ::1,127.0.0.1
+                denylist:
+                  ip: 192.168.10.0/24
+                rules:
+                  bantime: 3h
+                  enabled: "false"
+                  findtime: 10m
+                  maxretry: "4"
+                  statuscode: 400,401,403-499
+
+  - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.default-security-headers.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      http:
+        middlewares:
+          default-security-headers:
+            headers:
+              browserXssFilter: true
+              contentTypeNosniff: true
+              forceSTSHeader: true
+              frameDeny: true
+              stsIncludeSubdomains: true
+              stsPreload: true
+              stsSeconds: 31536000
+              customFrameOptionsValue: "SAMEORIGIN"
+              customResponseHeaders:
+                Referrer-Policy: "strict-origin-when-cross-origin"
+                Content-Security-Policy: "frame-ancestors 'self';"
+                Permissions-Policy: "geolocation=(), microphone=(), camera=()"
+
+  - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.default.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      http:
+        middlewares:
+          default:
+            chain:
+              middlewares:
+                - default-security-headers
+                - gzip
+                - fail2ban
+
+  - path: /opt/gitlab/traefik/dynamic_conf/tls.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      tls:
+        options:
+          default:
+            minVersion: VersionTLS12
+            cipherSuites:
+              - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+              - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+              - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+              - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+              - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
+              - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+              - TLS_AES_128_GCM_SHA256
+              - TLS_AES_256_GCM_SHA384
+              - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+            curvePreferences:
+              - CurveP521
+              - CurveP384
+            sniStrict: true
 %{ if renovate_enabled ~}
   - path: /opt/gitlab/renovate/mend-renovate.env
     owner: root:root
@@ -158,7 +239,7 @@ write_files:
             - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
             - ./traefik/dynamic_conf:/etc/traefik/dynamic_conf:ro
             - traefik_acme:/letsencrypt
-            - traefik_logs:/var/log/traefik
+            - /var/log/traefik:/var/log/traefik
           command:
             - "--configFile=/etc/traefik/traefik.yml"
 
@@ -211,8 +292,9 @@ write_files:
             - "2424:22"
           networks:
             proxy:
-              ipv4_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV4:-172.31.127.254}
-              ipv6_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:6ffe}
+              ipv4_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV4:-172.31.129.254}
+              ipv6_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffe}
+            socket_proxy:
           labels:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
@@ -222,10 +304,12 @@ write_files:
             - "traefik.http.routers.gitlab.entrypoints=websecure"
             - "traefik.http.routers.gitlab.tls=true"
             - "traefik.http.routers.gitlab.tls.certresolver=hetzner"
+            - "traefik.http.routers.gitlab.tls.options=default@file"
 %{ else ~}
             - "traefik.http.routers.gitlab.rule=Host(`${gitlab_fqdn}`)"
             - "traefik.http.routers.gitlab.entrypoints=web"
 %{ endif ~}
+            - "traefik.http.routers.gitlab.middlewares=default@file"
 %{ if renovate_enabled ~}
 
         renovate-ce:
@@ -247,8 +331,8 @@ write_files:
             - /etc/localtime:/etc/localtime:ro
           networks:
             proxy:
-              ipv4_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV4:-172.31.127.251}
-              ipv6_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:6fff}
+              ipv4_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV4:-172.31.129.251}
+              ipv6_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffd}
           labels:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
@@ -258,10 +342,12 @@ write_files:
             - "traefik.http.routers.renovate.entrypoints=websecure"
             - "traefik.http.routers.renovate.tls=true"
             - "traefik.http.routers.renovate.tls.certresolver=hetzner"
+            - "traefik.http.routers.renovate.tls.options=default@file"
 %{ else ~}
             - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
             - "traefik.http.routers.renovate.entrypoints=web"
 %{ endif ~}
+            - "traefik.http.routers.renovate.middlewares=default@file"
 %{ endif ~}
 
       networks:
@@ -303,7 +389,6 @@ write_files:
         gitlab_logs:
         gitlab_data:
         traefik_acme:
-        traefik_logs:
         renovate_logs:
         renovate_db:
 

@@ -132,6 +132,7 @@ module "firewall_runner" {
   enable_dns           = false
   enable_node_exporter = false
   enable_icmp          = true
+  enable_ssh_high      = false
 }
 
 module "gitlab_runner" {

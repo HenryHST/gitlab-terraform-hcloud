@@ -12,6 +12,17 @@ resource "hcloud_firewall" "main" {
     }
   }
 
+  # GitLab / alternate SSH (host port 2424 → container 22)
+  dynamic "rule" {
+    for_each = var.enable_ssh_high ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "2424"
+      source_ips = var.ssh_source_ips
+    }
+  }
+
   # HTTP
   dynamic "rule" {
     for_each = var.enable_http ? [1] : []

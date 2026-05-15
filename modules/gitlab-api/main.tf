@@ -1,11 +1,11 @@
 resource "gitlab_group" "devops_group" {
   provider = gitlab
-  path = "devops"
-  name = "DevOps"
+  path     = "devops"
+  name     = "DevOps"
 }
 
 resource "gitlab_project" "devops" {
-  provider = gitlab
+  provider         = gitlab
   name             = "devops"
   description      = "DevOps Project"
   visibility_level = "public"
@@ -13,7 +13,7 @@ resource "gitlab_project" "devops" {
 }
 
 resource "gitlab_project" "terraform" {
-  provider = gitlab
+  provider         = gitlab
   name             = "terraform"
   description      = "Terraform Project"
   visibility_level = "public"
@@ -27,7 +27,7 @@ resource "gitlab_user" "renovate_bot" {
 }
 
 resource "gitlab_group_membership" "renovate_bot" {
-  provider = gitlab
+  provider     = gitlab
   group_id     = gitlab_group.devops_group.id
   user_id      = gitlab_user.renovate_bot.id
   access_level = "maintainer"

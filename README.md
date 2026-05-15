@@ -62,7 +62,7 @@ Optional (nur bei `enable_gitlab_resources = true`): [`gitlab.tf`](gitlab.tf) nu
 
 | Modul / Ressource | Inhalt (Kurz) |
 |--------|----------------|
-| [`modules/firewall`](modules/firewall) | `hcloud_firewall`: u. a. SSH 22, HTTP 80, HTTPS 443, DNS 53 (TCP/UDP), optional Node Exporter, ICMP; Quell-IPs standardmäßig weltweit konfigurierbar. |
+| [`modules/firewall`](modules/firewall) | `hcloud_firewall`: u. a. SSH 22, **TCP 2424** (GitLab Git/SSH bei `docker_compose`, Host `2424:22`), HTTP 80, HTTPS 443, DNS 53 (TCP/UDP), optional Node Exporter, ICMP; Quell-IPs standardmäßig weltweit konfigurierbar (`enable_ssh_high`, default `true`). |
 | [`modules/server`](modules/server) | `hcloud_ssh_key`, `hcloud_server` (Image z. B. Ubuntu 24.04, `gitlab` bei `hetzner_app`, oder `gitlab_docker_host_image` bei `docker_compose` im Root), Firewall-IDs, optional `hcloud_rdns`, optional `user_data` (Cloud-Init für GitLab oder Runner). |
 | [`modules/dns`](modules/dns) | `hcloud_zone` (primary) und Records: Web-A-Record, Mail-A/AAAA/MX, Autoconfig/Autodiscover, DMARC/DKIM/SPF, CAA, TLSA, SRV. |
 | `module.firewall_runner` + `module.gitlab_runner` + `hcloud_zone_record.gitlab_runner` | Nur bei `enable_gitlab_runner = true`: minimale Firewall (SSH, ICMP), **cpx22**-Server, A-Record **`<gitlab_runner_dns_label>.<zone>`** (Standard: `runner05.<zone>`). |
@@ -326,7 +326,7 @@ flowchart TD
 
 ## Module im Detail
 
-- **Firewall** ([`modules/firewall`](modules/firewall)): Regeln per Variablen im Modul schaltbar; für Restriktionen z. B. `ssh_source_ips` im Modulaufruf erweitern (aktuell nutzt der Root nur `firewall_name`).
+- **Firewall** ([`modules/firewall`](modules/firewall)): Regeln per Variablen im Modul schaltbar (SSH 22, optional **2424** via `enable_ssh_high`, HTTP/HTTPS, …); für Restriktionen z. B. `ssh_source_ips` im Modulaufruf erweitern (aktuell nutzt der Root nur `firewall_name`). Runner-Firewall: `enable_ssh_high = false`.
 - **Server** ([`modules/server`](modules/server)): Vollständigere Modul-Doku in [`modules/server/README.md`](modules/server/README.md). Im **Root** setzt Cloud-Init **`user_data`** bei `gitlab_install_mode` `hetzner_app` oder `docker_compose` (jeweils eigenes Template), sonst leer.
 - **DNS** ([`modules/dns`](modules/dns)): Zone + Records; DKIM-Längen >255 werden automatisch gesplittet.
 
