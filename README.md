@@ -1,8 +1,10 @@
 # gitlab-terraform-hcloud
 
-Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du GitLab: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (GitLab CE + Traefik, `docker_compose`). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
+Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du die **GitLab-Plattform auf dem Server**: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (GitLab CE + Traefik + PostgreSQL, `docker_compose`). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
 
-Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs) (siehe [`provider.tf`](provider.tf)).
+Unabhängig davon kann **`enable_gitlab_resources`** Gruppen und Projekte per **GitLab-API** in [`gitlab.tf`](gitlab.tf) anlegen (Provider [`gitlabhq/gitlab`](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs)).
+
+Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs), [`hashicorp/random`](https://registry.terraform.io/providers/hashicorp/random/latest/docs), [`gitlabhq/gitlab`](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs) (siehe [`provider.tf`](provider.tf)).
 
 ## Inhaltsverzeichnis
 
@@ -15,6 +17,7 @@ Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetzne
   - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
 - [Outputs](#outputs)
 - [GitLab-Installationsmodi](#gitlab-installationsmodi)
+- [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
 - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
 - [Module im Detail](#module-im-detail)
 - [Sicherheit und Betrieb](#sicherheit-und-betrieb)
@@ -43,12 +46,15 @@ flowchart LR
   DNS -->|zone_name| AR
   RUN -->|IPv4| AR
   HCAPI[Hetzner_Cloud_API]
+  GLAPI[GitLab_API]
   FW --> HCAPI
   SRV --> HCAPI
   DNS --> HCAPI
   FWR --> HCAPI
   RUN --> HCAPI
 ```
+
+Optional (nur bei `enable_gitlab_resources = true`): [`gitlab.tf`](gitlab.tf) nutzt die **GitLab-API** (`gitlab_group`, `gitlab_project`) — unabhängig von `gitlab_install_mode`.
 
 | Modul / Ressource | Inhalt (Kurz) |
 |--------|----------------|
@@ -57,9 +63,13 @@ flowchart LR
 | [`modules/dns`](modules/dns) | `hcloud_zone` (primary) und Records: Web-A-Record, Mail-A/AAAA/MX, Autoconfig/Autodiscover, DMARC/DKIM/SPF, CAA, TLSA, SRV. |
 | `module.firewall_runner` + `module.gitlab_runner` + `hcloud_zone_record.gitlab_runner` | Nur bei `enable_gitlab_runner = true`: minimale Firewall (SSH, ICMP), **cpx22**-Server, A-Record **`<gitlab_runner_dns_label>.<zone>`** (Standard: `runner05.<zone>`). |
 
-### Zwei `hcloud`-Provider
+### Provider
 
-In [`provider.tf`](provider.tf) gibt es den Standard-Provider `hcloud` und einen zweiten Block mit **`alias = "dns"`** (gleiches Token). Das DNS-Modul setzt `providers = { hcloud.dns = hcloud.dns }`, damit DNS-Ressourcen explizit über diesen Alias laufen (u. a. für klare Zuordnung und State-Kompatibilität).
+In [`provider.tf`](provider.tf):
+
+- **`hcloud`** (Standard) und **`hcloud.dns`** (Alias, gleiches Token): Server, Firewall, DNS (`providers = { hcloud.dns = hcloud.dns }` im DNS-Modul).
+- **`gitlab`**: `token = var.gitlab_api_token`, `base_url = var.gitlab_api_url`. Wird nur für Ressourcen in [`gitlab.tf`](gitlab.tf) benötigt, wenn **`enable_gitlab_resources = true`**.
+- **`random`**: Passwörter für `docker_compose` (`gitlab_docker_root`, `gitlab_docker_postgres`).
 
 ## Voraussetzungen
 
@@ -67,6 +77,7 @@ In [`provider.tf`](provider.tf) gibt es den Standard-Provider `hcloud` und einen
 - Hetzner Cloud **API-Token** mit passenden Rechten (Server, Firewalls, SSH-Keys, DNS je nach Nutzung)
 - Öffentlicher **SSH-Schlüssel** für den Root-Zugang auf dem Server
 - Für DNS: Domain, die du in Hetzner DNS verwalten willst (Zonenname = Variable `domain_cicd_showcase_de` bzw. dein Override)
+- Für **`enable_gitlab_resources = true`**: GitLab-Instanz erreichbar unter **`gitlab_api_url`**, **Personal/Project Access Token** mit Rechten zum Anlegen von Gruppen und Projekten (`gitlab_api_token`)
 
 ## Schnellstart
 
@@ -114,6 +125,9 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.10.5-ce.0` | GitLab-CE-Image-Tag in `docker_compose` |
 | `gitlab_docker_postgres_image` | `postgres:16-alpine` | PostgreSQL-Container-Image (Version wie bei Traefik pinnen, z. B. `postgres:17`) |
 | `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (HTTP-01); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail wie Omnibus über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
+| `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_token`** |
+| `gitlab_api_token` | `""` | GitLab API-Token (sensitiv); Pflicht bei `enable_gitlab_resources = true` (min. 8 Zeichen, keine Leerzeichen) |
+| `gitlab_api_url` | `https://gitlab.com` | Basis-URL der GitLab-Instanz für den Provider (`https://gitlab.example.com` bei Self-Hosted) |
 | `server_image` | `ubuntu-24.04` | Nur bei `gitlab_install_mode = none` (Hetzner-Image-Slug) |
 | `gitlab_dns_record_name` | `gitlab` | Relativer A-Record bei GitLab: FQDN = `<name>.<zone>` |
 | `gitlab_letsencrypt_email` | leer | ACME-Kontakt; leer → `gitlab-acme@<zone>` (nur relevant, wenn LE aktiv) |
@@ -162,6 +176,9 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_fqdn` | FQDN des GitLab-A-Records oder `null` |
 | `gitlab_docker_initial_root_password` | Nur `docker_compose`: initiales `root`-Passwort (sensitiv; liegt im **Terraform State**) |
 | `gitlab_docker_postgres_password` | Nur `docker_compose`: Passwort des DB-Users `gitlab` (sensitiv; State + `user_data`) |
+| `gitlab_devops_group_id` | Nur `enable_gitlab_resources`: ID der Gruppe `devops` oder `null` |
+| `gitlab_devops_project_id` | Nur `enable_gitlab_resources`: ID des Projekts `devops` (in der Gruppe) oder `null` |
+| `gitlab_terraform_project_id` | Nur `enable_gitlab_resources`: ID des Projekts `terraform` (User-Namespace) oder `null` |
 | `gitlab_runner_ipv4` | Öffentliche IPv4 der Runner-VM oder `null` |
 | `gitlab_runner_fqdn` | FQDN des Runner-A-Records oder `null` |
 | `gitlab_runner_ssh_connection` | `ssh root@<runner_ipv4>` oder `null` |
@@ -197,6 +214,32 @@ Wenn `gitlab_install_mode = "docker_compose"`:
 - **PostgreSQL-App-Passwort:** ebenfalls `random_password`, Output **`gitlab_docker_postgres_password`** (sensitiv; State und `user_data`).
 - DNS/PTR: wie bei `hetzner_app` (A-Record `gitlab_dns_record_name`, PTR auf `gitlab_fqdn`).
 
+## GitLab-Provider-Ressourcen (`gitlab.tf`)
+
+Steuerung über **`enable_gitlab_resources`** (Default: `false`). Das ist **unabhängig** von **`gitlab_install_mode`**: Du kannst z. B. nur Infrastruktur provisionieren, nur API-Ressourcen anlegen, oder beides kombinieren (Self-Hosted GitLab auf Hetzner + Projekte per Terraform).
+
+Wenn **`enable_gitlab_resources = true`**:
+
+| Ressource | Inhalt |
+|-----------|--------|
+| `gitlab_group.devops_group` | Gruppe mit Pfad `devops`, Name `DevOps` |
+| `gitlab_project.devops` | Projekt `devops` in der Gruppe (`namespace_id`), `visibility_level = public` |
+| `gitlab_project.terraform` | Projekt `terraform` im User-Namespace, `visibility_level = public` |
+
+**Konfiguration** in `terraform.tfvars` (Beispiel):
+
+```hcl
+enable_gitlab_resources = true
+gitlab_api_url          = "https://gitlab.example.com"  # oder https://gitlab.com
+gitlab_api_token        = "glpat-…"                     # nicht committen
+```
+
+**Validierung** ([`variables.tf`](variables.tf)): Ohne `enable_gitlab_resources` darf `gitlab_api_token` leer sein; mit `true` ist ein Token mit mindestens 8 Zeichen Pflicht. Image-Variablen für `docker_compose` haben Format-Checks (Hetzner-Slug, `traefik:…`, `gitlab/gitlab-ce:…`, `postgres:…`).
+
+**Outputs:** `gitlab_devops_group_id`, `gitlab_devops_project_id`, `gitlab_terraform_project_id` (siehe [Outputs](#outputs)).
+
+**Hinweis:** Der GitLab-Provider (v18) nutzt `visibility_level` statt `visibility`. Projekte in Gruppen werden über `namespace_id` zugeordnet.
+
 ## GitLab Runner (optionale zweite VM)
 
 Wenn `enable_gitlab_runner = true`:
@@ -230,7 +273,7 @@ flowchart TD
 ## Sicherheit und Betrieb
 
 - **Firewall:** Standard im Modul erlaubt typischerweise Zugriff von `0.0.0.0/0` und `::/0` auf die genannten Ports. Für Produktion Quell-IP-Listen einschränken oder `custom_rules` gezielt nutzen.
-- **Token:** `hcloud_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren.
+- **Token:** `hcloud_token`, `gitlab_api_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren. Bei `docker_compose` liegen initiale Passwörter zusätzlich im **Terraform State** (Outputs sensitiv).
 - **PTR/rDNS:** Wenn `gitlab_install_mode` **nicht** `none`, zeigt PTR auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de`. Bei HTTPS (Omnibus-LE oder Traefik-ACME) sollte der Hostname zum Zertifikat passen.
 - **Mail/DNS:** Über die Variablen **`mail_server_ipv4`**, **`mail_server_ipv6`**, **`mail_server_cname_target`**, **`dns_tlsa_name`** (und bestehende MX/SPF/DMARC/…) an die eigene Infrastruktur anpassen.
 
@@ -258,8 +301,10 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 1. **Variablen ohne Modul-Anbindung im Root:** `github_repo`, `hetzner_api_key`, `traefik_dashboard_credentials` und `ssh_private_key_path` werden in **`main.tf` nicht** an Module übergeben. `site_url` wird nur für den Output `website_url` gelesen, ebenfalls ohne Modulbezug. `terraform apply` verlangt dennoch Werte für alle Variablen **ohne** Default (`hetzner_api_key`, `traefik_dashboard_credentials`). Du kannst Platzhalter setzen, bis Cloud-Init o. Ä. angebunden ist – oder die Variablen später in Terraform bereinigen.
 2. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
 3. **Beispiel-Konfiguration:** [`terraform.tfvars.example`](terraform.tfvars.example) als Vorlage für `terraform.tfvars` (ohne echte Secrets).
+4. **Zwei GitLab-Schalter:** `gitlab_install_mode` betrifft nur Hetzner-Server/Cloud-Init/DNS; `enable_gitlab_resources` betrifft nur [`gitlab.tf`](gitlab.tf). Ein Token für den Runner-Register-Flow ist davon getrennt (manuell in der UI).
 
 ## Weiterführende Links
 
 - [Hetzner Cloud Terraform Provider (Registry)](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs)
+- [GitLab Terraform Provider (Registry)](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs)
 - [Hetzner Dokumentation](https://docs.hetzner.com/)

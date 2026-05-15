@@ -149,8 +149,14 @@ variable "gitlab_docker_postgres_image" {
   }
 }
 
+variable "enable_gitlab_resources" {
+  description = "If true, create GitLab provider resources in gitlab.tf (groups, projects). Requires gitlab_api_token."
+  type        = bool
+  default     = false
+}
+
 variable "gitlab_api_token" {
-  description = "GitLab API token for the GitLab API"
+  description = "GitLab API token for the GitLab provider (required when enable_gitlab_resources is true)"
   type        = string
   sensitive   = true
   default     = ""
@@ -158,6 +164,11 @@ variable "gitlab_api_token" {
   validation {
     condition     = var.gitlab_api_token == "" || (!can(regex("\\s", var.gitlab_api_token)) && length(var.gitlab_api_token) >= 8)
     error_message = "gitlab_api_token must be empty or at least 8 characters without spaces."
+  }
+
+  validation {
+    condition     = !var.enable_gitlab_resources || length(trimspace(var.gitlab_api_token)) >= 8
+    error_message = "gitlab_api_token is required when enable_gitlab_resources is true."
   }
 }
 

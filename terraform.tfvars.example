@@ -35,4 +35,7 @@ contact_value = "mailto:info@example.com"
 
 gitlab_letsencrypt_enabled = false
 gitlab_install_mode        = "none"
-enable_gitlab_runner       = false
+enable_gitlab_runner    = false
+enable_gitlab_resources = false
+# gitlab_api_token   = "…"   # required when enable_gitlab_resources = true
+gitlab_api_url          = "https://gitlab.com"

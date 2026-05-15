@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.6"
     }
+    gitlab = {
+      source  = "gitlabhq/gitlab"
+      version = "18.11.0"
+    }
   }
 }
 
@@ -22,4 +26,8 @@ provider "hcloud" {
 provider "hcloud" {
   alias = "dns"
   token = var.hcloud_token
+}
+provider "gitlab" {
+  token    = var.gitlab_api_token
+  base_url = var.gitlab_api_url
 }
