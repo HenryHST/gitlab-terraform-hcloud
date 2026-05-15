@@ -35,6 +35,10 @@ contact_value = "mailto:info@example.com"
 
 gitlab_letsencrypt_enabled = false
 gitlab_install_mode        = "none"
+# gitlab_docker_renovate_enabled   = false
+# gitlab_docker_renovate_ce_image  = "ghcr.io/mend/renovate-ce:9.1.0"
+# gitlab_docker_renovate_license_key = "…"  # Mend CE license
+# gitlab_docker_renovate_gitlab_pat  = "glpat-…"
 enable_gitlab_runner    = false
 enable_gitlab_resources = false
 # gitlab_api_token   = "…"   # required when enable_gitlab_resources = true

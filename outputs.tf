@@ -80,6 +80,19 @@ output "gitlab_fqdn" {
   value       = local.gitlab_enabled ? local.gitlab_fqdn : null
 }
 
+output "renovate_fqdn" {
+  description = "Renovate CE hostname when docker_compose and gitlab_docker_renovate_enabled"
+  value = (
+    var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? local.renovate_fqdn : null
+  )
+}
+
+output "gitlab_docker_renovate_webhook_secret" {
+  description = "Webhook secret for Renovate CE and GitLab project hooks (sensitive; in Terraform state)"
+  value       = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : null
+  sensitive   = true
+}
+
 output "gitlab_docker_initial_root_password" {
   description = "Initial GitLab root password in docker_compose mode (stored in Terraform state; rotate after first login)."
   value       = var.gitlab_install_mode == "docker_compose" ? random_password.gitlab_docker_root[0].result : null

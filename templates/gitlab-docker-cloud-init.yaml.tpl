@@ -43,6 +43,27 @@ write_files:
     owner: root:root
     permissions: "0644"
     content: "#\n"
+%{ if renovate_enabled ~}
+  - path: /opt/gitlab/renovate/mend-renovate.env
+    owner: root:root
+    permissions: "0600"
+    content: |
+      MEND_RNV_LICENSE_KEY=${renovate_license_key}
+      MEND_RNV_ACCEPT_TOS=Y
+      MEND_RNV_SERVER_API_SECRET=${renovate_server_api_secret}
+      MEND_RNV_ADMIN_API_ENABLED=true
+      MEND_RNV_REPORTING_ENABLED=true
+      MEND_RNV_WEBHOOK_URL=${external_url_scheme}://${renovate_fqdn}/webhook
+
+  - path: /opt/gitlab/renovate/gitlab.env
+    owner: root:root
+    permissions: "0600"
+    content: |
+      MEND_RNV_PLATFORM=gitlab
+      MEND_RNV_ENDPOINT=${gitlab_api_v4_endpoint}
+      MEND_RNV_GITLAB_PAT=${renovate_gitlab_pat}
+      MEND_RNV_WEBHOOK_SECRET=${renovate_webhook_secret}
+%{ endif ~}
 
   - path: /opt/gitlab/docker-compose.yml
     owner: root:root
@@ -146,6 +167,41 @@ write_files:
             - "traefik.http.routers.gitlab.rule=Host(`${gitlab_fqdn}`)"
             - "traefik.http.routers.gitlab.entrypoints=web"
 %{ endif ~}
+%{ if renovate_enabled ~}
+
+        renovate-ce:
+          container_name: $${SERVICES_RENOVATE_CONTAINER_NAME:-renovate-ce}
+          image: ${renovate_ce_image}
+          restart: unless-stopped
+          env_file:
+            - ./renovate/mend-renovate.env
+            - ./renovate/gitlab.env
+          environment:
+            LOG_LEVEL: info
+            MEND_RNV_REQUEST_LOGGER_ENABLED: "false"
+            MEND_RNV_LOG_HISTORY_DIR: /logs
+            MEND_RNV_SQLITE_FILE_PATH: /db/renovate-db.sqlite
+            RENOVATE_REPOSITORY_CACHE: enabled
+          volumes:
+            - renovate_logs:/logs
+            - renovate_db:/db
+            - /etc/localtime:/etc/localtime:ro
+          networks:
+            - proxy
+          labels:
+            - "traefik.enable=true"
+            - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
+            - "traefik.http.services.renovate.loadbalancer.server.port=8080"
+%{ if acme_enabled ~}
+            - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
+            - "traefik.http.routers.renovate.entrypoints=websecure"
+            - "traefik.http.routers.renovate.tls=true"
+            - "traefik.http.routers.renovate.tls.certresolver=letsencrypt"
+%{ else ~}
+            - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
+            - "traefik.http.routers.renovate.entrypoints=web"
+%{ endif ~}
+%{ endif ~}
 
       networks:
         crowdsec:
@@ -187,6 +243,8 @@ write_files:
         gitlab_data:
         traefik_acme:
         traefik_logs:
+        renovate_logs:
+        renovate_db:
 
 runcmd:
   - |
@@ -202,6 +260,9 @@ runcmd:
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
+%{ if renovate_enabled ~}
+    install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db
+%{ endif ~}
     cd /opt/gitlab
     docker compose pull
     docker compose up -d

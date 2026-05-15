@@ -1,7 +1,11 @@
 locals {
   gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.domain_cicd_showcase_de}"
+  renovate_fqdn              = "${var.gitlab_docker_renovate_dns_label}.${var.domain_cicd_showcase_de}"
   gitlab_enabled             = var.gitlab_install_mode != "none"
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
+
+  gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
+  gitlab_api_v4_endpoint            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/api/v4/"
 
   # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
   server_image_effective = (
@@ -9,8 +13,6 @@ locals {
     var.gitlab_install_mode == "docker_compose" ? coalesce(var.gitlab_docker_host_image, "debian-13") :
     var.server_image
   )
-
-  gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
 
   gitlab_user_data = (
     var.gitlab_install_mode == "hetzner_app" ? templatefile("${path.module}/templates/gitlab-cloud-init.yaml.tpl", {
@@ -21,6 +23,7 @@ locals {
     }) :
     var.gitlab_install_mode == "docker_compose" ? templatefile("${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl", {
       gitlab_fqdn          = local.gitlab_fqdn
+      renovate_fqdn        = local.renovate_fqdn
       gitlab_root_password = random_password.gitlab_docker_root[0].result
       postgres_password    = random_password.gitlab_docker_postgres[0].result
       traefik_image        = var.gitlab_docker_traefik_image
@@ -29,6 +32,17 @@ locals {
       acme_enabled         = var.gitlab_docker_traefik_acme_enabled
       acme_email           = local.gitlab_letsencrypt_contact
       external_url_scheme  = local.gitlab_docker_external_url_scheme
+      renovate_enabled     = var.gitlab_docker_renovate_enabled
+      renovate_ce_image    = var.gitlab_docker_renovate_ce_image
+      renovate_license_key = var.gitlab_docker_renovate_license_key
+      renovate_gitlab_pat  = var.gitlab_docker_renovate_gitlab_pat
+      renovate_webhook_secret = (
+        var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : ""
+      )
+      renovate_server_api_secret = (
+        var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
+      )
+      gitlab_api_v4_endpoint = local.gitlab_api_v4_endpoint
     }) : ""
   )
 
@@ -58,6 +72,18 @@ resource "random_password" "gitlab_docker_root" {
 
 resource "random_password" "gitlab_docker_postgres" {
   count   = var.gitlab_install_mode == "docker_compose" ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "random_password" "gitlab_renovate_webhook" {
+  count   = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? 1 : 0
+  length  = 32
+  special = false
+}
+
+resource "random_password" "gitlab_renovate_server_api" {
+  count   = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? 1 : 0
   length  = 32
   special = false
 }
@@ -178,6 +204,15 @@ resource "hcloud_zone_record" "gitlab_runner" {
   name     = var.gitlab_runner_dns_label
   type     = "A"
   value    = module.gitlab_runner[0].server_ipv4
+}
+
+resource "hcloud_zone_record" "renovate" {
+  count    = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled && local.gitlab_enabled ? 1 : 0
+  provider = hcloud.dns
+  zone     = module.dns.zone_name
+  name     = var.gitlab_docker_renovate_dns_label
+  type     = "A"
+  value    = module.server.server_ipv4
 }
 
 check "ssh_public_key_configured" {

@@ -1,6 +1,6 @@
 # gitlab-terraform-hcloud
 
-Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du die **GitLab-Plattform auf dem Server**: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (GitLab CE + Traefik + PostgreSQL, `docker_compose`). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
+Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du die **GitLab-Plattform auf dem Server**: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (`docker_compose`: GitLab CE, Traefik, PostgreSQL, optional **Mend Renovate CE**). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
 
 Unabhängig davon kann **`enable_gitlab_resources`** Gruppen und Projekte per **GitLab-API** in [`gitlab.tf`](gitlab.tf) anlegen (Provider [`gitlabhq/gitlab`](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs)).
 
@@ -9,7 +9,7 @@ Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetzne
 ## Inhaltsverzeichnis
 
 - [Architektur](#architektur)
-  - [Zwei `hcloud`-Provider](#zwei-hcloud-provider)
+  - [Provider](#provider)
 - [Voraussetzungen](#voraussetzungen)
 - [Schnellstart](#schnellstart)
 - [Variablen (Root)](#variablen-root)
@@ -17,6 +17,7 @@ Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetzne
   - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
 - [Outputs](#outputs)
 - [GitLab-Installationsmodi](#gitlab-installationsmodi)
+  - [Renovate CE (`docker_compose`)](#renovate-ce-docker_compose)
 - [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
 - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
 - [Module im Detail](#module-im-detail)
@@ -39,11 +40,14 @@ flowchart LR
     FWR[module.firewall_runner]
     RUN[module.gitlab_runner]
     AR[hcloud_zone_record_runner]
+    RNV[hcloud_zone_record_renovate]
   end
   FW -->|firewall_ids| SRV
   SRV -->|server_ipv4| DNS
+  SRV -->|IPv4| RNV
   FWR -->|firewall_ids| RUN
   DNS -->|zone_name| AR
+  DNS -->|zone_name| RNV
   RUN -->|IPv4| AR
   HCAPI[Hetzner_Cloud_API]
   GLAPI[GitLab_API]
@@ -62,6 +66,7 @@ Optional (nur bei `enable_gitlab_resources = true`): [`gitlab.tf`](gitlab.tf) nu
 | [`modules/server`](modules/server) | `hcloud_ssh_key`, `hcloud_server` (Image z. B. Ubuntu 24.04, `gitlab` bei `hetzner_app`, oder `gitlab_docker_host_image` bei `docker_compose` im Root), Firewall-IDs, optional `hcloud_rdns`, optional `user_data` (Cloud-Init für GitLab oder Runner). |
 | [`modules/dns`](modules/dns) | `hcloud_zone` (primary) und Records: Web-A-Record, Mail-A/AAAA/MX, Autoconfig/Autodiscover, DMARC/DKIM/SPF, CAA, TLSA, SRV. |
 | `module.firewall_runner` + `module.gitlab_runner` + `hcloud_zone_record.gitlab_runner` | Nur bei `enable_gitlab_runner = true`: minimale Firewall (SSH, ICMP), **cpx22**-Server, A-Record **`<gitlab_runner_dns_label>.<zone>`** (Standard: `runner05.<zone>`). |
+| `hcloud_zone_record.renovate` | Nur bei `docker_compose` + **`gitlab_docker_renovate_enabled`**: A-Record **`<gitlab_docker_renovate_dns_label>.<zone>`** (Standard: `renovate.<zone>`) → gleiche Server-IPv4 wie GitLab. |
 
 ### Provider
 
@@ -69,7 +74,7 @@ In [`provider.tf`](provider.tf):
 
 - **`hcloud`** (Standard) und **`hcloud.dns`** (Alias, gleiches Token): Server, Firewall, DNS (`providers = { hcloud.dns = hcloud.dns }` im DNS-Modul).
 - **`gitlab`**: `token = var.gitlab_api_token`, `base_url = var.gitlab_api_url`. Wird nur für Ressourcen in [`gitlab.tf`](gitlab.tf) benötigt, wenn **`enable_gitlab_resources = true`**.
-- **`random`**: Passwörter für `docker_compose` (`gitlab_docker_root`, `gitlab_docker_postgres`).
+- **`random`**: Passwörter für `docker_compose` (GitLab-`root`, PostgreSQL, optional Renovate-Webhook und Server-API-Secret).
 
 ## Voraussetzungen
 
@@ -78,6 +83,7 @@ In [`provider.tf`](provider.tf):
 - Öffentlicher **SSH-Schlüssel** für den Root-Zugang auf dem Server
 - Für DNS: Domain, die du in Hetzner DNS verwalten willst (Zonenname = Variable `domain_cicd_showcase_de` bzw. dein Override)
 - Für **`enable_gitlab_resources = true`**: GitLab-Instanz erreichbar unter **`gitlab_api_url`**, **Personal/Project Access Token** mit Rechten zum Anlegen von Gruppen und Projekten (`gitlab_api_token`)
+- Für **`gitlab_docker_renovate_enabled = true`** (nur mit `gitlab_install_mode = docker_compose`): [Mend Renovate CE](https://www.mend.io/renovate-community/) **License Key**, GitLab-**PAT** für den Renovate-Bot (`gitlab_docker_renovate_gitlab_pat`, `api`-Scope auf deiner Instanz)
 
 ## Schnellstart
 
@@ -124,6 +130,11 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_docker_traefik_image` | `traefik:v3.7.1` | Traefik-Container in `docker_compose` |
 | `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.10.5-ce.0` | GitLab-CE-Image-Tag in `docker_compose` |
 | `gitlab_docker_postgres_image` | `postgres:16-alpine` | PostgreSQL-Container-Image (Version wie bei Traefik pinnen, z. B. `postgres:17`) |
+| `gitlab_docker_renovate_enabled` | `false` | `true`: Mend **Renovate CE** im Compose-Stack; nur bei `docker_compose` |
+| `gitlab_docker_renovate_ce_image` | `ghcr.io/mend/renovate-ce:9.1.0` | Image-Tag pinnen ([Container-Pakete](https://github.com/mend/renovate-ce-ee/pkgs/container/renovate-ce)) |
+| `gitlab_docker_renovate_dns_label` | `renovate` | DNS + Traefik-Host: `<label>.<zone>` |
+| `gitlab_docker_renovate_license_key` | `""` | Mend-Lizenz (sensitiv); Pflicht wenn Renovate aktiv |
+| `gitlab_docker_renovate_gitlab_pat` | `""` | GitLab-PAT für Renovate (sensitiv); Pflicht wenn Renovate aktiv |
 | `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (HTTP-01); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail wie Omnibus über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
 | `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_token`** |
 | `gitlab_api_token` | `""` | GitLab API-Token (sensitiv); Pflicht bei `enable_gitlab_resources = true` (min. 8 Zeichen, keine Leerzeichen) |
@@ -176,6 +187,8 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_fqdn` | FQDN des GitLab-A-Records oder `null` |
 | `gitlab_docker_initial_root_password` | Nur `docker_compose`: initiales `root`-Passwort (sensitiv; liegt im **Terraform State**) |
 | `gitlab_docker_postgres_password` | Nur `docker_compose`: Passwort des DB-Users `gitlab` (sensitiv; State + `user_data`) |
+| `renovate_fqdn` | Nur `docker_compose` + Renovate: FQDN des Renovate-A-Records (z. B. `renovate.example.com`) |
+| `gitlab_docker_renovate_webhook_secret` | Nur Renovate aktiv: Webhook-Token (sensitiv; muss mit `MEND_RNV_WEBHOOK_SECRET` und ggf. `gitlab_project_hook` übereinstimmen) |
 | `gitlab_devops_group_id` | Nur `enable_gitlab_resources`: ID der Gruppe `devops` oder `null` |
 | `gitlab_devops_project_id` | Nur `enable_gitlab_resources`: ID des Projekts `devops` (in der Gruppe) oder `null` |
 | `gitlab_terraform_project_id` | Nur `enable_gitlab_resources`: ID des Projekts `terraform` (User-Namespace) oder `null` |
@@ -214,6 +227,46 @@ Wenn `gitlab_install_mode = "docker_compose"`:
 - **PostgreSQL-App-Passwort:** ebenfalls `random_password`, Output **`gitlab_docker_postgres_password`** (sensitiv; State und `user_data`).
 - DNS/PTR: wie bei `hetzner_app` (A-Record `gitlab_dns_record_name`, PTR auf `gitlab_fqdn`).
 
+### Renovate CE (`docker_compose`)
+
+Optional über **`gitlab_docker_renovate_enabled = true`** (nur zusammen mit `gitlab_install_mode = docker_compose`). Orientierung am offiziellen [Docker-Compose-Beispiel](https://github.com/mend/renovate-ce-ee/blob/main/examples/docker-compose/docker-compose-renovate-community.yml).
+
+**Container-Stack auf der VM** (`/opt/gitlab/docker-compose.yml`):
+
+| Service | Rolle |
+|---------|--------|
+| `renovate-ce` | Mend Renovate Community Edition (Server + Worker, SQLite unter `/db`) |
+| Traefik | Reverse Proxy für `renovate.<zone>` → Container-Port **8080** |
+
+**Cloud-Init schreibt zusätzlich:**
+
+- `/opt/gitlab/renovate/mend-renovate.env` — Lizenz, TOS, API-Secret, Webhook-URL
+- `/opt/gitlab/renovate/gitlab.env` — `MEND_RNV_PLATFORM=gitlab`, API-Endpoint (`https://<gitlab-fqdn>/api/v4/`), PAT, Webhook-Secret
+
+**Terraform erzeugt:**
+
+- `random_password.gitlab_renovate_webhook` → `MEND_RNV_WEBHOOK_SECRET` und (bei `enable_gitlab_resources`) Token des **`gitlab_project_hook`**
+- `random_password.gitlab_renovate_server_api` → `MEND_RNV_SERVER_API_SECRET`
+- **`hcloud_zone_record.renovate`** — A-Record auf die GitLab-Server-IPv4
+
+**Beispiel `terraform.tfvars`:**
+
+```hcl
+gitlab_install_mode                = "docker_compose"
+gitlab_docker_renovate_enabled     = true
+gitlab_docker_renovate_license_key = "…"   # https://www.mend.io/renovate-community/
+gitlab_docker_renovate_gitlab_pat  = "glpat-…" # PAT des Renovate-Bot-Users (api)
+
+# Optional: GitLab-Projekt + Webhook per Provider
+enable_gitlab_resources = true
+gitlab_api_url          = "https://gitlab.example.com"
+gitlab_api_token        = "glpat-…"
+```
+
+**Webhook:** GitLab sendet Events an `https://renovate.<zone>/webhook`. Der Hook auf Projekt `terraform` wird nur angelegt, wenn **`enable_gitlab_resources`**, **`docker_compose`** und **Renovate** gemeinsam aktiv sind ([`gitlab.tf`](gitlab.tf)).
+
+**Logs auf der VM:** `docker logs renovate-ce`; Bootstrap: `/var/log/gitlab-docker-bootstrap.log`.
+
 ## GitLab-Provider-Ressourcen (`gitlab.tf`)
 
 Steuerung über **`enable_gitlab_resources`** (Default: `false`). Das ist **unabhängig** von **`gitlab_install_mode`**: Du kannst z. B. nur Infrastruktur provisionieren, nur API-Ressourcen anlegen, oder beides kombinieren (Self-Hosted GitLab auf Hetzner + Projekte per Terraform).
@@ -225,6 +278,9 @@ Wenn **`enable_gitlab_resources = true`**:
 | `gitlab_group.devops_group` | Gruppe mit Pfad `devops`, Name `DevOps` |
 | `gitlab_project.devops` | Projekt `devops` in der Gruppe (`namespace_id`), `visibility_level = public` |
 | `gitlab_project.terraform` | Projekt `terraform` im User-Namespace, `visibility_level = public` |
+| `gitlab_user.renovate-bot` | Benutzer `renovate-bot` (E-Mail `renovate-bot@<zone>`) |
+| `gitlab_group_membership.renovate-bot` | Bot als **Maintainer** in Gruppe `devops` |
+| `gitlab_project_hook.renovate_bot` | Webhook auf Projekt `terraform` → `https://renovate.<zone>/webhook` (nur bei `docker_compose` + **`gitlab_docker_renovate_enabled`**) |
 
 **Konfiguration** in `terraform.tfvars` (Beispiel):
 
@@ -238,7 +294,11 @@ gitlab_api_token        = "glpat-…"                     # nicht committen
 
 **Outputs:** `gitlab_devops_group_id`, `gitlab_devops_project_id`, `gitlab_terraform_project_id` (siehe [Outputs](#outputs)).
 
-**Hinweis:** Der GitLab-Provider (v18) nutzt `visibility_level` statt `visibility`. Projekte in Gruppen werden über `namespace_id` zugeordnet.
+**Hinweise:**
+
+- Der GitLab-Provider (v18) nutzt `visibility_level` statt `visibility`; Gruppenprojekte über `namespace_id`.
+- Webhooks heißen im Provider **`gitlab_project_hook`** (nicht `gitlab_webhook`).
+- Das Passwort des Bot-Users wird **nicht** per Terraform gesetzt (`#password` auskommentiert) — PAT manuell anlegen und in `gitlab_docker_renovate_gitlab_pat` eintragen.
 
 ## GitLab Runner (optionale zweite VM)
 
@@ -301,10 +361,13 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 1. **Variablen ohne Modul-Anbindung im Root:** `github_repo`, `hetzner_api_key`, `traefik_dashboard_credentials` und `ssh_private_key_path` werden in **`main.tf` nicht** an Module übergeben. `site_url` wird nur für den Output `website_url` gelesen, ebenfalls ohne Modulbezug. `terraform apply` verlangt dennoch Werte für alle Variablen **ohne** Default (`hetzner_api_key`, `traefik_dashboard_credentials`). Du kannst Platzhalter setzen, bis Cloud-Init o. Ä. angebunden ist – oder die Variablen später in Terraform bereinigen.
 2. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
 3. **Beispiel-Konfiguration:** [`terraform.tfvars.example`](terraform.tfvars.example) als Vorlage für `terraform.tfvars` (ohne echte Secrets).
-4. **Zwei GitLab-Schalter:** `gitlab_install_mode` betrifft nur Hetzner-Server/Cloud-Init/DNS; `enable_gitlab_resources` betrifft nur [`gitlab.tf`](gitlab.tf). Ein Token für den Runner-Register-Flow ist davon getrennt (manuell in der UI).
+4. **Drei unabhängige Schalter:** `gitlab_install_mode` (Server/Compose), `enable_gitlab_resources` ([`gitlab.tf`](gitlab.tf)), `gitlab_docker_renovate_enabled` (Renovate-Container). Runner-Registrierung bleibt manuell.
+5. **Renovate:** Lizenz und GitLab-PAT liegen in `terraform.tfvars` (sensitiv). Webhook-Secret steht im State; nach Änderung ggf. Hook in GitLab und Env auf der VM anpassen.
 
 ## Weiterführende Links
 
 - [Hetzner Cloud Terraform Provider (Registry)](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs)
 - [GitLab Terraform Provider (Registry)](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs)
+- [Mend Renovate CE – Docker Compose Beispiel](https://github.com/mend/renovate-ce-ee/blob/main/examples/docker-compose/docker-compose-renovate-community.yml)
+- [Renovate Community Edition – Lizenz](https://www.mend.io/renovate-community/)
 - [Hetzner Dokumentation](https://docs.hetzner.com/)

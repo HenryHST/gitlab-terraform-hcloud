@@ -149,6 +149,66 @@ variable "gitlab_docker_postgres_image" {
   }
 }
 
+variable "gitlab_docker_renovate_enabled" {
+  description = "When gitlab_install_mode is docker_compose, deploy Mend Renovate CE (ghcr.io/mend/renovate-ce) in the same Compose stack"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.gitlab_docker_renovate_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_docker_renovate_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+
+variable "gitlab_docker_renovate_ce_image" {
+  description = "Mend Renovate CE image (pin version; see https://github.com/mend/renovate-ce-ee/pkgs/container/renovate-ce)"
+  type        = string
+  default     = "ghcr.io/mend/renovate-ce:9.1.0"
+
+  validation {
+    condition = can(regex(
+      "^ghcr\\.io/mend/renovate-ce:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_renovate_ce_image,
+    ))
+    error_message = "gitlab_docker_renovate_ce_image must be ghcr.io/mend/renovate-ce:<tag>."
+  }
+}
+
+variable "gitlab_docker_renovate_dns_label" {
+  description = "DNS A record label for Renovate CE (FQDN <label>.<zone>, Traefik Host rule and GitLab webhooks)"
+  type        = string
+  default     = "renovate"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.gitlab_docker_renovate_dns_label))
+    error_message = "gitlab_docker_renovate_dns_label must be a valid DNS label."
+  }
+}
+
+variable "gitlab_docker_renovate_license_key" {
+  description = "Mend Renovate CE license key (MEND_RNV_LICENSE_KEY); obtain at https://www.mend.io/renovate-community/"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.gitlab_docker_renovate_enabled || length(trimspace(var.gitlab_docker_renovate_license_key)) > 0
+    error_message = "gitlab_docker_renovate_license_key is required when gitlab_docker_renovate_enabled is true."
+  }
+}
+
+variable "gitlab_docker_renovate_gitlab_pat" {
+  description = "GitLab PAT for the Renovate bot user (MEND_RNV_GITLAB_PAT); needs api scope on your GitLab instance"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.gitlab_docker_renovate_enabled || length(trimspace(var.gitlab_docker_renovate_gitlab_pat)) >= 8
+    error_message = "gitlab_docker_renovate_gitlab_pat is required when gitlab_docker_renovate_enabled is true."
+  }
+}
+
 variable "enable_gitlab_resources" {
   description = "If true, create GitLab provider resources in gitlab.tf (groups, projects). Requires gitlab_api_token."
   type        = bool
