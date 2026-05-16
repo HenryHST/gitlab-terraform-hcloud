@@ -135,7 +135,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_docker_renovate_dns_label` | `renovate` | DNS + Traefik-Host: `<label>.<zone>` |
 | `gitlab_docker_renovate_license_key` | `""` | Mend-Lizenz (sensitiv); Pflicht wenn Renovate aktiv |
 | `gitlab_docker_renovate_gitlab_pat` | `""` | GitLab-PAT für Renovate (sensitiv); Pflicht wenn Renovate aktiv |
-| `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (HTTP-01); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail wie Omnibus über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
+| `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (DNS-01 via Hetzner); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
 | `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_token`** |
 | `gitlab_api_token` | `""` | GitLab API-Token (sensitiv); Pflicht bei `enable_gitlab_resources = true` (min. 8 Zeichen, keine Leerzeichen) |
 | `gitlab_api_url` | `https://gitlab.com` | Basis-URL der GitLab-Instanz für den Provider (`https://gitlab.example.com` bei Self-Hosted) |
@@ -220,12 +220,47 @@ Offizielle App-Doku: [Hetzner Cloud Apps – GitLab CE](https://docs.hetzner.com
 Wenn `gitlab_install_mode = "docker_compose"`:
 
 - Server-Image: **`gitlab_docker_host_image`** (Standard **`debian-13`**). Vor Produktion den Slug mit `hcloud image list` / Konsole prüfen.
-- Cloud-Init ([`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl)): Docker Engine + Compose-Plugin (offizielles Docker-APT-Repo), **`write_files`** für **`/opt/gitlab/docker-compose.yml`**, **`/opt/gitlab/traefik/traefik.yml`**, **`/opt/gitlab/traefik/.env`**, **`/opt/gitlab/traefik/dynamic_conf/`** (File-Provider), **`runcmd`**: `docker compose up -d`; Log **`/var/log/gitlab-docker-bootstrap.log`**. Die Traefik-**`.env`** setzt u. a. `ABSOLUTE_PATH=/opt/gitlab`, `TZ=Europe/Berlin`, `SERVICES_TRAEFIK_LABELS_TRAEFIK_HOST=HOST(\`<gitlab_fqdn>\`)`, `HETZNER_API_TOKEN` aus **`hetzner_api_key`** und `ACME_EMAIL` aus **`gitlab_letsencrypt_email`** (Fallback `gitlab-acme@<zone>`). In **`traefik.yml`** (nur bei **`gitlab_docker_traefik_acme_enabled`**) steht dieselbe Adresse unter `certificatesResolvers.hetzner.acme.email` (DNS-01 via Hetzner).
-- Stack: **Traefik**-Service orientiert an LAB-`compose/traefik.yaml` (pi3cl: `container_name`, `env_file`, `hostname`, `healthcheck` mit `--ping`, feste IPv4/IPv6 auf **crowdsec** / **proxy** / **socket_proxy**, `security_opt`, Ports **80/443** und **8080** für Ping/API-Entrypoint, Volumes u. a. `localtime`, Einzeldatei-Mount für `traefik.yml`, `dynamic_conf`, ACME-Volume, Log-Volume). Image weiterhin über Terraform-Variable **`gitlab_docker_traefik_image`**. Keine LAB-spezifischen Secrets, Homelab-Host-Pfade oder Authentik-Labels. **GitLab CE** (`gitlab_docker_gitlab_ce_image`) und **PostgreSQL** (`gitlab_docker_postgres_image`); GitLab nutzt die externe DB (`postgresql['enable'] = false`), Redis bleibt im GitLab-Container. **Docker-Netze** analog LAB `networks.yaml` (crowdsec, **proxy**, socket_proxy): GitLab und Postgres nur auf **`proxy`**; Traefik zusätzlich auf **crowdsec** und **socket_proxy** mit den LAB-typischen statischen Adressen. Namen und Subnetze per Compose `${NETWORKS_*:-…}` überschreibbar (z. B. `/opt/gitlab/.env`). Traefik-Label `traefik.docker.network` nutzt dieselbe Substitution wie der `proxy`-Netzname. Router per Host-Regel auf `gitlab_fqdn`.
-- TLS: **`gitlab_docker_traefik_acme_enabled`** schaltet ACME auf Traefik; **`gitlab_letsencrypt_enabled`** gilt nur für Omnibus (`hetzner_app`).
-- Initiales **`root`**: [`random_password`](https://registry.terraform.io/providers/hashicorp/random/latest/docs/resources/password) in Terraform; Output **`gitlab_docker_initial_root_password`** (sensitiv) — **Passwort steht im State**, nach erstem Login rotieren.
-- **PostgreSQL-App-Passwort:** ebenfalls `random_password`, Output **`gitlab_docker_postgres_password`** (sensitiv; State und `user_data`).
-- DNS/PTR: wie bei `hetzner_app` (A-Record `gitlab_dns_record_name`, PTR auf `gitlab_fqdn`).
+- Cloud-Init ([`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl)): installiert Docker Engine + Compose-Plugin, legt den Stack unter **`/opt/gitlab`** an und startet **`docker compose up -d`**. Log: **`/var/log/gitlab-docker-bootstrap.log`**.
+
+**Persistenz auf dem Host** (Bind-Mounts statt anonymer Docker-Volumes):
+
+| Host-Pfad | Container / Zweck |
+|-----------|-------------------|
+| `/opt/gitlab/traefik/traefik.yml` | Traefik-Statikconfig |
+| `/opt/gitlab/traefik/.env` | Traefik-Umgebung (`HETZNER_API_TOKEN`, `ACME_EMAIL`, …) |
+| `/opt/gitlab/traefik/dynamic_conf/` | Traefik File-Provider (Middlewares, `tls.yml`) |
+| `/opt/gitlab/traefik/certs/` | ACME-Speicher (`acme_letsencrypt.json`, `tls_letsencrypt.json`) → `/certs` im Traefik-Container |
+| `/opt/gitlab/postgres/data/` | PostgreSQL-Daten → `/var/lib/postgresql/data` |
+| `/opt/gitlab/data/config/` | GitLab Omnibus → `/etc/gitlab` (inkl. **`gitlab.rb`**) |
+| `/opt/gitlab/data/logs/` | GitLab-Logs → `/var/log/gitlab` |
+| `/opt/gitlab/data/gitlab/` | GitLab-Anwendungsdaten → `/var/opt/gitlab` |
+
+**GitLab-Konfiguration** folgt der [GitLab-Docker-Doku](https://docs.gitlab.com/install/docker/configuration/): Cloud-Init schreibt **`/opt/gitlab/data/config/gitlab.rb`** (im Container `/etc/gitlab/gitlab.rb`). Dort u. a. `external_url`, externe PostgreSQL, NGINX nur HTTP (TLS bei Traefik), `gitlab_rails['gitlab_shell_ssh_port'] = 2424`. **`GITLAB_OMNIBUS_CONFIG`** wird nicht verwendet. Änderungen auf der VM:
+
+```bash
+editor /opt/gitlab/data/config/gitlab.rb
+docker compose exec gitlab gitlab-ctl reconfigure
+```
+
+Initiales **`root`**: Umgebungsvariable **`GITLAB_ROOT_PASSWORD`** (Wert aus Terraform-`random_password`; Output **`gitlab_docker_initial_root_password`**, sensitiv, im **State**).
+
+**Traefik:** Image über **`gitlab_docker_traefik_image`**. Router für GitLab/Renovate mit Middleware **`default@file`** (gzip, Security-Headers, fail2ban-Plugin). Bei **`gitlab_docker_traefik_acme_enabled`**: Zertifikate per **DNS-01** (Resolver `hetzner`, Hetzner-API-Token in `.env`), optional TLS-01-Resolver `tls`; `letsencrypt` in `gitlab.rb` bleibt aus.
+
+**Stack (Compose):**
+
+| Service | Netze | Ports / Zugriff |
+|---------|--------|-----------------|
+| **traefik** | `proxy`, `socket_proxy` | Host **80/443**; statische IPs im `proxy`-Subnetz (`172.31.128.0/18`) |
+| **postgres** | `socket_proxy` | nur intern; DB-Host `postgres` für GitLab |
+| **gitlab** | `proxy`, `socket_proxy` | HTTP hinter Traefik; Git/SSH **Host 2424** → Container 22 |
+
+Die **Hetzner-Firewall** öffnet **TCP 2424** (`enable_ssh_high`, Standard `true`) zusätzlich zu SSH 22 — passend zum Port-Mapping und `gitlab_shell_ssh_port`.
+
+**Secrets:** DB-Passwort steht in `gitlab.rb` und im Terraform State (**`gitlab_docker_postgres_password`**). Traefik- und ACME-Werte: **`hetzner_api_key`**, **`gitlab_letsencrypt_email`**.
+
+**TLS:** **`gitlab_docker_traefik_acme_enabled`** für HTTPS über Traefik; **`gitlab_letsencrypt_enabled`** nur für Omnibus (`hetzner_app`).
+
+**DNS/PTR:** wie bei `hetzner_app` (A-Record `gitlab_dns_record_name`, PTR auf `gitlab_fqdn`).
 
 ### Renovate CE (`docker_compose`)
 
@@ -333,13 +368,13 @@ flowchart TD
 ## Sicherheit und Betrieb
 
 - **Firewall:** Standard im Modul erlaubt typischerweise Zugriff von `0.0.0.0/0` und `::/0` auf die genannten Ports. Für Produktion Quell-IP-Listen einschränken oder `custom_rules` gezielt nutzen.
-- **Token:** `hcloud_token`, `gitlab_api_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren. Bei `docker_compose` liegen initiale Passwörter zusätzlich im **Terraform State** (Outputs sensitiv).
+- **Token:** `hcloud_token`, `gitlab_api_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren. Bei `docker_compose` liegen initiale Passwörter zusätzlich im **Terraform State** und in **`/opt/gitlab/data/config/gitlab.rb`** bzw. Traefik-`.env` auf der VM (Outputs sensitiv).
 - **PTR/rDNS:** Wenn `gitlab_install_mode` **nicht** `none`, zeigt PTR auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de`. Bei HTTPS (Omnibus-LE oder Traefik-ACME) sollte der Hostname zum Zertifikat passen.
 - **Mail/DNS:** Über die Variablen **`mail_server_ipv4`**, **`mail_server_ipv6`**, **`mail_server_cname_target`**, **`dns_tlsa_name`** (und bestehende MX/SPF/DMARC/…) an die eigene Infrastruktur anpassen.
 
 ## Cloud-Init und user_data
 
-Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl), [`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl) oder [`templates/gitlab-runner-cloud-init.yaml.tpl`](templates/gitlab-runner-cloud-init.yaml.tpl) wirken auf **bestehende** VMs oft **erst**, wenn die Instanz **ersetzt** wird.
+Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an den Cloud-Init-Templates wirken auf **bestehende** VMs oft **erst** nach **Server-Replace** — Ausnahme: Dateien unter **`/opt/gitlab`** (z. B. `gitlab.rb`, `docker-compose.yml`, Traefik-Configs) können manuell angepasst und per `docker compose up -d` / `gitlab-ctl reconfigure` aktiviert werden, sofern die Verzeichnisstruktur bereits existiert.
 
 Vorgehen (Beispiel Runner):
 

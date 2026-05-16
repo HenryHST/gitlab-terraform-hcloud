@@ -214,6 +214,38 @@ write_files:
       MEND_RNV_WEBHOOK_SECRET=${renovate_webhook_secret}
 %{ endif ~}
 
+  # https://docs.gitlab.com/install/docker/configuration/ — /etc/gitlab/gitlab.rb via ./data/config
+  - path: /opt/gitlab/data/config/gitlab.rb
+    owner: root:root
+    permissions: "0600"
+    content: |
+      ## Managed by Terraform (cloud-init). Edit on host: /opt/gitlab/data/config/gitlab.rb
+      ## Then: docker compose exec gitlab gitlab-ctl reconfigure
+
+      external_url '${external_url_scheme}://${gitlab_fqdn}'
+
+      # Traefik terminates TLS; Omnibus HTTP only (https://docs.gitlab.com/omnibus/settings/ssl/#configure-https-with-a-reverse-proxy)
+      nginx['listen_port'] = 80
+      nginx['listen_https'] = false
+%{ if acme_enabled ~}
+      letsencrypt['enable'] = false
+      nginx['redirect_http_to_https'] = false
+      gitlab_rails['trusted_proxies'] = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '172.31.0.0/16']
+%{ endif ~}
+
+      # https://docs.gitlab.com/install/docker/configuration/#expose-gitlab-on-different-ports
+      gitlab_rails['gitlab_shell_ssh_port'] = 2424
+
+      # External PostgreSQL (docker service postgres on socket_proxy)
+      postgresql['enable'] = false
+      gitlab_rails['db_adapter'] = 'postgresql'
+      gitlab_rails['db_encoding'] = 'unicode'
+      gitlab_rails['db_host'] = 'postgres'
+      gitlab_rails['db_port'] = 5432
+      gitlab_rails['db_username'] = 'gitlab'
+      gitlab_rails['db_password'] = '${postgres_password}'
+      gitlab_rails['db_database'] = 'gitlabhq_production'
+
   - path: /opt/gitlab/docker-compose.yml
     owner: root:root
     permissions: "0644"
@@ -284,18 +316,6 @@ write_files:
               condition: service_healthy
           environment:
             GITLAB_ROOT_PASSWORD: "${gitlab_root_password}"
-            GITLAB_OMNIBUS_CONFIG: |
-              external_url '${external_url_scheme}://${gitlab_fqdn}'
-              nginx['listen_port'] = 80
-              nginx['listen_https'] = false
-              postgresql['enable'] = false
-              gitlab_rails['db_adapter'] = 'postgresql'
-              gitlab_rails['db_encoding'] = 'unicode'
-              gitlab_rails['db_host'] = 'postgres'
-              gitlab_rails['db_port'] = 5432
-              gitlab_rails['db_username'] = 'gitlab'
-              gitlab_rails['db_password'] = '${postgres_password}'
-              gitlab_rails['db_database'] = 'gitlabhq_production'
           volumes:
             - ./data/config:/etc/gitlab
             - ./data/logs:/var/log/gitlab
