@@ -50,6 +50,8 @@ write_files:
         docker:
           endpoint: "unix:///var/run/docker.sock"
           exposedByDefault: false
+          # Keep gitlab@docker router while GitLab Omnibus healthcheck is still starting (avoids Traefik 404).
+          allowEmptyServices: true
           network: $${NETWORKS_PROXY_NAME:-proxy}
           watch: true
         file:
@@ -246,6 +248,17 @@ write_files:
       gitlab_rails['db_password'] = '${postgres_password}'
       gitlab_rails['db_database'] = 'gitlabhq_production'
       gitlab_pages['enable'] = false
+      gitlab_rails['gitlab_default_theme'] = 2
+      gitlab_rails['gitlab_default_can_create_group'] = true
+      gitlab_rails['gitlab_username_changing_enabled'] = true
+      gitlab_rails['webhook_timeout'] = 10
+
+      # https://docs.gitlab.com/omnibus/settings/backups.html
+%{ if backup_enabled ~}
+      gitlab_rails['manage_backup_path'] = true
+      gitlab_rails['backup_path'] = "/var/opt/gitlab/backups"
+      gitlab_rails['backup_keep_time'] = ${backup_keep_time}
+%{ endif ~}
 
       # https://docs.gitlab.com/omnibus/settings/smtp.html
 %{ if smtp_enabled ~}
@@ -269,6 +282,37 @@ write_files:
 %{ endif ~}
 %{ else ~}
       gitlab_rails['smtp_enable'] = false
+%{ endif ~}
+%{ if backup_enabled ~}
+
+  # Host cron: docker compose exec gitlab gitlab-backup create (see scripts/gitlab-backup.sh)
+  - path: /opt/gitlab/scripts/gitlab-backup.sh
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      # Application + gitlab.rb/config backup. Archives: /opt/gitlab/backups (bind-mount).
+      set -euo pipefail
+      COMPOSE_DIR=/opt/gitlab
+      LOG=/var/log/gitlab-backup.log
+      exec >>"$LOG" 2>&1
+      echo "=== gitlab-backup $(date -Is) ==="
+      cd "$COMPOSE_DIR"
+      if [ "$(docker compose ps gitlab --format '{{.State}}' 2>/dev/null | head -1)" != "running" ]; then
+        echo "ERROR: gitlab service not running"
+        exit 1
+      fi
+      docker compose exec -T gitlab gitlab-backup create CRON=1
+      docker compose exec -T gitlab gitlab-ctl backup-etc --delete-old-backups
+      echo "=== finished $(date -Is) ==="
+
+  - path: /etc/cron.d/gitlab-backup
+    owner: root:root
+    permissions: "0644"
+    content: |
+      SHELL=/bin/bash
+      PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+      ${backup_cron} root /opt/gitlab/scripts/gitlab-backup.sh
 %{ endif ~}
 
   - path: /opt/gitlab/docker-compose.yml
@@ -308,7 +352,7 @@ write_files:
             - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
             - ./traefik/dynamic_conf:/etc/traefik/dynamic_conf:ro
             - ./traefik/certs:/certs
-            - traefik_logs:/var/log/traefik
+            - /var/log/traefik/:/var/log/traefik
           command:
             - "--configFile=/etc/traefik/traefik.yml"
 
@@ -336,6 +380,9 @@ write_files:
           restart: unless-stopped
           hostname: "${gitlab_fqdn}"
           shm_size: "256m"
+          # Image HEALTHCHECK keeps container "starting" for several minutes; Traefik then drops the router (404).
+          healthcheck:
+            disable: true
           depends_on:
             postgres:
               condition: service_healthy
@@ -345,13 +392,16 @@ write_files:
             - ./data/config:/etc/gitlab
             - ./data/logs:/var/log/gitlab
             - ./data/gitlab:/var/opt/gitlab
+%{ if backup_enabled ~}
+            - ./backups:/var/opt/gitlab/backups
+%{ endif ~}
           ports:
             - "2424:22"
           networks:
             proxy:
               ipv4_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV4:-172.31.129.254}
               ipv6_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffe}
-            socket_proxy:
+            socket_proxy: {}
           labels:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
@@ -441,7 +491,7 @@ write_files:
           internal: true
 
       volumes:
-        traefik_logs:
+        #traefik_logs:
         renovate_logs:
         renovate_db:
 
@@ -463,6 +513,10 @@ runcmd:
     install -m 0700 -d /opt/gitlab/postgres/data
     chown 999:999 /opt/gitlab/postgres/data
     install -m 0755 -d /opt/gitlab/data/config /opt/gitlab/data/logs /opt/gitlab/data/gitlab
+%{ if backup_enabled ~}
+    install -m 0750 -d /opt/gitlab/backups /opt/gitlab/scripts
+    chown root:root /opt/gitlab/backups
+%{ endif ~}
 %{ if renovate_enabled ~}
     install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db
 %{ endif ~}

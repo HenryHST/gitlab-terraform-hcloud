@@ -264,6 +264,39 @@ variable "gitlab_letsencrypt_enabled" {
   }
 }
 
+variable "gitlab_docker_backup_enabled" {
+  description = "When gitlab_install_mode is docker_compose, configure gitlab_rails backup settings, /opt/gitlab/backups, and a host cron job (gitlab-backup create)."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = !var.gitlab_docker_backup_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_docker_backup_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+
+variable "gitlab_docker_backup_keep_time" {
+  description = "gitlab_rails backup_keep_time in seconds (0 = keep all archives). See https://docs.gitlab.com/omnibus/settings/backups.html"
+  type        = number
+  default     = 604800
+
+  validation {
+    condition     = var.gitlab_docker_backup_keep_time >= 0
+    error_message = "gitlab_docker_backup_keep_time must be >= 0."
+  }
+}
+
+variable "gitlab_docker_backup_cron" {
+  description = "Cron schedule (minute hour dom month dow) for gitlab-backup on the Docker host"
+  type        = string
+  default     = "0 3 * * *"
+
+  validation {
+    condition     = can(regex("^[^\\s]+ [^\\s]+ [^\\s]+ [^\\s]+ [^\\s]+$", var.gitlab_docker_backup_cron))
+    error_message = "gitlab_docker_backup_cron must be five cron fields (e.g. 0 3 * * *)."
+  }
+}
+
 variable "gitlab_dns_record_name" {
   description = "DNS A record (relative to zone) for GitLab when gitlab_install_mode is hetzner_app or docker_compose"
   type        = string
