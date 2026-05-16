@@ -8,24 +8,28 @@ Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetzne
 
 ## Inhaltsverzeichnis
 
-- [Architektur](#architektur)
-  - [Provider](#provider)
-- [Voraussetzungen](#voraussetzungen)
-- [Schnellstart](#schnellstart)
-- [Variablen (Root)](#variablen-root)
-  - [Ohne Default (bei `apply` erforderlich)](#ohne-default-bei-apply-erforderlich)
-  - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
-- [Outputs](#outputs)
-- [GitLab-Installationsmodi](#gitlab-installationsmodi)
-  - [Renovate CE (`docker_compose`)](#renovate-ce-docker_compose)
-- [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
-- [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
-- [Module im Detail](#module-im-detail)
-- [Sicherheit und Betrieb](#sicherheit-und-betrieb)
-- [Cloud-Init und user_data](#cloud-init-und-user_data)
-- [Qualitätssicherung (lokal / CI)](#qualitätssicherung-lokal--ci)
-- [Bekannte Einschränkungen](#bekannte-einschränkungen)
-- [Weiterführende Links](#weiterführende-links)
+- [gitlab-terraform-hcloud](#gitlab-terraform-hcloud)
+  - [Inhaltsverzeichnis](#inhaltsverzeichnis)
+  - [Architektur](#architektur)
+    - [Provider](#provider)
+  - [Voraussetzungen](#voraussetzungen)
+  - [Schnellstart](#schnellstart)
+  - [Variablen (Root)](#variablen-root)
+    - [Ohne Default (bei `apply` erforderlich)](#ohne-default-bei-apply-erforderlich)
+    - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
+  - [Outputs](#outputs)
+  - [GitLab-Installationsmodi](#gitlab-installationsmodi)
+    - [`hetzner_app` (Hetzner App-Image)](#hetzner_app-hetzner-app-image)
+    - [`docker_compose` (GitLab CE + Traefik)](#docker_compose-gitlab-ce--traefik)
+    - [Renovate CE (`docker_compose`)](#renovate-ce-docker_compose)
+  - [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
+  - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
+  - [Module im Detail](#module-im-detail)
+  - [Sicherheit und Betrieb](#sicherheit-und-betrieb)
+  - [Cloud-Init und user\_data](#cloud-init-und-user_data)
+  - [Qualitätssicherung (lokal / CI)](#qualitätssicherung-lokal--ci)
+  - [Bekannte Einschränkungen](#bekannte-einschränkungen)
+  - [Weiterführende Links](#weiterführende-links)
 
 ## Architektur
 
@@ -123,7 +127,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 |------|------------------|---------|
 | `ssh_private_key_path` | `~/.ssh/id_rsa` | Nur relevant, falls du Skripte/Tooling außerhalb dieses Roots nutzt – **nicht** von `main.tf` referenziert |
 | `server_name` | `web1` | Name des `hcloud_server` |
-| `server_type` | `cx23` | Hetzner-Typ (`cx*`, `cpx*`, `ccx*`) |
+| `server_type` | `cpx32` | Hetzner-Typ des GitLab-Hauptservers (`cx*`, `cpx*`, `ccx*`) |
 | `location` | `fsn1` | z. B. `fsn1`, `nbg1`, `hel1`, `ash`, `hil` |
 | `gitlab_install_mode` | `none` | `none`: kein GitLab; `hetzner_app`: Image `gitlab` + [`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl); `docker_compose`: `gitlab_docker_host_image` (Standard `debian-13`) + [`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl), Stack unter `/opt/gitlab` |
 | `gitlab_docker_host_image` | `debian-13` | Nur `docker_compose`: Hetzner-Image-Slug für den Hauptserver (vor Apply mit `hcloud image list` prüfen; bei abweichendem Slug z. B. `debian-12` setzen) |

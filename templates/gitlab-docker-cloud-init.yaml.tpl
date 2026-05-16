@@ -433,6 +433,8 @@ write_files:
             MEND_RNV_LOG_HISTORY_DIR: /logs
             MEND_RNV_SQLITE_FILE_PATH: /db/renovate-db.sqlite
             RENOVATE_REPOSITORY_CACHE: enabled
+          ports:
+            - "8084:8080"
           volumes:
             - renovate_logs:/logs
             - renovate_db:/db
@@ -444,7 +446,7 @@ write_files:
           labels:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
-            - "traefik.http.services.renovate.loadbalancer.server.port=8080"
+            - "traefik.http.services.renovate.loadbalancer.server.port=8084"
 %{ if acme_enabled ~}
             - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
             - "traefik.http.routers.renovate.entrypoints=websecure"

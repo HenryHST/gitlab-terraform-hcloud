@@ -45,9 +45,9 @@ variable "server_name" {
 }
 
 variable "server_type" {
-  description = "Server type (e.g. cx22 = 2 vCPU 4GB, cpx22 = 3 vCPU 4GB)"
+  description = "Server type for the main/GitLab host (e.g. cpx22 = 3 vCPU 4 GB, cx23 = 2 vCPU 4 GB)"
   type        = string
-  default     = "cx23"
+  default     = "cpx22"
 
   validation {
     condition     = can(regex("^(cx|cpx|ccx)[0-9]{2,3}$", var.server_type))

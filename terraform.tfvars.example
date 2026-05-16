@@ -8,7 +8,7 @@ ssh_public_key      = ""
 ssh_private_key_path = "~/.ssh/id_rsa"
 
 server_name  = "git04"
-server_type  = "cx23"
+server_type  = "cpx22"
 location     = "fsn1"
 
 # docker_compose: written to /opt/gitlab/traefik/.env as HETZNER_API_TOKEN
