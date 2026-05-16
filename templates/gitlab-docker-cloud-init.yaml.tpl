@@ -33,13 +33,18 @@ write_files:
         hetzner:
           acme:
             email: "${acme_email}"
-            storage: "/letsencrypt/acme_letsencrypt.json"
+            storage: "/certs/acme_letsencrypt.json"
             dnsChallenge:
               provider: "hetzner"
               resolvers:
                 - "helium.ns.hetzner.de"
                 - "oxygen.ns.hetzner.com"
               delayBeforeCheck: 30s
+        tls:
+          acme:
+            email: "${acme_email}"
+            storage: "/certs/tls_letsencrypt.json"
+            tlsChallenge: {}
 %{ endif ~}
       providers:
         docker:
@@ -94,6 +99,11 @@ write_files:
       SERVICES_TRAEFIK_LABELS_TRAEFIK_HOST=HOST(`${gitlab_fqdn}`)
       HETZNER_API_TOKEN=${hetzner_api_token}
       ACME_EMAIL=${acme_email}
+
+  - path: /opt/gitlab/traefik/certs/.gitkeep
+    owner: root:root
+    permissions: "0700"
+    content: "#\n"
 
   - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.gzip.yml
     owner: root:root
@@ -180,6 +190,8 @@ write_files:
               - CurveP521
               - CurveP384
             sniStrict: true
+        stores:
+          default: {}
 %{ if renovate_enabled ~}
   - path: /opt/gitlab/renovate/mend-renovate.env
     owner: root:root
@@ -238,8 +250,8 @@ write_files:
             - /var/run/docker.sock:/var/run/docker.sock:ro
             - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
             - ./traefik/dynamic_conf:/etc/traefik/dynamic_conf:ro
-            - traefik_acme:/letsencrypt
-            - /var/log/traefik:/var/log/traefik
+            - ./traefik/certs:/certs
+            - traefik_logs:/var/log/traefik
           command:
             - "--configFile=/etc/traefik/traefik.yml"
 
@@ -251,7 +263,7 @@ write_files:
             POSTGRES_PASSWORD: "${postgres_password}"
             POSTGRES_DB: gitlabhq_production
           volumes:
-            - "postgres_data:/var/lib/postgresql/data"
+            - ./postgres/data:/var/lib/postgresql/data
           networks:
             socket_proxy:
               ipv4_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.252}
@@ -285,9 +297,9 @@ write_files:
               gitlab_rails['db_password'] = '${postgres_password}'
               gitlab_rails['db_database'] = 'gitlabhq_production'
           volumes:
-            - "gitlab_config:/etc/gitlab"
-            - "gitlab_logs:/var/log/gitlab"
-            - "gitlab_data:/var/opt/gitlab"
+            - ./data/config:/etc/gitlab
+            - ./data/logs:/var/log/gitlab
+            - ./data/gitlab:/var/opt/gitlab
           ports:
             - "2424:22"
           networks:
@@ -384,11 +396,7 @@ write_files:
           internal: true
 
       volumes:
-        postgres_data:
-        gitlab_config:
-        gitlab_logs:
-        gitlab_data:
-        traefik_acme:
+        traefik_logs:
         renovate_logs:
         renovate_db:
 
@@ -406,6 +414,10 @@ runcmd:
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
+    install -m 0700 -d /opt/gitlab/traefik/certs
+    install -m 0700 -d /opt/gitlab/postgres/data
+    chown 999:999 /opt/gitlab/postgres/data
+    install -m 0755 -d /opt/gitlab/data/config /opt/gitlab/data/logs /opt/gitlab/data/gitlab
 %{ if renovate_enabled ~}
     install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db
 %{ endif ~}
