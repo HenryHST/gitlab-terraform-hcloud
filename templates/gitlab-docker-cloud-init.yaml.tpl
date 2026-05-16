@@ -245,6 +245,31 @@ write_files:
       gitlab_rails['db_username'] = 'gitlab'
       gitlab_rails['db_password'] = '${postgres_password}'
       gitlab_rails['db_database'] = 'gitlabhq_production'
+      gitlab_pages['enable'] = false
+
+      # https://docs.gitlab.com/omnibus/settings/smtp.html
+%{ if smtp_enabled ~}
+      gitlab_rails['smtp_enable'] = true
+      gitlab_rails['smtp_address'] = "${smtp_address}"
+      gitlab_rails['smtp_port'] = ${smtp_port}
+      gitlab_rails['smtp_domain'] = "${smtp_domain}"
+      gitlab_rails['smtp_authentication'] = "${smtp_authentication}"
+      gitlab_rails['smtp_enable_starttls_auto'] = ${smtp_enable_starttls_auto}
+      gitlab_rails['smtp_tls'] = ${smtp_tls}
+      gitlab_rails['smtp_openssl_verify_mode'] = '${smtp_openssl_verify_mode}'
+%{ if smtp_user_name != "" ~}
+      gitlab_rails['smtp_user_name'] = '${smtp_user_name}'
+%{ endif ~}
+%{ if smtp_password != "" ~}
+      gitlab_rails['smtp_password'] = '${smtp_password}'
+%{ endif ~}
+      gitlab_rails['gitlab_email_from'] = '${gitlab_email_from}'
+%{ if gitlab_email_reply_to != "" ~}
+      gitlab_rails['gitlab_email_reply_to'] = '${gitlab_email_reply_to}'
+%{ endif ~}
+%{ else ~}
+      gitlab_rails['smtp_enable'] = false
+%{ endif ~}
 
   - path: /opt/gitlab/docker-compose.yml
     owner: root:root

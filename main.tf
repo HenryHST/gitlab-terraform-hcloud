@@ -6,6 +6,7 @@ locals {
 
   gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
   gitlab_api_v4_endpoint            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/api/v4/"
+  gitlab_smtp_domain_effective      = var.gitlab_smtp_domain != "" ? var.gitlab_smtp_domain : var.domain_cicd_showcase_de
 
   # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
   server_image_effective = (
@@ -43,7 +44,19 @@ locals {
       renovate_server_api_secret = (
         var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
       )
-      gitlab_api_v4_endpoint = local.gitlab_api_v4_endpoint
+      gitlab_api_v4_endpoint    = local.gitlab_api_v4_endpoint
+      smtp_enabled              = var.gitlab_smtp_enabled
+      smtp_address              = var.gitlab_smtp_address
+      smtp_port                 = var.gitlab_smtp_port
+      smtp_user_name            = var.gitlab_smtp_user_name
+      smtp_password             = var.gitlab_smtp_password
+      smtp_domain               = local.gitlab_smtp_domain_effective
+      smtp_authentication       = var.gitlab_smtp_authentication
+      smtp_enable_starttls_auto = var.gitlab_smtp_enable_starttls_auto
+      smtp_tls                  = var.gitlab_smtp_tls
+      smtp_openssl_verify_mode  = var.gitlab_smtp_openssl_verify_mode
+      gitlab_email_from         = var.gitlab_email_from
+      gitlab_email_reply_to     = var.gitlab_email_reply_to
     }) : ""
   )
 
@@ -93,7 +106,9 @@ resource "random_password" "gitlab_renovate_server_api" {
 module "firewall" {
   source = "./modules/firewall"
 
-  firewall_name = "${var.server_name}-firewall"
+  firewall_name      = "${var.server_name}-firewall"
+  enable_egress_smtp = var.gitlab_smtp_enabled
+  egress_smtp_port   = var.gitlab_smtp_port
 }
 
 # Server Module
@@ -133,6 +148,7 @@ module "firewall_runner" {
   enable_node_exporter = false
   enable_icmp          = true
   enable_ssh_high      = false
+  enable_egress_smtp   = false
 }
 
 module "gitlab_runner" {

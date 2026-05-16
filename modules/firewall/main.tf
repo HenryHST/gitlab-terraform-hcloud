@@ -88,6 +88,61 @@ resource "hcloud_firewall" "main" {
     }
   }
 
+  # Outbound DNS (TCP)
+  dynamic "rule" {
+    for_each = var.enable_egress_dns ? [1] : []
+    content {
+      direction       = "out"
+      protocol        = "tcp"
+      port            = "53"
+      destination_ips = var.egress_destination_ips
+    }
+  }
+
+  # Outbound DNS (UDP)
+  dynamic "rule" {
+    for_each = var.enable_egress_dns ? [1] : []
+    content {
+      direction       = "out"
+      protocol        = "udp"
+      port            = "53"
+      destination_ips = var.egress_destination_ips
+    }
+  }
+
+  # Outbound HTTP
+  dynamic "rule" {
+    for_each = var.enable_egress_http ? [1] : []
+    content {
+      direction       = "out"
+      protocol        = "tcp"
+      port            = "80"
+      destination_ips = var.egress_destination_ips
+    }
+  }
+
+  # Outbound HTTPS
+  dynamic "rule" {
+    for_each = var.enable_egress_https ? [1] : []
+    content {
+      direction       = "out"
+      protocol        = "tcp"
+      port            = "443"
+      destination_ips = var.egress_destination_ips
+    }
+  }
+
+  # Outbound SMTP (GitLab gitlab.rb when gitlab_smtp_enabled)
+  dynamic "rule" {
+    for_each = var.enable_egress_smtp ? [1] : []
+    content {
+      direction       = "out"
+      protocol        = "tcp"
+      port            = tostring(var.egress_smtp_port)
+      destination_ips = var.egress_destination_ips
+    }
+  }
+
   # Custom rules
   dynamic "rule" {
     for_each = var.custom_rules

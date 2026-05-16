@@ -70,6 +70,12 @@ module "firewall" {
 | `https_source_ips`         | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for HTTPS access         |
 | `enable_dns`               | `bool`         | `true`                  | no       | Enable DNS access on port 53 (TCP and UDP)  |
 | `dns_source_ips`           | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for DNS access           |
+| `enable_egress_dns`        | `bool`         | `true`                  | no       | Outbound DNS (TCP/UDP 53)                   |
+| `enable_egress_http`       | `bool`         | `true`                  | no       | Outbound HTTP (TCP 80)                      |
+| `enable_egress_https`      | `bool`         | `true`                  | no       | Outbound HTTPS (TCP 443)                    |
+| `egress_destination_ips`   | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Destinations for outbound DNS/HTTP/HTTPS    |
+| `enable_egress_smtp`       | `bool`         | `false`                 | no       | Outbound SMTP (TCP on `egress_smtp_port`)   |
+| `egress_smtp_port`         | `number`       | `587`                   | no       | SMTP port when egress SMTP is enabled       |
 | `enable_icmp`              | `bool`         | `true`                  | no       | Enable ICMP (ping) access                   |
 | `icmp_source_ips`          | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for ICMP access          |
 | `enable_node_exporter`     | `bool`         | `true`                  | no       | Enable Node Exporter metrics access         |
@@ -109,8 +115,12 @@ By default, the module creates the following firewall rules:
 - **DNS** (TCP/UDP port 53) - Allowed from all IPs
 - **ICMP** (Ping) - Allowed from all IPs
 - **Node Exporter** (TCP port 9100) - Allowed from all IPs
+- **Egress DNS** (TCP/UDP port 53) - Outbound to `egress_destination_ips`
+- **Egress HTTP** (TCP port 80) - Outbound
+- **Egress HTTPS** (TCP port 443) - Outbound
+- **Egress SMTP** (TCP on `egress_smtp_port`, default 587) - Outbound when `enable_egress_smtp` is true
 
-All rules can be individually enabled/disabled and have configurable source IPs.
+Inbound rules use `source_ips`; outbound rules use `destination_ips`. All can be toggled individually.
 
 ## Security Recommendations
 

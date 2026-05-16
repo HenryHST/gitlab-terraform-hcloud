@@ -46,3 +46,16 @@ enable_gitlab_resources = false
 # Self-hosted (docker_compose): instance URL, not https://gitlab.com
 # gitlab_api_url     = "https://gitlab.example.com"
 # gitlab_letsencrypt_email  = "info@example.com"
+
+# Outbound mail (docker_compose only) — written to /opt/gitlab/data/config/gitlab.rb
+# gitlab_smtp_enabled              = false
+# gitlab_smtp_address              = "smtp.example.com"
+# gitlab_smtp_port                 = 587
+# gitlab_smtp_user_name            = "gitlab"
+# gitlab_smtp_password             = "…"
+# gitlab_smtp_domain               = ""   # empty = domain_cicd_showcase_de
+# gitlab_smtp_authentication       = "login"
+# gitlab_smtp_enable_starttls_auto = true
+# gitlab_smtp_tls                  = false
+# gitlab_email_from                = "gitlab@example.com"
+# gitlab_email_reply_to            = "noreply@example.com"

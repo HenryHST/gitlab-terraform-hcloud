@@ -56,6 +56,47 @@ variable "dns_source_ips" {
   description = "Source IPs allowed for DNS access"
 }
 
+variable "enable_egress_dns" {
+  type        = bool
+  default     = true
+  description = "Allow outbound DNS (TCP and UDP port 53)"
+}
+
+variable "enable_egress_http" {
+  type        = bool
+  default     = true
+  description = "Allow outbound HTTP (TCP port 80)"
+}
+
+variable "enable_egress_https" {
+  type        = bool
+  default     = true
+  description = "Allow outbound HTTPS (TCP port 443)"
+}
+
+variable "egress_destination_ips" {
+  type        = list(string)
+  default     = ["0.0.0.0/0", "::/0"]
+  description = "Destination IPs for outbound DNS, HTTP, and HTTPS rules"
+}
+
+variable "enable_egress_smtp" {
+  type        = bool
+  default     = false
+  description = "Allow outbound SMTP (TCP on egress_smtp_port, e.g. 587 or 465)"
+}
+
+variable "egress_smtp_port" {
+  type        = number
+  default     = 587
+  description = "Outbound SMTP port when enable_egress_smtp is true"
+
+  validation {
+    condition     = var.egress_smtp_port > 0 && var.egress_smtp_port <= 65535
+    error_message = "egress_smtp_port must be between 1 and 65535."
+  }
+}
+
 variable "enable_icmp" {
   type        = bool
   default     = true

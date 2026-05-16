@@ -286,6 +286,120 @@ variable "gitlab_letsencrypt_email" {
   }
 }
 
+variable "gitlab_smtp_enabled" {
+  description = "If true (only docker_compose), enable outbound email in gitlab.rb (gitlab_rails SMTP settings)"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.gitlab_smtp_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_smtp_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+
+variable "gitlab_smtp_address" {
+  description = "SMTP server hostname (required when gitlab_smtp_enabled is true)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = !var.gitlab_smtp_enabled || length(trimspace(var.gitlab_smtp_address)) > 0
+    error_message = "gitlab_smtp_address is required when gitlab_smtp_enabled is true."
+  }
+}
+
+variable "gitlab_smtp_port" {
+  description = "SMTP port (e.g. 587 for STARTTLS, 465 for SMTPS)"
+  type        = number
+  default     = 587
+
+  validation {
+    condition     = var.gitlab_smtp_port > 0 && var.gitlab_smtp_port <= 65535
+    error_message = "gitlab_smtp_port must be between 1 and 65535."
+  }
+}
+
+variable "gitlab_smtp_user_name" {
+  description = "SMTP authentication username (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "gitlab_smtp_password" {
+  description = "SMTP authentication password (optional, sensitive)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "gitlab_smtp_domain" {
+  description = "HELO/EHLO domain for SMTP; if empty, domain_cicd_showcase_de is used"
+  type        = string
+  default     = ""
+}
+
+variable "gitlab_smtp_authentication" {
+  description = "SMTP auth method: login, plain, cram_md5, or none"
+  type        = string
+  default     = "login"
+
+  validation {
+    condition     = contains(["login", "plain", "cram_md5", "none"], var.gitlab_smtp_authentication)
+    error_message = "gitlab_smtp_authentication must be one of: login, plain, cram_md5, none."
+  }
+}
+
+variable "gitlab_smtp_enable_starttls_auto" {
+  description = "Enable STARTTLS when connecting to SMTP (typical for port 587)"
+  type        = bool
+  default     = true
+}
+
+variable "gitlab_smtp_tls" {
+  description = "Use SMTPS (implicit TLS, typical for port 465)"
+  type        = bool
+  default     = false
+}
+
+variable "gitlab_smtp_openssl_verify_mode" {
+  description = "OpenSSL verify mode for SMTP TLS: none, peer, client_once, fail_if_no_peer_cert"
+  type        = string
+  default     = "peer"
+
+  validation {
+    condition     = contains(["none", "peer", "client_once", "fail_if_no_peer_cert"], var.gitlab_smtp_openssl_verify_mode)
+    error_message = "gitlab_smtp_openssl_verify_mode must be none, peer, client_once, or fail_if_no_peer_cert."
+  }
+}
+
+variable "gitlab_email_from" {
+  description = "From address for GitLab emails (required when gitlab_smtp_enabled is true)"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitlab_email_from == "" || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.gitlab_email_from))
+    error_message = "gitlab_email_from must be empty or a simple email address."
+  }
+
+  validation {
+    condition     = !var.gitlab_smtp_enabled || length(trimspace(var.gitlab_email_from)) > 0
+    error_message = "gitlab_email_from is required when gitlab_smtp_enabled is true."
+  }
+}
+
+variable "gitlab_email_reply_to" {
+  description = "Reply-To for GitLab emails; if empty, only gitlab_email_from is set"
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitlab_email_reply_to == "" || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.gitlab_email_reply_to))
+    error_message = "gitlab_email_reply_to must be empty or a simple email address."
+  }
+}
+
 variable "gitlab_bootstrap_wait_seconds" {
   description = "Seconds to wait in bootstrap script before gitlab-ctl reconfigure (DNS propagation)"
   type        = number
