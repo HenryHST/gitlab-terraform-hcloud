@@ -5,6 +5,37 @@ Alle wesentlichen Änderungen an diesem Projekt werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2026-05-15
+
+Patch-Release: Docker-Compose-Stack (Traefik, GitLab, PostgreSQL) produktionsnäher; Firewall mit SSH 2424 und Egress; optionales SMTP für GitLab.
+
+### Added
+
+- **SMTP für `docker_compose`:** Variablen `gitlab_smtp_*` und `gitlab_email_from` — schreiben Omnibus-SMTP in `/opt/gitlab/data/config/gitlab.rb`; Validierung nur bei `gitlab_install_mode = docker_compose` ([`variables.tf`](variables.tf), [`terraform.tfvars.example`](terraform.tfvars.example)).
+- **Firewall [`modules/firewall`](modules/firewall):**
+  - Eingehend **TCP 2424** (`enable_ssh_high`, Standard `true`) — GitLab Shell SSH (`gitlab_shell_ssh_port = 2424`).
+  - Ausgehend **DNS 53** (TCP/UDP), **HTTP 80**, **HTTPS 443** (`enable_egress_dns` / `http` / `https`, `egress_destination_ips`).
+  - Ausgehend **SMTP** (`enable_egress_smtp`, `egress_smtp_port`) — an Root an `gitlab_smtp_enabled` / `gitlab_smtp_port` gekoppelt; Runner-Firewall ohne 2424 und ohne SMTP-Egress.
+- **Traefik (Docker-Init):** `.env` mit `ABSOLUTE_PATH`, `TZ`, Host-Label, `HETZNER_API_TOKEN`, `ACME_EMAIL`; `dynamic_conf/` (gzip, fail2ban, Security-Headers, TLS-Optionen); ACME/TLS-JSON unter `/opt/gitlab/traefik/certs` (Bind-Mount `/certs`).
+
+### Changed
+
+- **[`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl):**
+  - GitLab-Konfiguration über **`gitlab.rb`** auf dem Host (kein `GITLAB_OMNIBUS_CONFIG`); Bind-Mounts für `config`, `logs`, `data/gitlab` und PostgreSQL `./postgres/data`.
+  - GitLab-Container zusätzlich im Netz **`socket_proxy`**, damit der Hostname `postgres` auflösbar ist.
+  - Statische IPs im `proxy`-Subnetz angepasst (`172.31.129.x`).
+  - Traefik-Router: Middleware-Kette `default@file`, TLS `default@file`.
+- **[`main.tf`](main.tf):** SMTP- und Firewall-Parameter an Server- bzw. Runner-Module durchgereicht.
+- **[`README.md`](README.md):** Pfade unter `/opt/gitlab`, `gitlab.rb`, Firewall 2424/Egress, SMTP-Doku.
+- **[`modules/gitlab-api/main.tf`](modules/gitlab-api/main.tf):** Kleinere Anpassungen an Provider-Ressourcen.
+
+### Fixed
+
+- **`PG::ConnectionBad: could not translate host name "postgres"`** — GitLab war nicht im gleichen Docker-Netz wie PostgreSQL; Beitritt zu `socket_proxy` behebt die Auflösung.
+- **Firewall-Modul:** Syntax in [`modules/firewall/variables.tf`](modules/firewall/variables.tf) für `enable_ssh_high` korrigiert.
+
+[0.0.3]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.0.3
+
 ## [0.0.2] - 2026-05-15
 
 Patch-Release: GitLab-Provider-Ressourcen in ein Modul ausgelagert; `terraform plan` funktioniert wieder ohne API-Token, wenn `enable_gitlab_resources = false`.
@@ -24,7 +55,6 @@ Patch-Release: GitLab-Provider-Ressourcen in ein Modul ausgelagert; `terraform p
 
 - **GitLab Provider v18:** Leerer `gitlab_api_token` löste `unable to locate config file` auf jedem `terraform plan` aus (Fallback auf glab-Config); behoben durch bedingtes Token und `early_auth_check`.
 
-[0.0.2]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.0.2
 ## [0.0.1] - 2026-05-15
 
 Erstes Release: Terraform-Root für Hetzner Cloud mit optionalem GitLab (Omnibus, Docker Compose oder aus), DNS/Mail-Records, GitLab Runner und GitLab-Provider-Ressourcen.
@@ -62,4 +92,5 @@ Erstes Release: Terraform-Root für Hetzner Cloud mit optionalem GitLab (Omnibus
 
 - Secrets (`hcloud_token`, `gitlab_api_token`, Renovate-Lizenz/PAT, generierte Passwörter) gehören in `terraform.tfvars` (gitignored) oder CI-Secrets; sensible Terraform-Outputs markiert.
 
+[0.0.2]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.0.2
 [0.0.1]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.0.1
