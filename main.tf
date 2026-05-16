@@ -57,6 +57,7 @@ locals {
       smtp_openssl_verify_mode  = var.gitlab_smtp_openssl_verify_mode
       gitlab_email_from         = var.gitlab_email_from
       gitlab_email_reply_to     = var.gitlab_email_reply_to
+      gitlab_signup_enabled     = var.gitlab_signup_enabled
       backup_enabled            = var.gitlab_docker_backup_enabled
       backup_keep_time          = var.gitlab_docker_backup_keep_time
       backup_cron               = var.gitlab_docker_backup_cron

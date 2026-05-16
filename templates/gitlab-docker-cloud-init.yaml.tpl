@@ -252,6 +252,7 @@ write_files:
       gitlab_rails['gitlab_default_can_create_group'] = true
       gitlab_rails['gitlab_username_changing_enabled'] = true
       gitlab_rails['webhook_timeout'] = 10
+      gitlab_rails['gitlab_signup_enabled'] = ${gitlab_signup_enabled}
 
       # https://docs.gitlab.com/omnibus/settings/backups.html
 %{ if backup_enabled ~}

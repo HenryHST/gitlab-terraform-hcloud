@@ -139,6 +139,7 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_docker_backup_enabled` | `true` | Nur **`docker_compose`**: `gitlab_rails` Backup-Pfad/Aufbewahrung in `gitlab.rb`, Host-Cron + Skript unter `/opt/gitlab/scripts/` |
 | `gitlab_docker_backup_keep_time` | `604800` | Aufbewahrung in Sekunden (Standard 7 Tage); `0` = alle Archive behalten ([Backup-Doku](https://docs.gitlab.com/omnibus/settings/backups.html)) |
 | `gitlab_docker_backup_cron` | `0 3 * * *` | Cron-Zeitplan auf dem Host für `gitlab-backup create` (fünf Felder) |
+| `gitlab_signup_enabled` | `false` | Nur **`docker_compose`**: `gitlab_rails['gitlab_signup_enabled']` — Registrierung auf der Anmeldeseite |
 | `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_token`** |
 | `gitlab_api_token` | `""` | GitLab API-Token (sensitiv); Pflicht bei `enable_gitlab_resources = true` (min. 8 Zeichen, keine Leerzeichen) |
 | `gitlab_api_url` | `https://gitlab.com` | Basis-URL der GitLab-Instanz für den Provider (`https://gitlab.example.com` bei Self-Hosted) |
@@ -250,7 +251,7 @@ Wenn `gitlab_install_mode = "docker_compose"`:
 | `/opt/gitlab/backups/` | GitLab-Backup-Archive → `/var/opt/gitlab/backups` (wenn **`gitlab_docker_backup_enabled`**) |
 | `/opt/gitlab/scripts/gitlab-backup.sh` | Host-Skript für Cron (Application + `gitlab-ctl backup-etc`) |
 
-**GitLab-Konfiguration** folgt der [GitLab-Docker-Doku](https://docs.gitlab.com/install/docker/configuration/): Cloud-Init schreibt **`/opt/gitlab/data/config/gitlab.rb`** (im Container `/etc/gitlab/gitlab.rb`). Dort u. a. `external_url`, externe PostgreSQL, NGINX nur HTTP (TLS bei Traefik), `gitlab_rails['gitlab_shell_ssh_port'] = 2424`. **`GITLAB_OMNIBUS_CONFIG`** wird nicht verwendet. Änderungen auf der VM:
+**GitLab-Konfiguration** folgt der [GitLab-Docker-Doku](https://docs.gitlab.com/install/docker/configuration/): Cloud-Init schreibt **`/opt/gitlab/data/config/gitlab.rb`** (im Container `/etc/gitlab/gitlab.rb`). Dort u. a. `external_url`, externe PostgreSQL, NGINX nur HTTP (TLS bei Traefik), `gitlab_rails['gitlab_shell_ssh_port'] = 2424`, **`gitlab_rails['gitlab_signup_enabled']`** (Terraform: **`gitlab_signup_enabled`**, Standard `false`). **`GITLAB_OMNIBUS_CONFIG`** wird nicht verwendet. Änderungen auf der VM:
 
 ```bash
 editor /opt/gitlab/data/config/gitlab.rb

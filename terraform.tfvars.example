@@ -52,6 +52,9 @@ enable_gitlab_resources = false
 # gitlab_docker_backup_keep_time  = 604800   # 7 days; 0 = keep all
 # gitlab_docker_backup_cron       = "0 3 * * *"
 
+# Sign-up on login page (docker_compose only) — gitlab_rails['gitlab_signup_enabled'] in gitlab.rb
+# gitlab_signup_enabled = false
+
 # Outbound mail (docker_compose only) — written to /opt/gitlab/data/config/gitlab.rb
 # gitlab_smtp_enabled              = false
 # gitlab_smtp_address              = "smtp.example.com"

@@ -319,6 +319,17 @@ variable "gitlab_letsencrypt_email" {
   }
 }
 
+variable "gitlab_signup_enabled" {
+  description = "When gitlab_install_mode is docker_compose, set gitlab_rails['gitlab_signup_enabled'] in gitlab.rb (allow new users to register on the sign-in page)"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = var.gitlab_install_mode == "docker_compose" || !var.gitlab_signup_enabled
+    error_message = "gitlab_signup_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+
 variable "gitlab_smtp_enabled" {
   description = "If true (only docker_compose), enable outbound email in gitlab.rb (gitlab_rails SMTP settings)"
   type        = bool
