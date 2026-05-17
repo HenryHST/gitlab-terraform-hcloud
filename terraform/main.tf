@@ -1,6 +1,7 @@
 locals {
   gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.domain_cicd_showcase_de}"
   renovate_fqdn              = "${var.gitlab_docker_renovate_dns_label}.${var.domain_cicd_showcase_de}"
+  registry_fqdn              = "${var.gitlab_docker_registry_dns_label}.${var.domain_cicd_showcase_de}"
   gitlab_enabled             = var.gitlab_install_mode != "none"
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
 
@@ -47,6 +48,8 @@ locals {
       renovate_server_api_secret = (
         var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
       )
+      registry_enabled          = var.gitlab_docker_registry_enabled
+      registry_fqdn             = local.registry_fqdn
       gitlab_api_v4_endpoint    = local.gitlab_api_v4_endpoint
       smtp_enabled              = var.gitlab_smtp_enabled
       smtp_address              = var.gitlab_smtp_address
@@ -236,6 +239,15 @@ resource "hcloud_zone_record" "renovate" {
   provider = hcloud.dns
   zone     = module.dns.zone_name
   name     = var.gitlab_docker_renovate_dns_label
+  type     = "A"
+  value    = module.server.server_ipv4
+}
+
+resource "hcloud_zone_record" "registry" {
+  count    = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled && local.gitlab_enabled ? 1 : 0
+  provider = hcloud.dns
+  zone     = module.dns.zone_name
+  name     = var.gitlab_docker_registry_dns_label
   type     = "A"
   value    = module.server.server_ipv4
 }

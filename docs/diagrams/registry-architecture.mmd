@@ -1,0 +1,25 @@
+flowchart TB
+  subgraph dns [Hetzner_DNS]
+    A_gitlab["A gitlab.zone"]
+    A_registry["A registry.zone"]
+  end
+
+  subgraph host [VM_opt_gitlab]
+    traefik[Traefik_80_443]
+    gitlab[GitLab_Omnibus]
+    reg_proc[Registry_5050]
+    vol_data["/opt/gitlab/registry/data"]
+    vol_certs["/opt/gitlab/registry/certs"]
+  end
+
+  client[Docker_CLI]
+
+  client -->|"HTTPS Host gitlab"| traefik
+  client -->|"HTTPS Host registry"| traefik
+  traefik -->|"port 80"| gitlab
+  traefik -->|"port 5050"| reg_proc
+  reg_proc --- gitlab
+  reg_proc --> vol_data
+  reg_proc --> vol_certs
+  A_gitlab --> host
+  A_registry --> host

@@ -1,6 +1,6 @@
 # gitlab-terraform-hcloud
 
-Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du die **GitLab-Plattform auf dem Server**: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (`docker_compose`: GitLab CE, Traefik, PostgreSQL, optional **Mend Renovate CE**). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
+Dieses Repository enthält Terraform-Code für **Hetzner Cloud**: einen Hauptserver mit Firewall, optionalem PTR und einer **Hetzner-DNS-Zone** inklusive Web- und Mail-Records. Über **`gitlab_install_mode`** steuerst du die **GitLab-Plattform auf dem Server**: aus (`none`), **Hetzner-App-Image** plus Omnibus-Cloud-Init (`hetzner_app`), oder **Debian-VM mit Docker Compose** (`docker_compose`: GitLab CE, Traefik, PostgreSQL, **Container Registry**, optional **Mend Renovate CE**). Optional eine **zweite VM als GitLab Runner** (`cpx22`) mit automatischer Installation der offiziellen GitLab-Runner-`.deb`-Pakete.
 
 Unabhängig davon kann **`enable_gitlab_resources`** Gruppen und Projekte per **GitLab-API** in [`gitlab.tf`](terraform/gitlab.tf) anlegen (Provider [`gitlabhq/gitlab`](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs)).
 
@@ -30,6 +30,7 @@ Alle Befehle `terraform` / `tofu` und `terraform.tfvars` gehören in den Ordner 
   - [GitLab-Installationsmodi](#gitlab-installationsmodi)
     - [`hetzner_app` (Hetzner App-Image)](#hetzner_app-hetzner-app-image)
     - [`docker_compose` (GitLab CE + Traefik)](#docker_compose-gitlab-ce--traefik)
+    - [Container Registry (`docker_compose`)](#container-registry-docker_compose)
     - [Renovate CE (`docker_compose`)](#renovate-ce-docker_compose)
   - [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
   - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
@@ -54,13 +55,16 @@ flowchart LR
     RUN[module.gitlab_runner]
     AR[hcloud_zone_record_runner]
     RNV[hcloud_zone_record_renovate]
+    REG[hcloud_zone_record_registry]
   end
   FW -->|firewall_ids| SRV
   SRV -->|server_ipv4| DNS
   SRV -->|IPv4| RNV
+  SRV -->|IPv4| REG
   FWR -->|firewall_ids| RUN
   DNS -->|zone_name| AR
   DNS -->|zone_name| RNV
+  DNS -->|zone_name| REG
   RUN -->|IPv4| AR
   HCAPI[Hetzner_Cloud_API]
   GLAPI[GitLab_API]
@@ -80,6 +84,7 @@ Optional (nur bei `enable_gitlab_resources = true`): [`gitlab.tf`](terraform/git
 | [`modules/dns`](terraform/modules/dns) | `hcloud_zone` (primary) und Records: Web-A-Record, Mail-A/AAAA/MX, Autoconfig/Autodiscover, DMARC/DKIM/SPF, CAA, TLSA, SRV. |
 | `module.firewall_runner` + `module.gitlab_runner` + `hcloud_zone_record.gitlab_runner` | Nur bei `enable_gitlab_runner = true`: Firewall (SSH/ICMP ein, Egress DNS/HTTP/HTTPS), **cpx22**-Server, A-Record **`<gitlab_runner_dns_label>.<zone>`**. |
 | `hcloud_zone_record.renovate` | Nur bei `docker_compose` + **`gitlab_docker_renovate_enabled`**: A-Record **`<gitlab_docker_renovate_dns_label>.<zone>`** (Standard: `renovate.<zone>`) → gleiche Server-IPv4 wie GitLab. |
+| `hcloud_zone_record.registry` | Nur bei `docker_compose` + **`gitlab_docker_registry_enabled`** (Standard `true`): A-Record **`<gitlab_docker_registry_dns_label>.<zone>`** (Standard: `registry.<zone>`) → gleiche Server-IPv4 wie GitLab. |
 
 ### Provider
 
@@ -154,6 +159,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_renovate_dns_label` | `renovate` | DNS + Traefik-Host: `<label>.<zone>` |
 | `gitlab_docker_renovate_license_key` | `""` | Mend-Lizenz (sensitiv); Pflicht wenn Renovate aktiv |
 | `gitlab_docker_renovate_gitlab_pat` | `""` | GitLab-PAT für Renovate (sensitiv); Pflicht wenn Renovate aktiv |
+| `gitlab_docker_registry_enabled` | `true` | `true`: GitLab **Container Registry** (Omnibus + Traefik); nur bei `docker_compose`; `false` = kein DNS, keine Registry-Router |
+| `gitlab_docker_registry_dns_label` | `registry` | DNS + `registry_external_url`: `<label>.<zone>` |
 | `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (DNS-01 via Hetzner); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
 | `gitlab_docker_backup_enabled` | `true` | **`docker_compose`** oder **`hetzner_app`**: `gitlab_rails` Backup in `gitlab.rb`, Host-Cron + Backup-Skript |
 | `gitlab_docker_backup_keep_time` | `604800` | Aufbewahrung in Sekunden (Standard 7 Tage); `0` = alle Archive behalten ([Backup-Doku](https://docs.gitlab.com/omnibus/settings/backups.html)) |
@@ -220,6 +227,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_initial_root_password` | Nur `docker_compose`: initiales `root`-Passwort (sensitiv; liegt im **Terraform State**) |
 | `gitlab_docker_postgres_password` | Nur `docker_compose`: Passwort des DB-Users `gitlab` (sensitiv; State + `user_data`) |
 | `renovate_fqdn` | Nur `docker_compose` + Renovate: FQDN des Renovate-A-Records (z. B. `renovate.example.com`) |
+| `registry_fqdn` | Nur `docker_compose` + Registry: FQDN des Registry-A-Records (z. B. `registry.example.com`) |
+| `registry_url` | Nur Registry aktiv: `http://…` oder `https://…` (wie `gitlab_url`, abhängig von `gitlab_docker_traefik_acme_enabled`) |
 | `gitlab_docker_renovate_webhook_secret` | Nur Renovate aktiv: Webhook-Token (sensitiv; muss mit `MEND_RNV_WEBHOOK_SECRET` und ggf. `gitlab_project_hook` übereinstimmen) |
 | `gitlab_devops_group_id` | Nur `enable_gitlab_resources`: ID der Gruppe `devops` oder `null` |
 | `gitlab_devops_project_id` | Nur `enable_gitlab_resources`: ID des Projekts `devops` (in der Gruppe) oder `null` |
@@ -270,6 +279,8 @@ Wenn `gitlab_install_mode = "docker_compose"`:
 | `/opt/gitlab/backups/` | GitLab-Backup-Archive → `/var/opt/gitlab/backups` (wenn **`gitlab_docker_backup_enabled`**) |
 | `/opt/gitlab/scripts/gitlab-backup.sh` | Host-Skript für Cron (Application + `gitlab-ctl backup-etc`) |
 | `/opt/gitlab/scripts/gitlab-restore.sh` | Restore: `--list`, `<BACKUP_ID>`, `--config-only` |
+| `/opt/gitlab/registry/data/` | Registry-Blobs → `/var/opt/gitlab/gitlab-rails/shared/registry` (wenn **`gitlab_docker_registry_enabled`**) |
+| `/opt/gitlab/registry/certs/` | Omnibus-Registry-Zertifikatsverzeichnis → `/etc/gitlab/ssl/registry` (öffentliches TLS via Traefik/ACME in `traefik/certs/`) |
 
 **GitLab-Konfiguration** folgt der [GitLab-Docker-Doku](https://docs.gitlab.com/install/docker/configuration/): Cloud-Init schreibt **`/opt/gitlab/data/config/gitlab.rb`** (im Container `/etc/gitlab/gitlab.rb`). Dort u. a. `external_url`, externe PostgreSQL, NGINX nur HTTP (TLS bei Traefik), `gitlab_rails['gitlab_shell_ssh_port'] = 2424`, **`gitlab_rails['gitlab_signup_enabled']`** (Terraform: **`gitlab_signup_enabled`**, Standard `false`). **`GITLAB_OMNIBUS_CONFIG`** wird nicht verwendet. Änderungen auf der VM:
 
@@ -306,7 +317,7 @@ docker compose exec -T gitlab gitlab-backup create
 
 **Wichtig:** `gitlab-secrets.json` und `gitlab.rb` separat sichern ([Backup-Doku](https://docs.gitlab.com/administration/backup_restore/backup_gitlab/#data-not-included-in-a-backup)). Backups enthalten sensible Daten — Zugriff auf `/opt/gitlab/backups` einschränken und offsite kopieren.
 
-**Traefik:** Image über **`gitlab_docker_traefik_image`**. Docker-Provider mit **`allowEmptyServices: true`**, damit der Router nicht fehlt, während der GitLab-Container startet (sonst kurz **404 page not found**). GitLab-Image-Healthcheck ist deaktiviert (`healthcheck: disable: true`), damit Traefik den Service nicht wegen `starting`/`unhealthy` ausblendet. Router für GitLab/Renovate mit Middleware **`default@file`** (gzip, Security-Headers, fail2ban-Plugin). Bei **`gitlab_docker_traefik_acme_enabled`**: Zertifikate per **DNS-01** (Resolver `hetzner`, Hetzner-API-Token in `.env`), optional TLS-01-Resolver `tls`; `letsencrypt` in `gitlab.rb` bleibt aus. Ohne ACME: **`gitlab_url`** ist **`http://…`** — Browser-HTTPS liefert kein gültiges Zertifikat.
+**Traefik:** Image über **`gitlab_docker_traefik_image`**. Docker-Provider mit **`allowEmptyServices: true`**, damit der Router nicht fehlt, während der GitLab-Container startet (sonst kurz **404 page not found**). GitLab-Image-Healthcheck ist deaktiviert (`healthcheck: disable: true`), damit Traefik den Service nicht wegen `starting`/`unhealthy` ausblendet. Router für GitLab, **Registry** und Renovate mit Middleware **`default@file`** (gzip, Security-Headers, fail2ban-Plugin); Registry zusätzlich **Buffering** ohne Body-Limit für große `docker push`-Layer. Bei **`gitlab_docker_traefik_acme_enabled`**: Zertifikate per **DNS-01** (Resolver `hetzner`, Hetzner-API-Token in `.env`), optional TLS-01-Resolver `tls`; `letsencrypt` in `gitlab.rb` bleibt aus. Ohne ACME: **`gitlab_url`** und **`registry_url`** sind **`http://…`** — produktives `docker push`/`pull` über HTTPS erfordert ACME.
 
 **Stack (Compose):**
 
@@ -314,7 +325,7 @@ docker compose exec -T gitlab gitlab-backup create
 |---------|--------|-----------------|
 | **traefik** | `proxy`, `socket_proxy` | Host **80/443**; statische IPs im `proxy`-Subnetz (`172.31.128.0/18`) |
 | **postgres** | `socket_proxy` | nur intern; DB-Host `postgres` für GitLab |
-| **gitlab** | `proxy`, `socket_proxy` | HTTP hinter Traefik; Git/SSH **Host 2424** → Container 22 |
+| **gitlab** | `proxy`, `socket_proxy` | HTTP **:80** hinter Traefik (`gitlab`); optional Registry **:5050** (`registry`-Router); Git/SSH **Host 2424** → Container 22 |
 
 Die **Hetzner-Firewall** öffnet **TCP 2424** (`enable_ssh_high`, Standard `true`) zusätzlich zu SSH 22 — passend zum Port-Mapping und `gitlab_shell_ssh_port`.
 
@@ -359,6 +370,50 @@ docker compose exec -T gitlab gitlab-rails runner \
 | HTTPS/SSL-Fehler | Traefik-ACME und Router (kein `tls.options=default@file` an Docker-Labels) — siehe Abschnitt Traefik oben. |
 
 Weitere Details: [Web IDE](https://docs.gitlab.com/user/project/web_ide/), [Admin Web IDE](https://docs.gitlab.com/administration/settings/web_ide/), [Extension Marketplace](https://docs.gitlab.com/administration/settings/vscode_extension_marketplace/).
+
+### Container Registry (`docker_compose`)
+
+Standardmäßig aktiv über **`gitlab_docker_registry_enabled = true`** (nur mit `gitlab_install_mode = docker_compose`). Die Registry läuft im **GitLab-Omnibus-Container** (kein separater Service); Traefik terminiert TLS wie für die GitLab-Weboberfläche.
+
+```mermaid
+flowchart LR
+  client[Client_docker_CLI]
+  traefik[Traefik_443]
+  gitlab[GitLab_Omnibus]
+  reg[Registry_5050]
+
+  client -->|"Host gitlab_fqdn"| traefik
+  client -->|"Host registry_fqdn"| traefik
+  traefik -->|"port 80"| gitlab
+  traefik -->|"port 5050"| reg
+  reg --- gitlab
+```
+
+Quelldateien: [`docs/diagrams/registry-architecture.mmd`](docs/diagrams/registry-architecture.mmd), [`docs/diagrams/registry-request-flow.mmd`](docs/diagrams/registry-request-flow.mmd).
+
+| Thema | Details |
+|--------|---------|
+| DNS | **`hcloud_zone_record.registry`** — A-Record **`<gitlab_docker_registry_dns_label>.<zone>`** (Standard `registry.<zone>`) → GitLab-Server-IPv4 |
+| `gitlab.rb` | `registry_external_url`, `gitlab_rails['registry_enabled']`, `registry_nginx['enable'] = false`, `registry['registry_http_addr'] = "0.0.0.0:5050"` |
+| Traefik | Router **`registry`** auf dem `gitlab`-Service → Port **5050**, `certresolver=hetzner` bei ACME |
+| Volumes | `/opt/gitlab/registry/data`, `/opt/gitlab/registry/certs` |
+| Deaktivieren | `gitlab_docker_registry_enabled = false` — kein DNS, keine Traefik-Labels, keine Registry-Einträge in `gitlab.rb` |
+
+**Voraussetzung für HTTPS:** **`gitlab_docker_traefik_acme_enabled = true`** und gültiger **`hetzner_api_key`** (DNS-01). Nach Deploy:
+
+```bash
+dig +short registry.example.com
+curl -sI https://registry.example.com/v2/
+docker login registry.example.com
+docker tag myimage:latest registry.example.com/group/project:latest
+docker push registry.example.com/group/project:latest
+```
+
+Outputs: **`registry_fqdn`**, **`registry_url`**.
+
+**Migration bestehender VMs:** Cloud-Init-Änderung → oft **Server-Replace** (`terraform apply -replace=module.server.hcloud_server.main`) oder manuell `gitlab.rb`, Volumes, Compose-Labels und `docker compose up -d` nachziehen, danach `gitlab-ctl reconfigure`.
+
+Doku: [Container Registry](https://docs.gitlab.com/administration/packages/container_registry/), [Registry hinter Reverse Proxy](https://docs.gitlab.com/administration/packages/container_registry/#use-an-external-reverse-proxy).
 
 ### Renovate CE (`docker_compose`)
 
@@ -509,7 +564,7 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 2. **`site_url`:** Nur für Output `website_url`; nicht an Module gebunden.
 3. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
 4. **Cloud-Init / `user_data`:** Änderungen an Templates erfordern oft **Server-Replace** (`terraform apply -replace=module.server.hcloud_server.main`), nicht nur erneutes Apply.
-5. **Drei unabhängige Schalter:** `gitlab_install_mode` (Server/Compose), `enable_gitlab_resources` ([`gitlab.tf`](terraform/gitlab.tf), Modul [`modules/gitlab-api`](terraform/modules/gitlab-api/)), `gitlab_docker_renovate_enabled` (Renovate-Container). Runner-Registrierung bleibt manuell.
+5. **Unabhängige Schalter:** `gitlab_install_mode` (Server/Compose), `enable_gitlab_resources` ([`gitlab.tf`](terraform/gitlab.tf), Modul [`modules/gitlab-api`](terraform/modules/gitlab-api/)), `gitlab_docker_registry_enabled` (Container Registry, Standard an), `gitlab_docker_renovate_enabled` (Renovate-Container). Runner-Registrierung bleibt manuell.
 6. **Renovate:** Lizenz und GitLab-PAT liegen in `terraform.tfvars` (sensitiv). Webhook-Secret steht im State; nach Änderung ggf. Hook in GitLab und Env auf der VM anpassen.
 
 ## Weiterführende Links
@@ -522,3 +577,4 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 - [Hetzner Dokumentation](https://docs.hetzner.com/)
 - [GitLab – Backup (Omnibus)](https://docs.gitlab.com/omnibus/settings/backups.html)
 - [GitLab – Backup in Docker](https://docs.gitlab.com/administration/backup_restore/backup_gitlab/)
+- [GitLab – Container Registry](https://docs.gitlab.com/administration/packages/container_registry/)

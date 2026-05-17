@@ -203,6 +203,28 @@ variable "gitlab_docker_renovate_gitlab_pat" {
   }
 }
 
+variable "gitlab_docker_registry_enabled" {
+  description = "When gitlab_install_mode is docker_compose, enable GitLab Container Registry (Traefik + DNS A record registry.<zone>)"
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = !var.gitlab_docker_registry_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_docker_registry_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+
+variable "gitlab_docker_registry_dns_label" {
+  description = "DNS A record label for Container Registry (FQDN <label>.<zone>, Traefik Host rule and registry_external_url)"
+  type        = string
+  default     = "registry"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.gitlab_docker_registry_dns_label))
+    error_message = "gitlab_docker_registry_dns_label must be a valid DNS label."
+  }
+}
+
 variable "enable_gitlab_resources" {
   description = "If true, create GitLab provider resources in gitlab.tf (groups, projects). Requires gitlab_api_token."
   type        = bool

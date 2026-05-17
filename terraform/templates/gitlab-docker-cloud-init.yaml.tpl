@@ -52,7 +52,8 @@ write_files:
           exposedByDefault: false
           # Keep gitlab@docker router while GitLab Omnibus healthcheck is still starting (avoids Traefik 404).
           allowEmptyServices: true
-          network: $${NETWORKS_PROXY_NAME:-proxy}
+          # Static config: literal Docker network name (not shell/env substitution).
+          network: proxy
           watch: true
         file:
           directory: /etc/traefik/dynamic_conf
@@ -254,6 +255,18 @@ write_files:
       gitlab_rails['gitlab_username_changing_enabled'] = true
       gitlab_rails['webhook_timeout'] = 10
       gitlab_rails['gitlab_signup_enabled'] = ${gitlab_signup_enabled}
+%{ if registry_enabled ~}
+
+      # Container Registry behind Traefik (https://docs.gitlab.com/administration/packages/container_registry/)
+      registry_external_url '${external_url_scheme}://${registry_fqdn}'
+      gitlab_rails['registry_enabled'] = true
+      registry['enable'] = true
+      registry_nginx['enable'] = false
+      registry['registry_http_addr'] = "0.0.0.0:5050"
+%{ if acme_enabled ~}
+      registry['trusted_proxies'] = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '172.31.0.0/16']
+%{ endif ~}
+%{ endif ~}
 
       # https://docs.gitlab.com/omnibus/settings/backups.html
 %{ if backup_enabled ~}
@@ -501,6 +514,10 @@ write_files:
 %{ if backup_enabled ~}
             - ./backups:/var/opt/gitlab/backups
 %{ endif ~}
+%{ if registry_enabled ~}
+            - ./registry/data:/var/opt/gitlab/gitlab-rails/shared/registry
+            - ./registry/certs:/etc/gitlab/ssl/registry
+%{ endif ~}
           ports:
             - "2424:22"
           networks:
@@ -512,6 +529,7 @@ write_files:
             - "traefik.enable=true"
             - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
             - "traefik.http.services.gitlab.loadbalancer.server.port=80"
+            - "traefik.http.routers.gitlab.service=gitlab"
 %{ if acme_enabled ~}
             - "traefik.http.routers.gitlab.rule=Host(`${gitlab_fqdn}`)"
             - "traefik.http.routers.gitlab.entrypoints=websecure"
@@ -522,6 +540,21 @@ write_files:
             - "traefik.http.routers.gitlab.entrypoints=web"
 %{ endif ~}
             - "traefik.http.routers.gitlab.middlewares=default@file"
+%{ if registry_enabled ~}
+            - "traefik.http.middlewares.registry-buffering.buffering.maxRequestBodyBytes=0"
+            - "traefik.http.services.registry.loadbalancer.server.port=5050"
+            - "traefik.http.routers.registry.service=registry"
+%{ if acme_enabled ~}
+            - "traefik.http.routers.registry.rule=Host(`${registry_fqdn}`)"
+            - "traefik.http.routers.registry.entrypoints=websecure"
+            - "traefik.http.routers.registry.tls=true"
+            - "traefik.http.routers.registry.tls.certresolver=hetzner"
+%{ else ~}
+            - "traefik.http.routers.registry.rule=Host(`${registry_fqdn}`)"
+            - "traefik.http.routers.registry.entrypoints=web"
+%{ endif ~}
+            - "traefik.http.routers.registry.middlewares=registry-buffering@docker,default@file"
+%{ endif ~}
 %{ if renovate_enabled ~}
 
         renovate-ce:
@@ -625,6 +658,10 @@ runcmd:
 %{ endif ~}
 %{ if renovate_enabled ~}
     install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db
+%{ endif ~}
+%{ if registry_enabled ~}
+    install -m 0750 -d /opt/gitlab/registry/data /opt/gitlab/registry/certs
+    touch /opt/gitlab/registry/certs/.gitkeep
 %{ endif ~}
     cd /opt/gitlab
     docker compose pull

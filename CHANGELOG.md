@@ -7,6 +7,14 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Fixed
+
+- **Traefik TLS (Registry):** Zwei Services (`gitlab` + `registry`) auf einem Container erfordern explizite Labels `traefik.http.routers.<name>.service=<name>`; ohne diese blieb `acme_letsencrypt.json` leer und Traefik lieferte das Default-Zertifikat (`tls: unknown certificate`).
+
+### Added
+
+- **Container Registry (`docker_compose`):** Variablen `gitlab_docker_registry_enabled` (Standard `true`) und `gitlab_docker_registry_dns_label` (Standard `registry`); DNS A-Record `hcloud_zone_record.registry`; Traefik-Router auf Port 5050; Host-Volumes `/opt/gitlab/registry/data` und `/opt/gitlab/registry/certs`; `registry_external_url` in `gitlab.rb`; Outputs `registry_fqdn` und `registry_url`; Architektur-Diagramme unter [`docs/diagrams/`](docs/diagrams/).
+
 ### Changed
 
 - **Repository-Layout:** Terraform-Konfiguration (`*.tf`, `modules/`, `templates/`, `terraform.tfvars.example`, Lockfile, TFLint) nach [`terraform/`](terraform/) verschoben; Root enthält README, CHANGELOG, Makefile, CI, Renovate.

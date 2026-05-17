@@ -87,6 +87,21 @@ output "renovate_fqdn" {
   )
 }
 
+output "registry_fqdn" {
+  description = "Container Registry hostname when docker_compose and gitlab_docker_registry_enabled"
+  value = (
+    var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled ? local.registry_fqdn : null
+  )
+}
+
+output "registry_url" {
+  description = "Container Registry URL when docker_compose and gitlab_docker_registry_enabled (https when Traefik ACME is enabled)"
+  value = (
+    var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled ?
+    "${local.gitlab_docker_external_url_scheme}://${local.registry_fqdn}" : null
+  )
+}
+
 output "gitlab_docker_renovate_webhook_secret" {
   description = "Webhook secret for Renovate CE and GitLab project hooks (sensitive; in Terraform state)"
   value       = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : null

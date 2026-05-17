@@ -1,0 +1,12 @@
+sequenceDiagram
+  participant Docker as docker_CLI
+  participant Traefik as Traefik_443
+  participant Registry as GitLab_Registry_5050
+  participant GitLab as GitLab_Rails
+
+  Docker->>Traefik: POST /v2/.../blobs/ (Host registry.zone)
+  Traefik->>Registry: HTTP :5050 (TLS terminated)
+  Registry->>GitLab: auth token check
+  GitLab-->>Registry: authorized
+  Registry-->>Traefik: 202 Accepted
+  Traefik-->>Docker: 202 Accepted
