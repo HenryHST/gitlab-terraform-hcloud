@@ -5,6 +5,32 @@ Alle wesentlichen Änderungen an diesem Projekt werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-05-17
+
+Patch-Release: Backups/Restore für beide GitLab-Installationsmodi, Traefik-/HTTPS-Stabilität, Web-IDE-Doku, Sign-up-Steuerung.
+
+### Added
+
+- **Backups (`docker_compose` und `hetzner_app`):** Variablen `gitlab_docker_backup_enabled`, `gitlab_docker_backup_keep_time`, `gitlab_docker_backup_cron` — `gitlab.rb`-Backup-Pfad, Host-Cron und Skripte ([`variables.tf`](variables.tf), [`main.tf`](main.tf)).
+- **`docker_compose`:** `/opt/gitlab/scripts/gitlab-backup.sh`, `/opt/gitlab/scripts/gitlab-restore.sh` (`--list`, `<BACKUP_ID>`, `--config-only`); Bind-Mount `./backups` ([`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl)).
+- **`hetzner_app`:** `/usr/local/sbin/gitlab-backup.sh` und `gitlab-restore.sh` im Omnibus-Cloud-Init ([`templates/gitlab-cloud-init.yaml.tpl`](templates/gitlab-cloud-init.yaml.tpl)).
+- **`gitlab_signup_enabled`:** Steuert `gitlab_rails['gitlab_signup_enabled']` in `gitlab.rb` (nur `docker_compose`).
+- **GitHub Issue Templates:** [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) (Bug Report, Feature Request).
+- **README:** Abschnitte Backups/Restore, Web IDE (OAuth, Extension Marketplace, Extension-Host-Format), Traefik-Troubleshooting.
+
+### Changed
+
+- **[`templates/gitlab-docker-cloud-init.yaml.tpl`](templates/gitlab-docker-cloud-init.yaml.tpl):** Traefik Docker-Provider `allowEmptyServices: true`; GitLab-Container-Healthcheck deaktiviert; TLS-Option in `tls.yml` von `default` nach `secure` umbenannt; Traefik-Router ohne `tls.options=default@file` (Traefik v3-kompatibel).
+- **[`README.md`](README.md)** und **[`terraform.tfvars.example`](terraform.tfvars.example):** erweiterte Doku zu Backups, HTTPS/DNS-01, Web IDE.
+
+### Fixed
+
+- **HTTPS / Web IDE:** Label `traefik.http.routers.gitlab.tls.options=default@file` führte zu `unknown TLS options: default@file` — Router wurde nicht gebaut, TLS-Handshake schlug fehl (`SSL_ERROR_SYSCALL`).
+- **Traefik 404 beim GitLab-Start:** Router fehlte, solange der Image-Healthcheck `starting`/`unhealthy` meldete; behoben durch `allowEmptyServices` und `healthcheck: disable`.
+- **Cloud-Init / Terraform `templatefile`:** Bash-Parameter-Expansion in Restore-Skripten als `$${VAR:-}` escaped.
+
+[0.0.4]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.0.4
+
 ## [0.0.3] - 2026-05-15
 
 Patch-Release: Docker-Compose-Stack (Traefik, GitLab, PostgreSQL) produktionsnäher; Firewall mit SSH 2424 und Egress; optionales SMTP für GitLab.
