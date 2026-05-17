@@ -76,6 +76,12 @@ write_files:
       sed -i '/^[[:space:]]*nginx\["listen_https"\]/d' /etc/gitlab/gitlab.rb
       sed -i "/^[[:space:]]*letsencrypt\['auto_enabled'\]/d" /etc/gitlab/gitlab.rb
       sed -i '/^[[:space:]]*letsencrypt\["auto_enabled"\]/d' /etc/gitlab/gitlab.rb
+      sed -i "/^[[:space:]]*gitlab_rails\['manage_backup_path'\]/d" /etc/gitlab/gitlab.rb
+      sed -i '/^[[:space:]]*gitlab_rails\["manage_backup_path"\]/d' /etc/gitlab/gitlab.rb
+      sed -i "/^[[:space:]]*gitlab_rails\['backup_path'\]/d" /etc/gitlab/gitlab.rb
+      sed -i '/^[[:space:]]*gitlab_rails\["backup_path"\]/d' /etc/gitlab/gitlab.rb
+      sed -i "/^[[:space:]]*gitlab_rails\['backup_keep_time'\]/d" /etc/gitlab/gitlab.rb
+      sed -i '/^[[:space:]]*gitlab_rails\["backup_keep_time"\]/d' /etc/gitlab/gitlab.rb
 %{ if gitlab_letsencrypt_enabled }
       {
         echo ""
@@ -98,8 +104,45 @@ write_files:
       } >> /etc/gitlab/gitlab.rb
       python3 /usr/local/lib/gitlab-terraform/clear_letsencrypt_auto_enabled.py
 %{ endif }
+%{ if backup_enabled ~}
+      {
+        echo ""
+        echo "# --- gitlab-terraform: backups (https://docs.gitlab.com/omnibus/settings/backups.html) ---"
+        echo "gitlab_rails['manage_backup_path'] = true"
+        echo "gitlab_rails['backup_path'] = \"/var/opt/gitlab/backups\""
+        echo "gitlab_rails['backup_keep_time'] = ${backup_keep_time}"
+      } >> /etc/gitlab/gitlab.rb
+%{ endif ~}
       gitlab-ctl reconfigure
       touch /var/lib/gitlab-terraform/.bootstrap-done
+%{ if backup_enabled ~}
+
+  - path: /usr/local/sbin/gitlab-backup.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      # Application + gitlab.rb/config backup (Omnibus). Archives: /var/opt/gitlab/backups
+      set -euo pipefail
+      LOG=/var/log/gitlab-backup.log
+      exec >>"$LOG" 2>&1
+      echo "=== gitlab-backup $(date -Is) ==="
+      if ! gitlab-ctl status >/dev/null 2>&1; then
+        echo "ERROR: gitlab-ctl status failed (GitLab not ready)"
+        exit 1
+      fi
+      gitlab-backup create CRON=1
+      gitlab-ctl backup-etc --delete-old-backups
+      echo "=== finished $(date -Is) ==="
+
+  - path: /etc/cron.d/gitlab-backup
+    permissions: "0644"
+    owner: root:root
+    content: |
+      SHELL=/bin/bash
+      PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+      ${backup_cron} root /usr/local/sbin/gitlab-backup.sh
+%{ endif ~}
 
   - path: /etc/systemd/system/gitlab-terraform-bootstrap.service
     permissions: "0644"

@@ -21,6 +21,9 @@ locals {
       letsencrypt_email          = local.gitlab_letsencrypt_contact
       bootstrap_wait             = var.gitlab_bootstrap_wait_seconds
       gitlab_letsencrypt_enabled = var.gitlab_letsencrypt_enabled
+      backup_enabled             = var.gitlab_docker_backup_enabled
+      backup_keep_time           = var.gitlab_docker_backup_keep_time
+      backup_cron                = var.gitlab_docker_backup_cron
     }) :
     var.gitlab_install_mode == "docker_compose" ? templatefile("${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl", {
       gitlab_fqdn          = local.gitlab_fqdn

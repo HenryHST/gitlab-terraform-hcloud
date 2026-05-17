@@ -265,13 +265,13 @@ variable "gitlab_letsencrypt_enabled" {
 }
 
 variable "gitlab_docker_backup_enabled" {
-  description = "When gitlab_install_mode is docker_compose, configure gitlab_rails backup settings, /opt/gitlab/backups, and a host cron job (gitlab-backup create)."
+  description = "When gitlab_install_mode is docker_compose or hetzner_app, configure gitlab_rails backup settings and a host cron job (gitlab-backup create)."
   type        = bool
   default     = true
 
   validation {
-    condition     = !var.gitlab_docker_backup_enabled || var.gitlab_install_mode == "docker_compose"
-    error_message = "gitlab_docker_backup_enabled is only supported when gitlab_install_mode is docker_compose."
+    condition     = !var.gitlab_docker_backup_enabled || contains(["docker_compose", "hetzner_app"], var.gitlab_install_mode)
+    error_message = "gitlab_docker_backup_enabled is only supported when gitlab_install_mode is docker_compose or hetzner_app."
   }
 }
 
@@ -287,7 +287,7 @@ variable "gitlab_docker_backup_keep_time" {
 }
 
 variable "gitlab_docker_backup_cron" {
-  description = "Cron schedule (minute hour dom month dow) for gitlab-backup on the Docker host"
+  description = "Cron schedule (minute hour dom month dow) for gitlab-backup on the GitLab host"
   type        = string
   default     = "0 3 * * *"
 

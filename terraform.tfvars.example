@@ -47,7 +47,7 @@ enable_gitlab_resources = false
 # gitlab_api_url     = "https://gitlab.example.com"
 # gitlab_letsencrypt_email  = "info@example.com"
 
-# Backups (docker_compose only) — gitlab.rb + cron on host; archives in /opt/gitlab/backups
+# Backups (docker_compose or hetzner_app) — gitlab.rb + cron; archives in /opt/gitlab/backups or /var/opt/gitlab/backups
 # gitlab_docker_backup_enabled    = true
 # gitlab_docker_backup_keep_time  = 604800   # 7 days; 0 = keep all
 # gitlab_docker_backup_cron       = "0 3 * * *"
