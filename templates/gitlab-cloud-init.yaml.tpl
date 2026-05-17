@@ -135,6 +135,107 @@ write_files:
       gitlab-ctl backup-etc --delete-old-backups
       echo "=== finished $(date -Is) ==="
 
+  - path: /usr/local/sbin/gitlab-restore.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      # Restore GitLab application and/or config from backups (see gitlab-backup.sh).
+      # https://docs.gitlab.com/administration/backup_restore/restore_gitlab/
+      set -euo pipefail
+      BACKUP_DIR=/var/opt/gitlab/backups
+      CONFIG_BACKUP_DIR=/etc/gitlab/config_backup
+      LOG=/var/log/gitlab-restore.log
+
+      usage() {
+        cat <<'EOF'
+      Usage:
+        gitlab-restore.sh --list
+        gitlab-restore.sh --config-only [gitlab_config_TIMESTAMP.tar]
+        gitlab-restore.sh <BACKUP_ID>
+
+      BACKUP_ID is the archive name without _gitlab_backup.tar (e.g. 1234567890_2026_05_16_18.10.5-ce.0).
+      Set GITLAB_RESTORE_FORCE=1 to skip confirmation. Destructive: overwrites GitLab data.
+      EOF
+      }
+
+      log() { echo "=== gitlab-restore $(date -Is) $* ===" >>"$LOG"; }
+      die() { echo "ERROR: $*" >&2; exit 1; }
+
+      confirm() {
+        [[ "${GITLAB_RESTORE_FORCE:-}" == "1" ]] && return 0
+        echo "WARNING: This overwrites GitLab data. Continue? [y/N]" >&2
+        read -r ans
+        [[ "$ans" == [yY] || "$ans" == [yY][eE][sS] ]] || exit 1
+      }
+
+      list_backups() {
+        local f id
+        shopt -s nullglob
+        for f in "$BACKUP_DIR"/*_gitlab_backup.tar; do
+          id=$(basename "$f" _gitlab_backup.tar)
+          echo "$id"
+        done
+        shopt -u nullglob
+      }
+
+      restore_config() {
+        local tarfile="${1:-}"
+        if [[ -z "$tarfile" ]]; then
+          tarfile=$(ls -t "$CONFIG_BACKUP_DIR"/gitlab_config_*.tar 2>/dev/null | head -1 || true)
+        elif [[ ! "$tarfile" = /* ]]; then
+          tarfile="$CONFIG_BACKUP_DIR/$tarfile"
+        fi
+        [[ -n "$tarfile" && -f "$tarfile" ]] || die "no config backup in $CONFIG_BACKUP_DIR"
+        log "config-only $tarfile"
+        exec >>"$LOG" 2>&1
+        gitlab-ctl stop
+        tar -xf "$tarfile" -C /
+        gitlab-ctl reconfigure
+        gitlab-ctl restart
+        echo "=== config restore finished $(date -Is) ==="
+      }
+
+      restore_app() {
+        local id="$1"
+        local archive="$BACKUP_DIR/$${id}_gitlab_backup.tar"
+        [[ -f "$archive" ]] || die "backup not found: $archive"
+        chown git:git "$archive" 2>/dev/null || true
+        log "application BACKUP=$id"
+        exec >>"$LOG" 2>&1
+        gitlab-ctl stop puma
+        gitlab-ctl stop sidekiq
+        gitlab-backup restore BACKUP="$id"
+        gitlab-ctl reconfigure
+        gitlab-ctl restart
+        gitlab-rake gitlab:check SANITIZE=true || true
+        echo "=== application restore finished $(date -Is) ==="
+      }
+
+      main() {
+        case "${1:-}" in
+          -h|--help) usage; exit 0 ;;
+          --list|-l) list_backups; exit 0 ;;
+          --config-only)
+            confirm
+            restore_config "${2:-}"
+            ;;
+          "")
+            usage
+            echo >&2
+            echo "Available application backups:" >&2
+            list_backups || echo "(none)" >&2
+            exit 1
+            ;;
+          *)
+            confirm
+            restore_app "$1"
+            ;;
+        esac
+      }
+
+      main "$@"
+
   - path: /etc/cron.d/gitlab-backup
     permissions: "0644"
     owner: root:root
