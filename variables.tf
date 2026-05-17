@@ -27,12 +27,6 @@ variable "ssh_public_key" {
   }
 }
 
-variable "ssh_private_key_path" {
-  description = "Path to private SSH key"
-  type        = string
-  default     = "~/.ssh/id_rsa"
-}
-
 variable "server_name" {
   description = "Name of the server"
   type        = string
@@ -523,32 +517,10 @@ variable "create_hcloud_dns_zone" {
   default     = true
 }
 
-variable "github_repo" {
-  description = "GitHub repository URL to clone"
-  type        = string
-  default     = "https://github.com/HenryHST/astro-deploy.git"
-
-  validation {
-    condition     = can(regex("^https://", var.github_repo))
-    error_message = "GitHub repo must be an HTTPS URL."
-  }
-}
-
 variable "hetzner_api_key" {
-  description = "Hetzner DNS API Key for Traefik Let's Encrypt"
+  description = "Hetzner DNS API token from https://dns.hetzner.com/ (DNS-01 for Traefik ACME). Not the Hetzner Cloud API token (hcloud_token)."
   type        = string
   sensitive   = true
-}
-
-variable "traefik_dashboard_credentials" {
-  description = "BasicAuth credentials for Traefik dashboard (format: user:$$apr1$$hash$$)"
-  type        = string
-  sensitive   = true
-
-  validation {
-    condition     = strcontains(var.traefik_dashboard_credentials, ":")
-    error_message = "Traefik credentials must be in format user:password_or_hash."
-  }
 }
 
 variable "site_url" {

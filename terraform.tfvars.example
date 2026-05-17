@@ -5,15 +5,12 @@
 ssh_public_key_file = "~/.ssh/id_ed25519.pub"
 ssh_public_key      = ""
 
-ssh_private_key_path = "~/.ssh/id_rsa"
-
 server_name  = "git04"
 server_type  = "cpx22"
 location     = "fsn1"
 
-# docker_compose: written to /opt/gitlab/traefik/.env as HETZNER_API_TOKEN
-hetzner_api_key               = "your_hetzner_dns_api_key_here"
-traefik_dashboard_credentials = "admin:$$apr1$$hash$$here"
+# Hetzner DNS API token (https://dns.hetzner.com/) — NOT hcloud_token; docker_compose → HETZNER_API_TOKEN in Traefik .env
+hetzner_api_key = "your_hetzner_dns_api_key_here"
 
 domain_cicd_showcase_de = "example.com"
 create_hcloud_dns_zone  = false

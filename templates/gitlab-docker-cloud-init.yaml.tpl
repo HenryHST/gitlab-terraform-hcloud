@@ -175,10 +175,10 @@ write_files:
     permissions: "0644"
     content: |
       tls:
-  options:
-    # Name must not be "default" when referenced as name@file from Docker labels (Traefik v3).
-    secure:
-      minVersion: VersionTLS12
+        options:
+          # Name must not be "default" when referenced as name@file from Docker labels (Traefik v3).
+          secure:
+            minVersion: VersionTLS12
             cipherSuites:
               - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
               - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256

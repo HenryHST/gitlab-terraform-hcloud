@@ -82,7 +82,7 @@ In [`provider.tf`](provider.tf):
 
 ## Voraussetzungen
 
-- [Terraform](https://developer.hashicorp.com/terraform/install) **>= 1.14.4** (siehe `terraform`-Block in [`provider.tf`](provider.tf))
+- [Terraform](https://developer.hashicorp.com/terraform/install) **>= 1.14.4** (empfohlen; CI nutzt 1.14.4) **oder** [OpenTofu](https://opentofu.org/docs/intro/install/) **>= 1.9.0** (z. B. 1.12.x) — siehe [Terraform und OpenTofu](#terraform-und-opentofu)
 - Hetzner Cloud **API-Token** mit passenden Rechten (Server, Firewalls, SSH-Keys, DNS je nach Nutzung)
 - Öffentlicher **SSH-Schlüssel** für den Root-Zugang auf dem Server
 - Für DNS: Domain, die du in Hetzner DNS verwalten willst (Zonenname = Variable `domain_cicd_showcase_de` bzw. dein Override)
@@ -110,22 +110,20 @@ Nach erfolgreichem Apply zeigen [`outputs.tf`](outputs.tf) u. a. öffentliche IP
 
 ## Variablen (Root)
 
-Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie derzeit nicht nutzt (siehe Abschnitt [Bekannte Einschränkungen](#bekannte-einschränkungen)).
+Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 
 ### Ohne Default (bei `apply` erforderlich)
 
 | Name | Typ | Sensitiv | Beschreibung |
 |------|-----|----------|--------------|
-| `hcloud_token` | string | ja | Hetzner Cloud API-Token |
+| `hcloud_token` | string | ja | Hetzner **Cloud** API-Token ([Console](https://console.hetzner.cloud/)) |
 | `ssh_public_key` | string | nein | Eine Zeile aus `*.pub`, **oder** leer lassen und `ssh_public_key_file` setzen |
-| `hetzner_api_key` | string | ja | Hetzner DNS API-Token; bei `docker_compose` als `HETZNER_API_TOKEN` in `/opt/gitlab/traefik/.env` (Cloud-Init) |
-| `traefik_dashboard_credentials` | string | ja | BasicAuth-artig `user:…`; **ebenfalls nicht an Module gebunden** |
+| `hetzner_api_key` | string | ja | Hetzner **DNS** API-Token ([dns.hetzner.com](https://dns.hetzner.com/)) — **nicht** `hcloud_token`; bei `docker_compose` → `HETZNER_API_TOKEN` in Traefik `.env` |
 
 ### Mit Default (optional überschreibbar)
 
 | Name | Default (Kurz) | Hinweis |
 |------|------------------|---------|
-| `ssh_private_key_path` | `~/.ssh/id_rsa` | Nur relevant, falls du Skripte/Tooling außerhalb dieses Roots nutzt – **nicht** von `main.tf` referenziert |
 | `server_name` | `web1` | Name des `hcloud_server` |
 | `server_type` | `cpx32` | Hetzner-Typ des GitLab-Hauptservers (`cx*`, `cpx*`, `ccx*`) |
 | `location` | `fsn1` | z. B. `fsn1`, `nbg1`, `hel1`, `ash`, `hil` |
@@ -170,7 +168,6 @@ Terraform verlangt **alle Variablen ohne `default`**, auch wenn `main.tf` sie de
 | `gitlab_runner_location` | `""` | Leer = gleiche Region wie `location`; sonst z. B. `fsn1`, `nbg1`, … |
 | `create_hcloud_dns_zone` | `true` | `false`, wenn die Zone in Hetzner DNS schon existiert (vermeidet 409 *Zone already exists*) |
 | `ssh_public_key_file` | `""` | Optional: Pfad zur `.pub`-Datei (z. B. `~/.ssh/id_ed25519.pub`), überschreibt `ssh_public_key` |
-| `github_repo` | HTTPS-URL | **Nicht** in Root-`main.tf` verwendet; gedacht für Cloud-Init/Beispiele (s. Modul-README) |
 | `site_url` | `https://cicd-showcase.de` | Wird als Output `website_url` ausgegeben |
 | `domain_cicd_showcase_de` | `cicd-showcase.de` | DNS-Zonenname; bei GitLab auch Basis für `gitlab_fqdn` und PTR |
 | `mail_server_ipv4` | IPv4 | Mail-**A**-Record (`module.dns`) |
@@ -471,21 +468,36 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 
 **Troubleshooting:** `sudo tail -n 200 /var/log/cloud-init-output.log` auf der VM; Runner zusätzlich `/var/log/gitlab-runner-terraform-bootstrap.log`. Typischer Fehler: falsche **.deb-URL** (z. B. Bindestrich statt Unterstrich im Dateinamen) → `curl` **403**.
 
+## Terraform und OpenTofu
+
+| Tool | Version | Befehle |
+|------|---------|---------|
+| **Terraform** (empfohlen) | **>= 1.14.4** | `terraform init`, `plan`, `apply` |
+| **OpenTofu** | **>= 1.9.0** (z. B. 1.12.x) | `tofu init`, `plan`, `apply` |
+
+[`provider.tf`](provider.tf) setzt `required_version = ">= 1.9.0"`, damit dieselbe HCL mit OpenTofu lauffähig ist. Provider (`hetznercloud/hcloud`, `hashicorp/random`, `gitlabhq/gitlab`) kommen aus der Registry; [`.terraform.lock.hcl`](.terraform.lock.hcl) funktioniert mit `terraform init` und `tofu init`.
+
+**Hinweis:** OpenTofu und Terraform teilen sich die Versionsnummern nicht 1:1 (Stand 2026: OpenTofu ~1.12, Terraform ~1.14). CI testet **Terraform 1.14.4** und zusätzlich **`tofu validate`** (OpenTofu 1.12).
+
+**Remote State:** Es ist kein `backend` im Repo konfiguriert — State liegt standardmäßig lokal (`terraform.tfstate`). Für Teams: S3-kompatiblen Object Storage, Terraform Cloud oder Hetzner Object Storage mit State-Lock dokumentieren und in einer lokalen `backend.tf` ergänzen (nicht committen, wenn umgebungsspezifisch).
+
 ## Qualitätssicherung (lokal / CI)
 
 - **Makefile:** `make fmt` formatiert, `make validate` prüft Format (`fmt -check`) und führt `terraform validate` aus (nach `terraform init` im Repo).
-- **GitHub Actions:** [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) – bei Push/PR: `terraform fmt -check`, `init -backend=false`, `validate` (ohne Cloud-Token für `apply`).
+- **GitHub Actions:** [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) – bei Push/PR: `terraform fmt -check`, `terraform validate`, `tofu validate`, `tflint` (ohne Cloud-Token für `apply`).
 
 ## Bekannte Einschränkungen
 
-1. **Variablen ohne Modul-Anbindung im Root:** `github_repo`, `traefik_dashboard_credentials` und `ssh_private_key_path` werden in **`main.tf` nicht** an Module übergeben. `hetzner_api_key` wird bei `docker_compose` nur an Cloud-Init (`/opt/gitlab/traefik/.env`) übergeben. `site_url` wird nur für den Output `website_url` gelesen. `terraform apply` verlangt Werte für Variablen **ohne** Default (`hetzner_api_key`, `traefik_dashboard_credentials`).
-2. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
-3. **Beispiel-Konfiguration:** [`terraform.tfvars.example`](terraform.tfvars.example) als Vorlage für `terraform.tfvars` (ohne echte Secrets).
-4. **Drei unabhängige Schalter:** `gitlab_install_mode` (Server/Compose), `enable_gitlab_resources` ([`gitlab.tf`](gitlab.tf)), `gitlab_docker_renovate_enabled` (Renovate-Container). Runner-Registrierung bleibt manuell.
-5. **Renovate:** Lizenz und GitLab-PAT liegen in `terraform.tfvars` (sensitiv). Webhook-Secret steht im State; nach Änderung ggf. Hook in GitLab und Env auf der VM anpassen.
+1. **`hetzner_api_key` vs. `hcloud_token`:** Zwei verschiedene Tokens (DNS vs. Cloud). Vertauschen führt zu fehlgeschlagenem Traefik-ACME (DNS-01).
+2. **`site_url`:** Nur für Output `website_url`; nicht an Module gebunden.
+3. **DNS-A-Record vs. `server_name`:** Der relative A-Record-Name kommt aus `dns_ipv4_record_name` bzw. bei GitLab aus `gitlab_dns_record_name` – nicht automatisch aus `server_name`. Bei Bedarf Werte angleichen.
+4. **Cloud-Init / `user_data`:** Änderungen an Templates erfordern oft **Server-Replace** (`terraform apply -replace=module.server.hcloud_server.main`), nicht nur erneutes Apply.
+5. **Drei unabhängige Schalter:** `gitlab_install_mode` (Server/Compose), `enable_gitlab_resources` ([`gitlab.tf`](gitlab.tf), Modul [`modules/gitlab-api`](modules/gitlab-api/)), `gitlab_docker_renovate_enabled` (Renovate-Container). Runner-Registrierung bleibt manuell.
+6. **Renovate:** Lizenz und GitLab-PAT liegen in `terraform.tfvars` (sensitiv). Webhook-Secret steht im State; nach Änderung ggf. Hook in GitLab und Env auf der VM anpassen.
 
 ## Weiterführende Links
 
+- [OpenTofu](https://opentofu.org/docs/)
 - [Hetzner Cloud Terraform Provider (Registry)](https://registry.terraform.io/providers/hetznercloud/hcloud/latest/docs)
 - [GitLab Terraform Provider (Registry)](https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs)
 - [Mend Renovate CE – Docker Compose Beispiel](https://github.com/mend/renovate-ce-ee/blob/main/examples/docker-compose/docker-compose-renovate-community.yml)

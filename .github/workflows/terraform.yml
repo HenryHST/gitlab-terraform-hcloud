@@ -26,3 +26,23 @@ jobs:
 
       - name: Terraform validate
         run: terraform validate -no-color
+
+      - uses: opentofu/setup-opentofu@v1
+        with:
+          tofu_version: "1.12.0"
+
+      - name: OpenTofu init
+        run: tofu init -backend=false -input=false
+
+      - name: OpenTofu validate
+        run: tofu validate -no-color
+
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.55.1
+
+      - name: Init TFLint
+        run: tflint --init
+
+      - name: TFLint
+        run: tflint -f compact

@@ -47,13 +47,7 @@ module "server" {
     project     = "astro-deploy"
   }
 
-  user_data = templatefile("${path.module}/cloud-init.yaml", {
-    github_repo                   = var.github_repo
-    hetzner_api_key              = var.hetzner_api_key
-    traefik_dashboard_credentials = var.traefik_dashboard_credentials
-    site_url                      = var.site_url
-    directus_url                  = var.directus_url
-  })
+  user_data = var.user_data # e.g. templatefile from the root module (gitlab-docker-cloud-init.yaml.tpl)
 
   enable_rdns      = true
   rdns_ipv4_domain = "example.com"
