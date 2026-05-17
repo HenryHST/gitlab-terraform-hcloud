@@ -175,9 +175,10 @@ write_files:
     permissions: "0644"
     content: |
       tls:
-        options:
-          default:
-            minVersion: VersionTLS12
+  options:
+    # Name must not be "default" when referenced as name@file from Docker labels (Traefik v3).
+    secure:
+      minVersion: VersionTLS12
             cipherSuites:
               - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
               - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
@@ -336,7 +337,7 @@ write_files:
       die() { echo "ERROR: $*" >&2; exit 1; }
 
       confirm() {
-        [[ "${GITLAB_RESTORE_FORCE:-}" == "1" ]] && return 0
+        [[ "$${GITLAB_RESTORE_FORCE:-}" == "1" ]] && return 0
         echo "WARNING: This overwrites GitLab data. Continue? [y/N]" >&2
         read -r ans
         [[ "$ans" == [yY] || "$ans" == [yY][eE][sS] ]] || exit 1
@@ -353,7 +354,7 @@ write_files:
       }
 
       restore_config() {
-        local tarfile="${1:-}"
+        local tarfile="$${1:-}"
         if [[ -z "$tarfile" ]]; then
           tarfile=$(ls -t "$CONFIG_BACKUP_DIR"/gitlab_config_*.tar 2>/dev/null | head -1 || true)
         fi
@@ -388,12 +389,12 @@ write_files:
       }
 
       main() {
-        case "${1:-}" in
+        case "$${1:-}" in
           -h|--help) usage; exit 0 ;;
           --list|-l) list_backups; exit 0 ;;
           --config-only)
             confirm
-            restore_config "${2:-}"
+            restore_config "$${2:-}"
             ;;
           "")
             usage
@@ -516,7 +517,6 @@ write_files:
             - "traefik.http.routers.gitlab.entrypoints=websecure"
             - "traefik.http.routers.gitlab.tls=true"
             - "traefik.http.routers.gitlab.tls.certresolver=hetzner"
-            - "traefik.http.routers.gitlab.tls.options=default@file"
 %{ else ~}
             - "traefik.http.routers.gitlab.rule=Host(`${gitlab_fqdn}`)"
             - "traefik.http.routers.gitlab.entrypoints=web"
@@ -556,7 +556,6 @@ write_files:
             - "traefik.http.routers.renovate.entrypoints=websecure"
             - "traefik.http.routers.renovate.tls=true"
             - "traefik.http.routers.renovate.tls.certresolver=hetzner"
-            - "traefik.http.routers.renovate.tls.options=default@file"
 %{ else ~}
             - "traefik.http.routers.renovate.rule=Host(`${renovate_fqdn}`)"
             - "traefik.http.routers.renovate.entrypoints=web"

@@ -34,8 +34,11 @@ srv_value     = "0 0 443 example.com."
 iodef_value   = "mailto:info@example.com"
 contact_value = "mailto:info@example.com"
 
-gitlab_letsencrypt_enabled = false
-gitlab_install_mode        = "none"
+gitlab_letsencrypt_enabled         = false
+gitlab_install_mode                = "none"
+# docker_compose + HTTPS (Traefik DNS-01): set install_mode = "docker_compose" and:
+# gitlab_docker_traefik_acme_enabled = true
+# hetzner_api_key = "…"  # Hetzner DNS API token (not hcloud_token)
 # gitlab_docker_renovate_enabled   = false
 # gitlab_docker_renovate_ce_image  = "ghcr.io/mend/renovate-ce:9.1.0"
 # gitlab_docker_renovate_license_key = "…"  # Mend CE license

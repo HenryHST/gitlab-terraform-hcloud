@@ -163,7 +163,7 @@ write_files:
       die() { echo "ERROR: $*" >&2; exit 1; }
 
       confirm() {
-        [[ "${GITLAB_RESTORE_FORCE:-}" == "1" ]] && return 0
+        [[ "$${GITLAB_RESTORE_FORCE:-}" == "1" ]] && return 0
         echo "WARNING: This overwrites GitLab data. Continue? [y/N]" >&2
         read -r ans
         [[ "$ans" == [yY] || "$ans" == [yY][eE][sS] ]] || exit 1
@@ -180,7 +180,7 @@ write_files:
       }
 
       restore_config() {
-        local tarfile="${1:-}"
+        local tarfile="$${1:-}"
         if [[ -z "$tarfile" ]]; then
           tarfile=$(ls -t "$CONFIG_BACKUP_DIR"/gitlab_config_*.tar 2>/dev/null | head -1 || true)
         elif [[ ! "$tarfile" = /* ]]; then
@@ -213,12 +213,12 @@ write_files:
       }
 
       main() {
-        case "${1:-}" in
+        case "$${1:-}" in
           -h|--help) usage; exit 0 ;;
           --list|-l) list_backups; exit 0 ;;
           --config-only)
             confirm
-            restore_config "${2:-}"
+            restore_config "$${2:-}"
             ;;
           "")
             usage
