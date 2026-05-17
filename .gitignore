@@ -1,3 +1,4 @@
+# Terraform working directory: terraform/ (init, state, .terraform)
 # Local .terraform directories
 .terraform/
 

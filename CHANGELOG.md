@@ -5,6 +5,17 @@ Alle wesentlichen Änderungen an diesem Projekt werden in dieser Datei dokumenti
 Das Format orientiert sich an [Keep a Changelog](https://keepachangelog.com/de/1.1.0/),
 und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Repository-Layout:** Terraform-Konfiguration (`*.tf`, `modules/`, `templates/`, `terraform.tfvars.example`, Lockfile, TFLint) nach [`terraform/`](terraform/) verschoben; Root enthält README, CHANGELOG, Makefile, CI, Renovate.
+- **Makefile / CI:** Befehle laufen mit Working Directory `terraform/` (`make` vom Repo-Root).
+
+### Migration
+
+- Lokale Dateien nach dem Pull: `terraform.tfvars`, `terraform.tfstate` und `.terraform/` in den Ordner **`terraform/`** legen, dann `cd terraform && terraform init`.
+
 ## [0.0.4] - 2026-05-17
 
 Patch-Release: Backups/Restore für beide GitLab-Installationsmodi, Traefik-/HTTPS-Stabilität, Web-IDE-Doku, Sign-up-Steuerung.

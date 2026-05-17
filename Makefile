@@ -1,13 +1,15 @@
+# Run from repo root; Terraform lives in terraform/ (terraform init there first).
+TF_DIR := terraform
+
 .PHONY: fmt fmt-check validate check
 
 fmt:
-	terraform fmt -recursive
+	cd $(TF_DIR) && terraform fmt -recursive
 
 fmt-check:
-	terraform fmt -check -recursive
+	cd $(TF_DIR) && terraform fmt -check $$(find . -name '*.tf')
 
 validate: fmt-check
-	terraform validate
+	cd $(TF_DIR) && terraform validate
 
-# Alias: format check + validate (no network; run from repo root after terraform init)
 check: validate

@@ -3,7 +3,7 @@
 
 provider "registry.terraform.io/gitlabhq/gitlab" {
   version     = "18.11.0"
-  constraints = "18.11.0"
+  constraints = "~> 18.11"
   hashes = [
     "h1:6twdN97qk2HFQSu41KwKjzNKZP7XGYvwIk1JZUdm0B8=",
     "zh:00f04e37c82976bb80d93ab605d44a5bff99135a03df018ad5223894f3669339",
@@ -46,7 +46,7 @@ provider "registry.terraform.io/hashicorp/random" {
 
 provider "registry.terraform.io/hetznercloud/hcloud" {
   version     = "1.63.0"
-  constraints = "~> 1.63"
+  constraints = "~> 1.60, ~> 1.63"
   hashes = [
     "h1:FmkJ05xMeApac1/nz5GOAB/s729eMEkjAyThtD4zJxY=",
     "zh:0510f27825d28b065615c6e715a4aae38a50633195a8a88d4507476bb6484c33",
