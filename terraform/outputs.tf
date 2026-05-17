@@ -125,6 +125,12 @@ output "gitlab_devops_group_id" {
   value       = var.enable_gitlab_resources ? module.gitlab_api[0].devops_group_id : null
 }
 
+output "gitlab_admin_password" {
+  description = "Password for gadmin user when enable_gitlab_resources is true (sensitive; in Terraform state)"
+  value       = var.enable_gitlab_resources ? random_password.gitlab_admin_password[0].result : null
+  sensitive   = true
+}
+
 output "gitlab_devops_project_id" {
   description = "GitLab devops project ID from gitlab.tf when enable_gitlab_resources is true"
   value       = var.enable_gitlab_resources ? module.gitlab_api[0].devops_project_id : null
