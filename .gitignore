@@ -18,6 +18,12 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 
+# Optional Proxmox stack (copy from terraform/*.example)
+terraform/proxmox.tf
+terraform/proxmox_moved.tf
+terraform/provider_proxmox.tf
+terraform/outputs_proxmox.tf
+
 # Ignore override files as they are usually used to override resources locally and so
 # are not checked in
 override.tf

@@ -45,6 +45,7 @@ gitlab_install_mode                = "none"
 # gitlab_docker_registry_dns_label = "registry"
 enable_gitlab_runner    = false
 enable_gitlab_resources = false
+# gitlab_early_auth_check = false   # true only when gitlab_api_url is reachable at plan time
 # gitlab_api_token   = "…"   # required when enable_gitlab_resources = true
 # Self-hosted (docker_compose): instance URL, not https://gitlab.com
 # gitlab_api_url     = "https://gitlab.example.com"
@@ -71,8 +72,12 @@ enable_gitlab_resources = false
 # gitlab_email_from                = "gitlab@example.com"
 # gitlab_email_reply_to            = "noreply@example.com"
 # --- Proxmox (GitLab on QEMU VM) — see README "GitLab auf Proxmox"
+# Proxmox (optional; Hetzner docker_compose: leave false and do not copy proxmox*.tf):
+# cp proxmox.tf.example proxmox.tf
+# cp provider_proxmox.tf.example provider_proxmox.tf
+# cp outputs_proxmox.tf.example outputs_proxmox.tf
 # enable_proxmox_resources              = false
-# proxmox_gitlab_docker_compose_enabled = true
+# proxmox_gitlab_docker_compose_enabled = true   # required with enable_proxmox_resources for GitLab on Proxmox
 # proxmox_api_url                       = "https://pve01.example.com:8006/api2/json"
 # proxmox_api_token                     = "…"
 # proxmox_api_token_id                  = "terraform@pve!terraform"
@@ -90,3 +95,5 @@ enable_gitlab_resources = false
 # vm_default_storage                    = "local-lvm"
 # clone_template                        = "ubuntu-tmp"
 # With Proxmox only: gitlab_install_mode = "none"
+# enable_hetzner_dns = null   # default: no Hetzner DNS when Proxmox is the GitLab target
+# enable_hetzner_dns = true   # override: mail zone / runner A record on Hetzner DNS

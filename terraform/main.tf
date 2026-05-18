@@ -6,6 +6,8 @@ locals {
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
 
   proxmox_gitlab_docker       = var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+  proxmox_gitlab_primary      = local.proxmox_gitlab_docker && var.gitlab_install_mode == "none"
+  manage_hetzner_dns          = var.enable_hetzner_dns != null ? var.enable_hetzner_dns : !local.proxmox_gitlab_primary
   gitlab_docker_stack_enabled = var.gitlab_install_mode == "docker_compose" || local.proxmox_gitlab_docker
 
   gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
@@ -199,8 +201,9 @@ module "gitlab_runner" {
   rdns_ipv6_domain = local.gitlab_runner_fqdn
 }
 
-# DNS Module
+# DNS Module (skipped when GitLab runs on Proxmox only; see local.manage_hetzner_dns)
 module "dns" {
+  count  = local.manage_hetzner_dns ? 1 : 0
   source = "./modules/dns"
 
   create_zone        = var.create_hcloud_dns_zone
@@ -236,27 +239,27 @@ module "dns" {
 }
 
 resource "hcloud_zone_record" "gitlab_runner" {
-  count    = var.enable_gitlab_runner ? 1 : 0
+  count    = var.enable_gitlab_runner && local.manage_hetzner_dns ? 1 : 0
   provider = hcloud.dns
-  zone     = module.dns.zone_name
+  zone     = module.dns[0].zone_name
   name     = var.gitlab_runner_dns_label
   type     = "A"
   value    = module.gitlab_runner[0].server_ipv4
 }
 
 resource "hcloud_zone_record" "renovate" {
-  count    = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled && local.gitlab_enabled ? 1 : 0
+  count    = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled && local.gitlab_enabled && local.manage_hetzner_dns ? 1 : 0
   provider = hcloud.dns
-  zone     = module.dns.zone_name
+  zone     = module.dns[0].zone_name
   name     = var.gitlab_docker_renovate_dns_label
   type     = "A"
   value    = module.server.server_ipv4
 }
 
 resource "hcloud_zone_record" "registry" {
-  count    = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled && local.gitlab_enabled ? 1 : 0
+  count    = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled && local.gitlab_enabled && local.manage_hetzner_dns ? 1 : 0
   provider = hcloud.dns
-  zone     = module.dns.zone_name
+  zone     = module.dns[0].zone_name
   name     = var.gitlab_docker_registry_dns_label
   type     = "A"
   value    = module.server.server_ipv4
@@ -273,5 +276,12 @@ check "gitlab_letsencrypt_implies_app" {
   assert {
     condition     = !var.gitlab_letsencrypt_enabled || var.gitlab_install_mode == "hetzner_app"
     error_message = "gitlab_letsencrypt_enabled is only for hetzner_app (Omnibus integrated LE); use gitlab_docker_traefik_acme_enabled for docker_compose."
+  }
+}
+
+check "gitlab_runner_requires_hetzner_dns" {
+  assert {
+    condition     = !var.enable_gitlab_runner || local.manage_hetzner_dns
+    error_message = "enable_gitlab_runner needs enable_hetzner_dns = true when GitLab runs on Proxmox only (Hetzner DNS manages the runner A record)."
   }
 }

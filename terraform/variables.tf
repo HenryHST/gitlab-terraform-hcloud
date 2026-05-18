@@ -227,6 +227,12 @@ variable "enable_gitlab_resources" {
   default     = false
 }
 
+variable "gitlab_early_auth_check" {
+  description = "If true with enable_gitlab_resources, GitLab provider validates the token at plan/apply (gitlab_api_url must resolve and be reachable)."
+  type        = bool
+  default     = false
+}
+
 variable "gitlab_api_token" {
   description = "GitLab API token for the GitLab provider (required when enable_gitlab_resources is true)"
   type        = string
@@ -535,6 +541,12 @@ variable "create_hcloud_dns_zone" {
   default     = true
 }
 
+variable "enable_hetzner_dns" {
+  description = "Manage Hetzner DNS (module.dns and GitLab-related A records). null = auto: false when Proxmox is the only GitLab target (enable_proxmox_resources + proxmox_gitlab_docker_compose_enabled + gitlab_install_mode = none)."
+  type        = bool
+  default     = null
+}
+
 variable "hcloud_token" {
   description = "Hetzner Cloud API Token"
   type        = string
@@ -700,7 +712,7 @@ variable "enable_proxmox_resources" {
 variable "proxmox_gitlab_docker_compose_enabled" {
   description = "When enable_proxmox_resources is true, bootstrap GitLab via the same cloud-init as docker_compose (Traefik + GitLab CE + PostgreSQL)"
   type        = bool
-  default     = true
+  default     = false
 
   validation {
     condition     = !var.proxmox_gitlab_docker_compose_enabled || var.enable_proxmox_resources
@@ -824,41 +836,6 @@ variable "pm_tls_insecure" {
   default     = true
 }
 
-variable "proxmox_user" {
-  description = "Proxmox username (optional; for future SSH/API use)"
-  type        = string
-  default     = ""
-}
-
-variable "proxmox_ssh_user" {
-  description = "SSH user for Proxmox host (optional)"
-  type        = string
-  default     = ""
-}
-
-variable "proxmox_password_ssh" {
-  description = "SSH password for Proxmox host (optional)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "proxmox_ssh_host" {
-  description = "SSH host for Proxmox (optional)"
-  type        = string
-  default     = ""
-}
-
-variable "proxmox_ssh_port" {
-  description = "SSH port for Proxmox"
-  type        = number
-  default     = 22
-
-  validation {
-    condition     = var.proxmox_ssh_port >= 1 && var.proxmox_ssh_port <= 65535
-    error_message = "proxmox_ssh_port must be between 1 and 65535."
-  }
-}
 variable "cipassword" {
   description = "Cloud-Init password for Proxmox VMs (sensitive)"
   type        = string
@@ -913,11 +890,7 @@ variable "searchdomain" {
     error_message = "searchdomain must be a valid DNS domain name (lowercase labels)."
   }
 }
-variable "base_template" {
-  description = "Base VM template to clone from (must exist in Proxmox)"
-  type        = string
-  default     = "ubuntu-server-prod"
-}
+
 # VM default configuration
 variable "vm_default_cores" {
   description = "Default number of CPU cores per VM"
@@ -965,16 +938,6 @@ variable "vm_bios_host" {
   validation {
     condition     = contains(["ovmf", "seabios"], var.vm_bios_host)
     error_message = "vm_bios_host must be one of: ovmf, seabios."
-  }
-}
-variable "vm_os_type" {
-  description = "OS type for VM. Typical values: 'cloud-init' (default), 'l26', 'other'. Ignored when runner_qemu_guest_agent is true."
-  type        = string
-  default     = "cloud-init" # cloud-init: Ubuntu 25.04, l26: Ubuntu 25.04, other: Proxmox default
-
-  validation {
-    condition     = contains(["cloud-init", "l26", "other"], var.vm_os_type)
-    error_message = "vm_os_type must be one of: cloud-init, l26, other."
   }
 }
 variable "vm_default_sockets" {

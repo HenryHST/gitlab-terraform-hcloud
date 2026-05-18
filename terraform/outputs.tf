@@ -43,13 +43,18 @@ output "ssh_connection" {
 
 # DNS outputs
 output "dns_zone_id" {
-  description = "ID of the DNS zone"
-  value       = module.dns.zone_id
+  description = "ID of the DNS zone when enable_hetzner_dns / local.manage_hetzner_dns is true"
+  value       = local.manage_hetzner_dns ? module.dns[0].zone_id : null
 }
 
 output "dns_zone_name" {
-  description = "Name of the DNS zone"
-  value       = module.dns.zone_name
+  description = "Name of the DNS zone when enable_hetzner_dns / local.manage_hetzner_dns is true"
+  value       = local.manage_hetzner_dns ? module.dns[0].zone_name : null
+}
+
+output "hetzner_dns_enabled" {
+  description = "Whether Terraform manages Hetzner DNS for this stack"
+  value       = local.manage_hetzner_dns
 }
 
 # Other outputs
@@ -59,8 +64,8 @@ output "website_url" {
 }
 
 output "domain_cicd_showcase_de" {
-  description = "Domain for the website cicd-showcase.de"
-  value       = module.dns.zone_name
+  description = "Configured zone/domain name (from DNS module when managed, else variable)"
+  value       = local.manage_hetzner_dns ? module.dns[0].zone_name : var.domain_cicd_showcase_de
 }
 
 output "gitlab_url" {
@@ -118,21 +123,6 @@ output "gitlab_docker_postgres_password" {
   description = "PostgreSQL password for GitLab docker stack (stored in state and cloud-init)."
   value       = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_postgres[0].result : null
   sensitive   = true
-}
-
-output "proxmox_gitlab_vm_id" {
-  description = "Proxmox VM ID for module.proxmox GitLab VM when enable_proxmox_resources is true"
-  value       = var.enable_proxmox_resources ? module.proxmox[0].gitlab_vm_id : null
-}
-
-output "proxmox_gitlab_cloud_init_snippet" {
-  description = "cicustom user= path for GitLab VM cloud-init on Proxmox"
-  value       = var.enable_proxmox_resources ? module.proxmox[0].gitlab_cloud_init_snippet : null
-}
-
-output "proxmox_runner_vm_id" {
-  description = "Proxmox VM ID for module.proxmox runner VM when proxmox_enable_runner is true"
-  value       = var.enable_proxmox_resources ? module.proxmox[0].runner_vm_id : null
 }
 
 output "gitlab_devops_group_id" {

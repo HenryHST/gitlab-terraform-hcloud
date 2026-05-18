@@ -1,4 +1,4 @@
-# State migration: inline Proxmox resources → module.proxmox (v0.0.5+)
+# Copy to proxmox_moved.tf together with proxmox.tf when migrating existing state to module.proxmox.
 
 moved {
   from = proxmox_vm_qemu.gitlab[0]

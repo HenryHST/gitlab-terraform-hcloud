@@ -8,10 +8,6 @@ Creates QEMU VMs on Proxmox VE for GitLab (and optionally GitLab Runner). When `
 module "proxmox" {
   source = "./modules/proxmox"
 
-  providers = {
-    proxmox = proxmox.prod
-  }
-
   node                    = "pve01"
   api_url                 = var.proxmox_api_url
   api_token               = var.proxmox_api_token
@@ -38,4 +34,4 @@ The root module enables this with `enable_proxmox_resources = true` (see reposit
 | null | ~> 3.2 |
 | local | ~> 2.5 |
 
-Provider `proxmox` must be passed via `configuration_aliases` (alias `proxmox.prod` in the root stack).
+Copy `proxmox.tf.example` → `proxmox.tf`, `provider_proxmox.tf.example` → `provider_proxmox.tf`, and `outputs_proxmox.tf.example` → `outputs_proxmox.tf`. Without those files and with `enable_proxmox_resources = false`, no Proxmox provider or API calls occur during `plan`.

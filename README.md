@@ -94,7 +94,7 @@ In [`provider.tf`](terraform/provider.tf):
 
 - **`hcloud`** (Standard) und **`hcloud.dns`** (Alias, gleiches Token): Server, Firewall, DNS (`providers = { hcloud.dns = hcloud.dns }` im DNS-Modul).
 - **`gitlab`**: `token = var.gitlab_api_token`, `base_url = var.gitlab_api_url`. Wird nur für Ressourcen in [`gitlab.tf`](terraform/gitlab.tf) benötigt, wenn **`enable_gitlab_resources = true`**.
-- **`proxmox`** ([`telmate/proxmox`](https://registry.terraform.io/providers/telmate/proxmox/latest/docs), `<=3.0.2-rc07`): Alias **`proxmox.prod`** in [`provider.tf`](terraform/provider.tf); VMs über [`module.proxmox`](terraform/modules/proxmox) in [`proxmox.tf`](terraform/proxmox.tf), wenn **`enable_proxmox_resources = true`** (siehe [GitLab auf Proxmox](#gitlab-auf-proxmox)).
+- **`proxmox`** ([`telmate/proxmox`](https://registry.terraform.io/providers/telmate/proxmox/latest/docs), `<=3.0.2-rc07`): optional in [`provider_proxmox.tf`](terraform/provider_proxmox.tf) (Vorlage [`provider_proxmox.tf.example`](terraform/provider_proxmox.tf.example)); VMs über [`module.proxmox`](terraform/modules/proxmox) bei **`enable_proxmox_resources = true`**.
 - **`random`**: Passwörter für `docker_compose` (GitLab-`root`, PostgreSQL, optional Renovate-Webhook und Server-API-Secret).
 
 ## Voraussetzungen
@@ -134,6 +134,20 @@ In [`provider.tf`](terraform/provider.tf):
 
 Nach erfolgreichem Apply zeigen [`outputs.tf`](terraform/outputs.tf) u. a. öffentliche IPs, SSH-Befehl und DNS-Zoneninformationen an.
 
+### Plan: GitLab-DNS oder Proxmox-401
+
+| Fehler | Ursache | Maßnahme |
+|--------|---------|----------|
+| `lookup gitlab.cicd-showcase.de: no such host` | Terraform **refresht** GitLab-API-Ressourcen im State, bevor Server/DNS existieren | **Erst Apply** für Server + DNS (`enable_gitlab_resources = false`), danach `true`; oder `make plan-no-refresh` / `terraform plan -refresh=false`; bei totem Alt-State: `terraform state rm` für `gitlab_*` / `module.gitlab_api` |
+| `401` / `connection refused` (Proxmox) | `proxmox.tf` / `provider_proxmox.tf` vorhanden, obwohl Proxmox aus ist | Dateien löschen/umbenennen; Hetzner-only: `enable_proxmox_resources = false` und keine kopierten `proxmox*.tf` |
+| `Attribute redefined` (`proxmox_api_token`) | Token zweimal in `terraform.tfvars` | Nur eine Zeile; `proxmox_api_token_id` ist **nicht** das Secret |
+| Proxmox 401 bei `enable_proxmox_resources = true` | Token/ID falsch | `proxmox_api_token` + `proxmox_api_token_id` in `terraform.tfvars` prüfen |
+
+Empfohlene **Zwei-Phasen-Bootstrap** für neues Hetzner-`docker_compose`:
+
+1. `enable_gitlab_resources = false` → `terraform apply` (Server, DNS, Compose)
+2. Warten bis `https://gitlab.<zone>` erreichbar → `enable_gitlab_resources = true` → erneut `apply`
+
 ## Variablen (Root)
 
 Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
@@ -170,7 +184,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_backup_keep_time` | `604800` | Aufbewahrung in Sekunden (Standard 7 Tage); `0` = alle Archive behalten ([Backup-Doku](https://docs.gitlab.com/omnibus/settings/backups.html)) |
 | `gitlab_docker_backup_cron` | `0 3 * * *` | Cron-Zeitplan auf dem GitLab-Host für `gitlab-backup create` (fünf Felder) |
 | `gitlab_signup_enabled` | `false` | Nur **`docker_compose`**: `gitlab_rails['gitlab_signup_enabled']` — Registrierung auf der Anmeldeseite |
-| `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](terraform/gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_token`** |
+| `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](terraform/gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_url` erreichbar** (nach erstem Apply/DNS) |
+| `gitlab_early_auth_check` | `false` | `true`: Token-Check beim Plan (nur wenn GitLab schon läuft) |
 | `gitlab_api_token` | `""` | GitLab API-Token (sensitiv); Pflicht bei `enable_gitlab_resources = true` (min. 8 Zeichen, keine Leerzeichen) |
 | `gitlab_api_url` | `https://gitlab.com` | Basis-URL der GitLab-Instanz für den Provider (`https://gitlab.example.com` bei Self-Hosted) |
 | `server_image` | `ubuntu-24.04` | Nur bei `gitlab_install_mode = none` (Hetzner-Image-Slug) |
@@ -522,7 +537,7 @@ Dieser Abschnitt dokumentiert die **Proxmox-Schienen** im Repo: Vorbereitung, Te
 
 **Aktueller Stand:** Mit **`proxmox_gitlab_docker_compose_enabled = true`** (Default) lädt das Modul [`modules/proxmox`](terraform/modules/proxmox) dasselbe Cloud-Init wie bei `gitlab_install_mode = docker_compose` als **Snippet** auf den Node und hängt es per **`cicustom = user=local:snippets/…`** an die GitLab-VM — Traefik, GitLab CE, PostgreSQL und optional Registry/Renovate wie auf Hetzner.
 
-**Wichtig:** Proxmox und Hetzner sind **getrennte Schalter**. Für reines Proxmox typischerweise `gitlab_install_mode = "none"` und Hetzner-Server weglassen oder nicht applyen; DNS (`hcloud`) kann weiterhin für öffentliche Namen genutzt werden, wenn die VM von außen erreichbar ist.
+**Wichtig:** Proxmox und Hetzner sind **getrennte Schalter**. Für reines Proxmox: `gitlab_install_mode = "none"` + `enable_proxmox_resources = true`. Dann ist **`module.dns` standardmäßig aus** (`local.manage_hetzner_dns = false`) — keine Hetzner-DNS-Zone/-Records per Terraform. DNS für GitLab/Registry legst du extern an oder Traefik ACME nutzt die Hetzner-DNS-**API** im Cloud-Init (`hetzner_api_key`), ohne Terraform-Records. Override: `enable_hetzner_dns = true` (z. B. Mail-Zone oder Runner-A-Record auf Hetzner).
 
 ```mermaid
 flowchart TB
@@ -562,10 +577,13 @@ flowchart TB
    - `proxmox_gitlab_ipconfig0`, `proxmox_runner_ipconfig0` (Runner nur mit `proxmox_enable_runner = true`)
    - `nameserver`, `ciuser`, `cipassword`
    - Für Traefik ACME (DNS-01): `hetzner_api_key` und `gitlab_docker_traefik_acme_enabled = true` wie bei Hetzner
-6. **Terraform:**
+6. **Terraform** (Proxmox-Dateien ins Working Tree kopieren, nicht committen — siehe `.gitignore`):
    ```bash
    cd terraform
-   terraform init    # lädt auch telmate/proxmox
+   cp proxmox.tf.example proxmox.tf
+   cp provider_proxmox.tf.example provider_proxmox.tf
+   cp outputs_proxmox.tf.example outputs_proxmox.tf
+   terraform init    # lädt telmate/proxmox nur mit provider_proxmox.tf
    ```
 7. In **`terraform.tfvars`** (Beispiel):
    ```hcl
@@ -582,7 +600,8 @@ flowchart TB
    ssh_public_key_file                   = "~/.ssh/id_ed25519.pub"
    gitlab_install_mode                   = "none"
    domain_cicd_showcase_de               = "example.com"
-   hetzner_api_key                       = "…"   # wenn Traefik ACME / DNS-01
+   hetzner_api_key                       = "…"   # Traefik ACME DNS-01 (API, kein module.dns)
+   # enable_hetzner_dns = null            # Default: kein Terraform-Hetzner-DNS bei Proxmox-only
    ```
 8. **`terraform plan`** / **`apply`** — lädt Cloud-Init-Snippet, erzeugt `proxmox_vm_qemu.gitlab`; Runner nur mit `proxmox_enable_runner = true`
 
@@ -590,7 +609,7 @@ flowchart TB
 
 | Ressource | Ort | Zweck |
 |-----------|-----|--------|
-| `module.proxmox` | [`proxmox.tf`](terraform/proxmox.tf) | Wrapper mit Root-Variablen |
+| `module.proxmox` | [`proxmox.tf`](terraform/proxmox.tf) (Kopie von [`proxmox.tf.example`](terraform/proxmox.tf.example)) | Wrapper mit Root-Variablen |
 | `null_resource.upload_cloud_init_snippet` | [`modules/proxmox`](terraform/modules/proxmox) | Upload `gitlab-docker-cloud-init.yaml.tpl` nach `snippets/` |
 | `proxmox_vm_qemu.gitlab` | Modul | GitLab-VM mit `cicustom` + Cloud-Init-Netz |
 | `proxmox_vm_qemu.gitlab_runner` | Modul | Optional (`proxmox_enable_runner`) |
@@ -612,6 +631,7 @@ Steuerung: **`enable_proxmox_resources`** (Default `false`). Weitere Variablen i
 | `proxmox_gitlab_ipconfig0` | `ip=10.20.0.10/16,…` | Statische IP GitLab-VM |
 | `proxmox_enable_runner` | `false` | Zweite VM für Runner |
 | `proxmox_enable_clone` | `false` | Klon aus `clone_template` statt leerer Disk |
+| `enable_hetzner_dns` | `null` (auto) | `null`/`false`: kein `module.dns` bei Proxmox-only GitLab; `true`: Zone/Records trotzdem |
 | `pm_tls_insecure` | `true` | TLS-Verify für API aus |
 | `ciuser` / `cipassword` | `admin` / `""` | Cloud-Init (Passwort min. 8 Zeichen wenn aktiv) |
 | `vm_host_cores` / `vm_host_memory` | `4` / `12288` | GitLab-VM |
@@ -622,7 +642,7 @@ Validierungen (Auszug): `proxmox_api_url` muss `https://…:PORT/api2/json` sein
 ### Nach dem Apply
 
 1. Erster Boot: Cloud-Init installiert Docker und startet den Stack (wie `docker_compose` auf Hetzner).
-2. **DNS:** A-Record `gitlab.<zone>` (und ggf. `registry.<zone>`) auf die erreichbare IP der VM.
+2. **DNS:** A-Record `gitlab.<zone>` (und ggf. `registry.<zone>`) auf die erreichbare IP der VM — **manuell/extern**, wenn `enable_hetzner_dns` aus ist (Standard bei Proxmox-only).
 3. **`gitlab_api_url`** für [`gitlab.tf`](terraform/gitlab.tf) auf die erreichbare GitLab-URL setzen.
 4. Root-Passwort: Output `gitlab_docker_initial_root_password` (sensitiv).
 5. Optional **`enable_gitlab_resources = true`** für Gruppen/Projekte per API.
@@ -635,7 +655,7 @@ Snippet deaktivieren (nur Basis-Cloud-Init): `proxmox_gitlab_docker_compose_enab
 |--|--------------------------------|--------------------------------------|
 | Compute | `hcloud_server` | `proxmox_vm_qemu` |
 | Firewall | `hcloud_firewall` | Eigenes Netzwerk / Firewall am Host |
-| DNS | `module.dns` / Records | Optional weiterhin Hetzner DNS oder intern |
+| DNS | `module.dns` / Records | Aus bei Proxmox-only (`enable_hetzner_dns` auto); sonst Hetzner DNS oder intern |
 | GitLab-Stack | Cloud-Init-Template automatisch | Gleiches Template per Snippet + `cicustom` |
 | Runner | `enable_gitlab_runner` (Hetzner) | `proxmox_enable_runner` (eigene VM, Runner-Install manuell) |
 
@@ -654,7 +674,7 @@ Weitere Links: [Proxmox VE API](https://pve.proxmox.com/pve-docs/api-viewer/inde
 - **Firewall** ([`modules/firewall`](terraform/modules/firewall)): Eingehend (SSH, **2424**, HTTP/HTTPS, DNS, …) und **ausgehend** (DNS/HTTP/HTTPS, optional SMTP) schaltbar. Haupt-Firewall: `enable_egress_smtp = gitlab_smtp_enabled`, `egress_smtp_port = gitlab_smtp_port`. Runner-Firewall ohne SMTP-Egress.
 - **Server** ([`modules/server`](terraform/modules/server)): Vollständigere Modul-Doku in [`modules/server/README.md`](terraform/modules/server/README.md). In [`terraform/main.tf`](terraform/main.tf) setzt Cloud-Init **`user_data`** bei `gitlab_install_mode` `hetzner_app` oder `docker_compose` (jeweils eigenes Template), sonst leer.
 - **DNS** ([`modules/dns`](terraform/modules/dns)): Zone + Records; DKIM-Längen >255 werden automatisch gesplittet.
-- **Proxmox** ([`modules/proxmox`](terraform/modules/proxmox)): QEMU-VMs, Cloud-Init-Snippet-Upload; Root-Aufruf in [`proxmox.tf`](terraform/proxmox.tf).
+- **Proxmox** ([`modules/proxmox`](terraform/modules/proxmox)): QEMU-VMs, Cloud-Init-Snippet-Upload; Root-Aufruf nach `cp proxmox.tf.example proxmox.tf` (siehe [GitLab auf Proxmox](#gitlab-auf-proxmox)).
 
 ## Sicherheit und Betrieb
 

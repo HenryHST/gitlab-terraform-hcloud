@@ -1,12 +1,9 @@
-# Proxmox QEMU VMs — see modules/proxmox
+# Copy to proxmox.tf when enable_proxmox_resources = true (see README "GitLab auf Proxmox").
+# Also copy provider_proxmox.tf.example → provider_proxmox.tf and outputs_proxmox.tf.example → outputs_proxmox.tf.
 
 module "proxmox" {
   count  = var.enable_proxmox_resources ? 1 : 0
   source = "./modules/proxmox"
-
-  providers = {
-    proxmox = proxmox.prod
-  }
 
   node                    = var.proxmox_node
   runner_node             = var.proxmox_runner_node

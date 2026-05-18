@@ -1,0 +1,16 @@
+# Copy to outputs_proxmox.tf together with proxmox.tf when using Proxmox.
+
+output "proxmox_gitlab_vm_id" {
+  description = "Proxmox VM ID for module.proxmox GitLab VM when enable_proxmox_resources is true"
+  value       = var.enable_proxmox_resources ? module.proxmox[0].gitlab_vm_id : null
+}
+
+output "proxmox_gitlab_cloud_init_snippet" {
+  description = "cicustom user= path for GitLab VM cloud-init on Proxmox"
+  value       = var.enable_proxmox_resources ? module.proxmox[0].gitlab_cloud_init_snippet : null
+}
+
+output "proxmox_runner_vm_id" {
+  description = "Proxmox VM ID for module.proxmox runner VM when proxmox_enable_runner is true"
+  value       = var.enable_proxmox_resources ? module.proxmox[0].runner_vm_id : null
+}

@@ -39,8 +39,6 @@ resource "null_resource" "upload_cloud_init_snippet" {
 }
 
 resource "proxmox_vm_qemu" "gitlab" {
-  provider = proxmox
-
   name        = var.gitlab_vm_name
   desc        = "GitLab CE + Traefik (Terraform cloud-init)"
   target_node = var.node
@@ -100,8 +98,7 @@ resource "proxmox_vm_qemu" "gitlab" {
 }
 
 resource "proxmox_vm_qemu" "gitlab_runner" {
-  count    = var.enable_runner ? 1 : 0
-  provider = proxmox
+  count = var.enable_runner ? 1 : 0
 
   name        = var.runner_vm_name
   desc        = "GitLab Runner (install runner manually or extend cloud-init)"
