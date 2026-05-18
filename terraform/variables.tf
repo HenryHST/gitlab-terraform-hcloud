@@ -692,7 +692,7 @@ variable "dns_tlsa_name" {
 ## Proxmox variables
 
 variable "enable_proxmox_resources" {
-  description = "If true, create Proxmox provider resources in proxmox.tf (VMs). Requires proxmox_api_token."
+  description = "If true, create Proxmox VMs via module.proxmox. Requires proxmox_api_token."
   type        = bool
   default     = false
 }

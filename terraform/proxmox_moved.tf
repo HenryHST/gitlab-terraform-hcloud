@@ -1,0 +1,21 @@
+# State migration: inline Proxmox resources → module.proxmox (v0.0.5+)
+
+moved {
+  from = proxmox_vm_qemu.gitlab[0]
+  to   = module.proxmox[0].proxmox_vm_qemu.gitlab
+}
+
+moved {
+  from = proxmox_vm_qemu.gitlab_runner[0]
+  to   = module.proxmox[0].proxmox_vm_qemu.gitlab_runner[0]
+}
+
+moved {
+  from = null_resource.proxmox_upload_cloud_init_snippet[0]
+  to   = module.proxmox[0].null_resource.upload_cloud_init_snippet[0]
+}
+
+moved {
+  from = local_sensitive_file.proxmox_gitlab_cloud_init[0]
+  to   = module.proxmox[0].local_sensitive_file.gitlab_cloud_init[0]
+}

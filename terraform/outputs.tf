@@ -121,13 +121,18 @@ output "gitlab_docker_postgres_password" {
 }
 
 output "proxmox_gitlab_vm_id" {
-  description = "Proxmox VM ID for proxmox_vm_qemu.gitlab when enable_proxmox_resources is true"
-  value       = var.enable_proxmox_resources ? proxmox_vm_qemu.gitlab[0].vmid : null
+  description = "Proxmox VM ID for module.proxmox GitLab VM when enable_proxmox_resources is true"
+  value       = var.enable_proxmox_resources ? module.proxmox[0].gitlab_vm_id : null
 }
 
 output "proxmox_gitlab_cloud_init_snippet" {
   description = "cicustom user= path for GitLab VM cloud-init on Proxmox"
-  value       = local.proxmox_gitlab_docker ? "user=local:snippets/${var.proxmox_cloud_init_snippet_name}" : null
+  value       = var.enable_proxmox_resources ? module.proxmox[0].gitlab_cloud_init_snippet : null
+}
+
+output "proxmox_runner_vm_id" {
+  description = "Proxmox VM ID for module.proxmox runner VM when proxmox_enable_runner is true"
+  value       = var.enable_proxmox_resources ? module.proxmox[0].runner_vm_id : null
 }
 
 output "gitlab_devops_group_id" {
