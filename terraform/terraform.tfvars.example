@@ -70,3 +70,23 @@ enable_gitlab_resources = false
 # gitlab_smtp_tls                  = false
 # gitlab_email_from                = "gitlab@example.com"
 # gitlab_email_reply_to            = "noreply@example.com"
+# --- Proxmox (GitLab on QEMU VM) — see README "GitLab auf Proxmox"
+# enable_proxmox_resources              = false
+# proxmox_gitlab_docker_compose_enabled = true
+# proxmox_api_url                       = "https://pve01.example.com:8006/api2/json"
+# proxmox_api_token                     = "…"
+# proxmox_api_token_id                  = "terraform@pve!terraform"
+# proxmox_node                          = "pve01"
+# proxmox_gitlab_ipconfig0              = "ip=10.20.0.10/16,gw=10.20.0.1"
+# proxmox_runner_ipconfig0              = "ip=10.20.0.11/16,gw=10.20.0.1"
+# proxmox_enable_runner                 = false
+# proxmox_enable_clone                  = false
+# pm_tls_insecure                       = true
+# ciuser                                = "admin"
+# cipassword                            = "…"
+# nameserver                            = "192.168.0.1"
+# searchdomain                          = "example.com"
+# vm_default_bridge                     = "vmbr0"
+# vm_default_storage                    = "local-lvm"
+# clone_template                        = "ubuntu-tmp"
+# With Proxmox only: gitlab_install_mode = "none"

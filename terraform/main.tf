@@ -5,9 +5,60 @@ locals {
   gitlab_enabled             = var.gitlab_install_mode != "none"
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
 
+  proxmox_gitlab_docker       = var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+  gitlab_docker_stack_enabled = var.gitlab_install_mode == "docker_compose" || local.proxmox_gitlab_docker
+
   gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
   gitlab_api_v4_endpoint            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/api/v4/"
   gitlab_smtp_domain_effective      = var.gitlab_smtp_domain != "" ? var.gitlab_smtp_domain : var.domain_cicd_showcase_de
+
+  gitlab_docker_cloud_init_vars = {
+    gitlab_fqdn          = local.gitlab_fqdn
+    hetzner_api_token    = var.hetzner_api_key
+    renovate_fqdn        = local.renovate_fqdn
+    gitlab_root_password = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_root[0].result : ""
+    postgres_password    = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_postgres[0].result : ""
+    traefik_image        = var.gitlab_docker_traefik_image
+    gitlab_ce_image      = var.gitlab_docker_gitlab_ce_image
+    postgres_image       = var.gitlab_docker_postgres_image
+    acme_enabled         = var.gitlab_docker_traefik_acme_enabled
+    acme_email           = local.gitlab_letsencrypt_contact
+    external_url_scheme  = local.gitlab_docker_external_url_scheme
+    renovate_enabled     = var.gitlab_docker_renovate_enabled
+    renovate_ce_image    = var.gitlab_docker_renovate_ce_image
+    renovate_license_key = var.gitlab_docker_renovate_license_key
+    renovate_gitlab_pat  = var.gitlab_docker_renovate_gitlab_pat
+    renovate_webhook_secret = (
+      var.gitlab_docker_renovate_enabled && local.gitlab_docker_stack_enabled ? random_password.gitlab_renovate_webhook[0].result : ""
+    )
+    renovate_server_api_secret = (
+      var.gitlab_docker_renovate_enabled && local.gitlab_docker_stack_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
+    )
+    registry_enabled          = var.gitlab_docker_registry_enabled
+    registry_fqdn             = local.registry_fqdn
+    gitlab_api_v4_endpoint    = local.gitlab_api_v4_endpoint
+    smtp_enabled              = var.gitlab_smtp_enabled
+    smtp_address              = var.gitlab_smtp_address
+    smtp_port                 = var.gitlab_smtp_port
+    smtp_user_name            = var.gitlab_smtp_user_name
+    smtp_password             = var.gitlab_smtp_password
+    smtp_domain               = local.gitlab_smtp_domain_effective
+    smtp_authentication       = var.gitlab_smtp_authentication
+    smtp_enable_starttls_auto = var.gitlab_smtp_enable_starttls_auto
+    smtp_tls                  = var.gitlab_smtp_tls
+    smtp_openssl_verify_mode  = var.gitlab_smtp_openssl_verify_mode
+    gitlab_email_from         = var.gitlab_email_from
+    gitlab_email_reply_to     = var.gitlab_email_reply_to
+    gitlab_signup_enabled     = var.gitlab_signup_enabled
+    backup_enabled            = var.gitlab_docker_backup_enabled
+    backup_keep_time          = var.gitlab_docker_backup_keep_time
+    backup_cron               = var.gitlab_docker_backup_cron
+  }
+
+  gitlab_docker_user_data = local.gitlab_docker_stack_enabled ? templatefile(
+    "${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl",
+    local.gitlab_docker_cloud_init_vars,
+  ) : ""
 
   # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
   server_image_effective = (
@@ -26,48 +77,7 @@ locals {
       backup_keep_time           = var.gitlab_docker_backup_keep_time
       backup_cron                = var.gitlab_docker_backup_cron
     }) :
-    var.gitlab_install_mode == "docker_compose" ? templatefile("${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl", {
-      gitlab_fqdn          = local.gitlab_fqdn
-      hetzner_api_token    = var.hetzner_api_key
-      renovate_fqdn        = local.renovate_fqdn
-      gitlab_root_password = random_password.gitlab_docker_root[0].result
-      postgres_password    = random_password.gitlab_docker_postgres[0].result
-      traefik_image        = var.gitlab_docker_traefik_image
-      gitlab_ce_image      = var.gitlab_docker_gitlab_ce_image
-      postgres_image       = var.gitlab_docker_postgres_image
-      acme_enabled         = var.gitlab_docker_traefik_acme_enabled
-      acme_email           = local.gitlab_letsencrypt_contact
-      external_url_scheme  = local.gitlab_docker_external_url_scheme
-      renovate_enabled     = var.gitlab_docker_renovate_enabled
-      renovate_ce_image    = var.gitlab_docker_renovate_ce_image
-      renovate_license_key = var.gitlab_docker_renovate_license_key
-      renovate_gitlab_pat  = var.gitlab_docker_renovate_gitlab_pat
-      renovate_webhook_secret = (
-        var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : ""
-      )
-      renovate_server_api_secret = (
-        var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
-      )
-      registry_enabled          = var.gitlab_docker_registry_enabled
-      registry_fqdn             = local.registry_fqdn
-      gitlab_api_v4_endpoint    = local.gitlab_api_v4_endpoint
-      smtp_enabled              = var.gitlab_smtp_enabled
-      smtp_address              = var.gitlab_smtp_address
-      smtp_port                 = var.gitlab_smtp_port
-      smtp_user_name            = var.gitlab_smtp_user_name
-      smtp_password             = var.gitlab_smtp_password
-      smtp_domain               = local.gitlab_smtp_domain_effective
-      smtp_authentication       = var.gitlab_smtp_authentication
-      smtp_enable_starttls_auto = var.gitlab_smtp_enable_starttls_auto
-      smtp_tls                  = var.gitlab_smtp_tls
-      smtp_openssl_verify_mode  = var.gitlab_smtp_openssl_verify_mode
-      gitlab_email_from         = var.gitlab_email_from
-      gitlab_email_reply_to     = var.gitlab_email_reply_to
-      gitlab_signup_enabled     = var.gitlab_signup_enabled
-      backup_enabled            = var.gitlab_docker_backup_enabled
-      backup_keep_time          = var.gitlab_docker_backup_keep_time
-      backup_cron               = var.gitlab_docker_backup_cron
-    }) : ""
+    var.gitlab_install_mode == "docker_compose" ? local.gitlab_docker_user_data : ""
   )
 
   rdns_fqdn     = local.gitlab_enabled ? local.gitlab_fqdn : var.domain_cicd_showcase_de
@@ -89,25 +99,25 @@ locals {
 }
 
 resource "random_password" "gitlab_docker_root" {
-  count   = var.gitlab_install_mode == "docker_compose" ? 1 : 0
+  count   = local.gitlab_docker_stack_enabled ? 1 : 0
   length  = 24
   special = false
 }
 
 resource "random_password" "gitlab_docker_postgres" {
-  count   = var.gitlab_install_mode == "docker_compose" ? 1 : 0
+  count   = local.gitlab_docker_stack_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 resource "random_password" "gitlab_renovate_webhook" {
-  count   = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? 1 : 0
+  count   = local.gitlab_docker_stack_enabled && var.gitlab_docker_renovate_enabled ? 1 : 0
   length  = 32
   special = false
 }
 
 resource "random_password" "gitlab_renovate_server_api" {
-  count   = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? 1 : 0
+  count   = local.gitlab_docker_stack_enabled && var.gitlab_docker_renovate_enabled ? 1 : 0
   length  = 32
   special = false
 }

@@ -1,9 +1,5 @@
-variable "hcloud_token" {
-  description = "Hetzner Cloud API Token"
-  type        = string
-  sensitive   = true
-}
 
+## server variables
 variable "ssh_public_key_file" {
   description = "Path to your SSH public key file (e.g. ~/.ssh/id_ed25519.pub). If set, overrides ssh_public_key."
   type        = string
@@ -532,11 +528,17 @@ variable "dns_ipv4_record_name" {
     error_message = "dns_ipv4_record_name must be a valid DNS label."
   }
 }
-
+# Hetzner DNS variables
 variable "create_hcloud_dns_zone" {
   description = "If false, use an existing Hetzner DNS zone named domain_cicd_showcase_de (no hcloud_zone create; avoids 409 uniqueness_error)"
   type        = bool
   default     = true
+}
+
+variable "hcloud_token" {
+  description = "Hetzner Cloud API Token"
+  type        = string
+  sensitive   = true
 }
 
 variable "hetzner_api_key" {
@@ -544,7 +546,7 @@ variable "hetzner_api_key" {
   type        = string
   sensitive   = true
 }
-
+## site variables
 variable "site_url" {
   description = "Main URL of the website"
   type        = string
@@ -556,7 +558,7 @@ variable "site_url" {
   }
 }
 
-
+## domain variables
 
 variable "domain_cicd_showcase_de" {
   description = "Domain for the website (e.g. cicd-showcase.de)"
@@ -685,5 +687,391 @@ variable "dns_tlsa_name" {
       var.dns_tlsa_name
     ))
     error_message = "dns_tlsa_name must be a non-empty DNS name (labels, dots, underscores)."
+  }
+}
+## Proxmox variables
+
+variable "enable_proxmox_resources" {
+  description = "If true, create Proxmox provider resources in proxmox.tf (VMs). Requires proxmox_api_token."
+  type        = bool
+  default     = false
+}
+
+variable "proxmox_gitlab_docker_compose_enabled" {
+  description = "When enable_proxmox_resources is true, bootstrap GitLab via the same cloud-init as docker_compose (Traefik + GitLab CE + PostgreSQL)"
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = !var.proxmox_gitlab_docker_compose_enabled || var.enable_proxmox_resources
+    error_message = "proxmox_gitlab_docker_compose_enabled requires enable_proxmox_resources."
+  }
+}
+
+variable "proxmox_api_token_id" {
+  description = "Proxmox API token ID for provider (USER@REALM!TOKENNAME), e.g. terraform@pve!terraform"
+  type        = string
+  default     = "terraform@pve!terraform"
+}
+
+variable "proxmox_cloud_init_snippet_name" {
+  description = "Filename under /var/lib/vz/snippets/ for GitLab docker cloud-init (cicustom user=)"
+  type        = string
+  default     = "gitlab-docker-cloud-init.yaml"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9._-]*\\.ya?ml$", var.proxmox_cloud_init_snippet_name))
+    error_message = "proxmox_cloud_init_snippet_name must be a yaml filename (e.g. gitlab-docker-cloud-init.yaml)."
+  }
+}
+
+variable "proxmox_snippet_storage" {
+  description = "Proxmox storage ID used to upload the cloud-init snippet (API upload)"
+  type        = string
+  default     = "local"
+}
+
+variable "proxmox_gitlab_ipconfig0" {
+  description = "Cloud-Init ipconfig0 for the GitLab VM (Proxmox), e.g. ip=10.20.0.10/16,gw=10.20.0.1"
+  type        = string
+  default     = "ip=10.20.0.10/16,gw=10.20.0.1"
+
+  validation {
+    condition     = can(regex("^ip=", var.proxmox_gitlab_ipconfig0))
+    error_message = "proxmox_gitlab_ipconfig0 must start with ip= (Proxmox cloud-init format)."
+  }
+}
+
+variable "proxmox_runner_ipconfig0" {
+  description = "Cloud-Init ipconfig0 for the optional GitLab Runner VM on Proxmox"
+  type        = string
+  default     = "ip=10.20.0.11/16,gw=10.20.0.1"
+
+  validation {
+    condition     = can(regex("^ip=", var.proxmox_runner_ipconfig0))
+    error_message = "proxmox_runner_ipconfig0 must start with ip= (Proxmox cloud-init format)."
+  }
+}
+
+variable "proxmox_runner_node" {
+  description = "Proxmox node for the runner VM; empty = proxmox_node"
+  type        = string
+  default     = ""
+}
+
+variable "proxmox_enable_clone" {
+  description = "Clone GitLab VM from clone_template instead of creating an empty disk"
+  type        = bool
+  default     = false
+}
+
+variable "proxmox_enable_runner" {
+  description = "When enable_proxmox_resources is true, also create proxmox_vm_qemu.gitlab_runner"
+  type        = bool
+  default     = false
+}
+
+variable "proxmox_api_token" {
+  description = "Proxmox API token secret (pm_api_token_secret); required when enable_proxmox_resources is true"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = var.proxmox_api_token == "" || !can(regex("\\s", var.proxmox_api_token))
+    error_message = "proxmox_api_token must not contain whitespace."
+  }
+
+  validation {
+    condition     = !var.enable_proxmox_resources || length(trimspace(var.proxmox_api_token)) >= 8
+    error_message = "proxmox_api_token is required when enable_proxmox_resources is true (min. 8 characters)."
+  }
+}
+
+variable "proxmox_api_url" {
+  description = "Proxmox API base URL (telmate provider), e.g. https://pve.example.com:8006/api2/json"
+  type        = string
+  default     = "https://pve01.stadthagen.dev:8006/api2/json"
+
+  validation {
+    condition = can(regex(
+      "^https://[^\\s/]+:[0-9]+/api2/json$",
+      var.proxmox_api_url,
+    ))
+    error_message = "proxmox_api_url must be https://<host>:<port>/api2/json (no spaces)."
+  }
+}
+
+variable "proxmox_node" {
+  description = "Proxmox cluster node name (target_node for VMs)"
+  type        = string
+  default     = "pve01"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9_-]*$", var.proxmox_node))
+    error_message = "proxmox_node must be a valid Proxmox node name (letters, digits, hyphen, underscore)."
+  }
+
+  validation {
+    condition     = !var.enable_proxmox_resources || length(trimspace(var.proxmox_node)) > 0
+    error_message = "proxmox_node must not be empty when enable_proxmox_resources is true."
+  }
+}
+
+variable "pm_tls_insecure" {
+  description = "Skip TLS verification for the Proxmox API (pm_tls_insecure)"
+  type        = bool
+  default     = true
+}
+
+variable "proxmox_user" {
+  description = "Proxmox username (optional; for future SSH/API use)"
+  type        = string
+  default     = ""
+}
+
+variable "proxmox_ssh_user" {
+  description = "SSH user for Proxmox host (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "proxmox_password_ssh" {
+  description = "SSH password for Proxmox host (optional)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "proxmox_ssh_host" {
+  description = "SSH host for Proxmox (optional)"
+  type        = string
+  default     = ""
+}
+
+variable "proxmox_ssh_port" {
+  description = "SSH port for Proxmox"
+  type        = number
+  default     = 22
+
+  validation {
+    condition     = var.proxmox_ssh_port >= 1 && var.proxmox_ssh_port <= 65535
+    error_message = "proxmox_ssh_port must be between 1 and 65535."
+  }
+}
+variable "cipassword" {
+  description = "Cloud-Init password for Proxmox VMs (sensitive)"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.enable_proxmox_resources || length(var.cipassword) >= 8
+    error_message = "cipassword must be at least 8 characters when enable_proxmox_resources is true."
+  }
+}
+
+variable "ciuser" {
+  description = "Cloud-Init user for Proxmox VMs"
+  type        = string
+  default     = "admin"
+
+  validation {
+    condition     = can(regex("^[a-z_][a-z0-9_-]{0,31}$", var.ciuser))
+    error_message = "ciuser must be a valid Linux username (lowercase, 1–32 chars)."
+  }
+
+  validation {
+    condition     = !var.enable_proxmox_resources || length(trimspace(var.ciuser)) > 0
+    error_message = "ciuser must not be empty when enable_proxmox_resources is true."
+  }
+}
+variable "nameserver" {
+  description = "Cloud-Init nameserver (IP or hostname)"
+  type        = string
+  default     = "192.168.0.1"
+
+  validation {
+    condition = (
+      can(regex("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$", var.nameserver)) ||
+      can(regex("^[a-zA-Z0-9]([a-zA-Z0-9.-]*[a-zA-Z0-9])?$", var.nameserver))
+    )
+    error_message = "nameserver must be an IPv4 address or a valid hostname."
+  }
+}
+
+variable "searchdomain" {
+  description = "Cloud-Init DNS search domain"
+  type        = string
+  default     = "example.com"
+
+  validation {
+    condition = can(regex(
+      "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$",
+      var.searchdomain,
+    ))
+    error_message = "searchdomain must be a valid DNS domain name (lowercase labels)."
+  }
+}
+variable "base_template" {
+  description = "Base VM template to clone from (must exist in Proxmox)"
+  type        = string
+  default     = "ubuntu-server-prod"
+}
+# VM default configuration
+variable "vm_default_cores" {
+  description = "Default number of CPU cores per VM"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.vm_default_cores >= 1 && var.vm_default_cores <= 512
+    error_message = "vm_default_cores must be between 1 and 512."
+  }
+}
+variable "vm_host_cores" {
+  description = "CPU cores for the Proxmox GitLab VM (proxmox_vm_qemu.gitlab)"
+  type        = number
+  default     = 4
+
+  validation {
+    condition     = var.vm_host_cores >= 1 && var.vm_host_cores <= 512
+    error_message = "vm_host_cores must be between 1 and 512."
+  }
+}
+variable "clone_template" {
+  description = "Template to clone from (must exist in Proxmox)"
+  type        = string
+  default     = "ubuntu-tmp"
+  validation {
+    condition     = can(regex("^[^[:space:]]+$", var.clone_template))
+    error_message = "clone_template must be a valid Proxmox template name."
+  }
+}
+variable "clone_full" {
+  description = "Full clone"
+  type        = bool
+  default     = true
+  validation {
+    condition     = var.clone_full == true || var.clone_full == false
+    error_message = "clone_full must be true or false."
+  }
+}
+variable "vm_bios_host" {
+  description = "BIOS type for VM. Typical values: 'ovmf' (default), 'seabios'."
+  type        = string
+  default     = "ovmf" # ovmf: Ubuntu 25.04, seabios: Proxmox default
+
+  validation {
+    condition     = contains(["ovmf", "seabios"], var.vm_bios_host)
+    error_message = "vm_bios_host must be one of: ovmf, seabios."
+  }
+}
+variable "vm_os_type" {
+  description = "OS type for VM. Typical values: 'cloud-init' (default), 'l26', 'other'. Ignored when runner_qemu_guest_agent is true."
+  type        = string
+  default     = "cloud-init" # cloud-init: Ubuntu 25.04, l26: Ubuntu 25.04, other: Proxmox default
+
+  validation {
+    condition     = contains(["cloud-init", "l26", "other"], var.vm_os_type)
+    error_message = "vm_os_type must be one of: cloud-init, l26, other."
+  }
+}
+variable "vm_default_sockets" {
+  description = "Default number of CPU sockets per VM"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.vm_default_sockets >= 1 && var.vm_default_sockets <= 16
+    error_message = "vm_default_sockets must be between 1 and 16."
+  }
+}
+variable "vm_host_sockets" {
+  description = "Host number of CPU sockets per VM"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.vm_host_sockets >= 1 && var.vm_host_sockets <= 16
+    error_message = "vm_host_sockets must be between 1 and 16."
+  }
+}
+
+variable "vm_default_memory" {
+  description = "Default memory allocation per VM (in MB)"
+  type        = number
+  default     = 2048
+
+  validation {
+    condition     = var.vm_default_memory >= 512 && var.vm_default_memory <= 2097152
+    error_message = "vm_default_memory must be between 512 MiB and 2 TiB (2097152 MiB)."
+  }
+}
+variable "vm_host_memory" {
+  description = "Memory (MiB) for the Proxmox GitLab VM"
+  type        = number
+  default     = 12288
+
+  validation {
+    condition     = var.vm_host_memory >= 512 && var.vm_host_memory <= 2097152
+    error_message = "vm_host_memory must be between 512 MiB and 2 TiB (2097152 MiB)."
+  }
+}
+variable "vm_qemu_os" {
+  description = "QEMU OS type for VM. Typical values: 'l26' (default), 'other', 'l24'."
+  type        = string
+  default     = "l26" # l26: Ubuntu 25.04, l24: Ubuntu 24.04, other: Proxmox default
+
+  validation {
+    condition     = contains(["l26", "other", "l24"], var.vm_qemu_os)
+    error_message = "vm_qemu_os must be one of: l26, other, l24."
+  }
+}
+variable "vm_default_disk_size" {
+  description = "Default disk size per VM (e.g., '20G', '50G')"
+  type        = string
+  default     = "20G"
+
+  validation {
+    condition     = can(regex("^[0-9]+[GM]$", var.vm_default_disk_size))
+    error_message = "vm_default_disk_size must match Proxmox size format, e.g. 20G or 512M."
+  }
+}
+variable "vm_default_storage" {
+  description = "Default storage pool for VM disks"
+  type        = string
+  default     = "local-lvm"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9._-]*$", var.vm_default_storage))
+    error_message = "vm_default_storage must be a non-empty Proxmox storage pool name."
+  }
+}
+
+variable "vm_default_bridge" {
+  description = "Default network bridge for VM network interfaces"
+  type        = string
+  default     = "vmbr0"
+
+  validation {
+    condition     = can(regex("^vmbr[0-9]+$", var.vm_default_bridge))
+    error_message = "vm_default_bridge must match Proxmox bridge naming (e.g. vmbr0, vmbr1)."
+  }
+}
+variable "scsihw" {
+  type    = string
+  default = "virtio-scsi-pci"
+  validation {
+    condition     = contains(["virtio-scsi-pci", "virtio-scsi-single"], var.scsihw)
+    error_message = "scsihw must be one of: virtio-scsi-pci, virtio-scsi-single."
+  }
+}
+variable "bootdisk" {
+  type    = string
+  default = "scsi0"
+  validation {
+    condition     = contains(["scsi0", "ide2"], var.bootdisk)
+    error_message = "bootdisk must be one of: scsi0, ide2."
   }
 }

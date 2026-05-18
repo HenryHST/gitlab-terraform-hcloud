@@ -7,22 +7,32 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-### Fixed
+## [0.0.5] - 2026-05-18
 
-- **Traefik TLS (Registry):** Zwei Services (`gitlab` + `registry`) auf einem Container erfordern explizite Labels `traefik.http.routers.<name>.service=<name>`; ohne diese blieb `acme_letsencrypt.json` leer und Traefik lieferte das Default-Zertifikat (`tls: unknown certificate`).
+Patch-Release: Proxmox-Schienen mit Docker-Compose-Cloud-Init, Container Registry, Repo-Layout unter `terraform/`, GitLab-API-Ressourcen für Admin/Gruppen.
 
 ### Added
 
-- **Container Registry (`docker_compose`):** Variablen `gitlab_docker_registry_enabled` (Standard `true`) und `gitlab_docker_registry_dns_label` (Standard `registry`); DNS A-Record `hcloud_zone_record.registry`; Traefik-Router auf Port 5050; Host-Volumes `/opt/gitlab/registry/data` und `/opt/gitlab/registry/certs`; `registry_external_url` in `gitlab.rb`; Outputs `registry_fqdn` und `registry_url`; Architektur-Diagramme unter [`docs/diagrams/`](docs/diagrams/).
+- **Proxmox (`enable_proxmox_resources`):** [`proxmox.tf`](terraform/proxmox.tf), [`proxmox_cloud_init.tf`](terraform/proxmox_cloud_init.tf) — Upload von `gitlab-docker-cloud-init.yaml.tpl` als Snippet, `cicustom` an `proxmox_vm_qemu.gitlab`; Variablen u. a. `proxmox_gitlab_docker_compose_enabled`, `proxmox_gitlab_ipconfig0`, `proxmox_api_token_id`, `proxmox_enable_clone` / `proxmox_enable_runner`; Provider `telmate/proxmox`, `hashicorp/null`, `hashicorp/local`; README-Abschnitt [GitLab auf Proxmox](README.md#gitlab-auf-proxmox).
+- **Container Registry (`docker_compose`):** Variablen `gitlab_docker_registry_enabled` (Standard `true`) und `gitlab_docker_registry_dns_label`; DNS A-Record; Traefik-Router Port 5050; Registry-Volumes und `registry_external_url` in `gitlab.rb`; Outputs `registry_fqdn` / `registry_url`; Diagramme unter [`docs/diagrams/`](docs/diagrams/).
+- **GitLab-Provider (`enable_gitlab_resources`):** Admin-Benutzer, Gruppen und Projekte in [`gitlab.tf`](terraform/gitlab.tf); Output `gitlab_admin_password`.
 
 ### Changed
 
-- **Repository-Layout:** Terraform-Konfiguration (`*.tf`, `modules/`, `templates/`, `terraform.tfvars.example`, Lockfile, TFLint) nach [`terraform/`](terraform/) verschoben; Root enthält README, CHANGELOG, Makefile, CI, Renovate.
-- **Makefile / CI:** Befehle laufen mit Working Directory `terraform/` (`make` vom Repo-Root).
+- **Repository-Layout:** Terraform nach [`terraform/`](terraform/) verschoben; Makefile/CI mit Working Directory `terraform/`.
+- **Docker-Stack-Locals:** `local.gitlab_docker_stack_enabled` auch bei Proxmox — gemeinsames Template und Passwort-Outputs für Hetzner und Proxmox.
+
+### Fixed
+
+- **Traefik TLS (GitLab + Registry):** Explizite Labels `traefik.http.routers.<name>.service=<name>`; behebt leeres ACME-JSON und Default-Zertifikat (`tls: unknown certificate`).
+- **Cloud-Init / `templatefile`:** Kommentar ohne `${…}`-Syntax im Template (Terraform-Parse-Fehler bei `destroy`/`plan`).
 
 ### Migration
 
-- Lokale Dateien nach dem Pull: `terraform.tfvars`, `terraform.tfstate` und `.terraform/` in den Ordner **`terraform/`** legen, dann `cd terraform && terraform init`.
+- `terraform.tfvars`, State und `.terraform/` nach **`terraform/`** verschieben, dann `cd terraform && terraform init`.
+- Proxmox: `enable_proxmox_resources = true`, `gitlab_install_mode = "none"` für reine On-Prem-VM; Snippet-Storage (`proxmox_snippet_storage`) muss `snippets` unterstützen.
+
+[0.0.5]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.0.5
 
 ## [0.0.4] - 2026-05-17
 

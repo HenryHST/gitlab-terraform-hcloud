@@ -15,6 +15,18 @@ terraform {
       source  = "gitlabhq/gitlab"
       version = "~> 18.11"
     }
+    proxmox = {
+      source  = "telmate/proxmox"
+      version = "<=3.0.2-rc07"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
+    local = {
+      source  = "hashicorp/local"
+      version = "~> 2.5"
+    }
   }
 }
 
@@ -37,4 +49,11 @@ provider "gitlab" {
   base_url = var.gitlab_api_url
   # Skip API probe when GitLab is not provisioned yet or API resources are disabled.
   early_auth_check = var.enable_gitlab_resources
+}
+provider "proxmox" {
+  alias               = "prod"
+  pm_api_url          = var.proxmox_api_url
+  pm_api_token_id     = var.proxmox_api_token_id
+  pm_api_token_secret = var.proxmox_api_token
+  pm_tls_insecure     = var.pm_tls_insecure
 }

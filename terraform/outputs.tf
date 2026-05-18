@@ -64,60 +64,70 @@ output "domain_cicd_showcase_de" {
 }
 
 output "gitlab_url" {
-  description = "GitLab URL when gitlab_install_mode is hetzner_app or docker_compose (https when Omnibus LE or Traefik ACME is enabled)"
+  description = "GitLab URL when hetzner_app, docker_compose, or Proxmox docker cloud-init (https when LE/Traefik ACME is enabled)"
   value = (
     var.gitlab_install_mode == "hetzner_app" ? (
       var.gitlab_letsencrypt_enabled ? "https://${local.gitlab_fqdn}" : "http://${local.gitlab_fqdn}"
     ) :
-    var.gitlab_install_mode == "docker_compose" ? (
+    local.gitlab_docker_stack_enabled ? (
       var.gitlab_docker_traefik_acme_enabled ? "https://${local.gitlab_fqdn}" : "http://${local.gitlab_fqdn}"
     ) : null
   )
 }
 
 output "gitlab_fqdn" {
-  description = "GitLab hostname (A record target) when gitlab_install_mode is hetzner_app or docker_compose"
-  value       = local.gitlab_enabled ? local.gitlab_fqdn : null
+  description = "GitLab hostname when hetzner/dns modes or Proxmox docker cloud-init is active"
+  value       = (local.gitlab_enabled || local.proxmox_gitlab_docker) ? local.gitlab_fqdn : null
 }
 
 output "renovate_fqdn" {
-  description = "Renovate CE hostname when docker_compose and gitlab_docker_renovate_enabled"
+  description = "Renovate CE hostname when docker stack (Hetzner or Proxmox) and gitlab_docker_renovate_enabled"
   value = (
-    var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? local.renovate_fqdn : null
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_renovate_enabled ? local.renovate_fqdn : null
   )
 }
 
 output "registry_fqdn" {
-  description = "Container Registry hostname when docker_compose and gitlab_docker_registry_enabled"
+  description = "Container Registry hostname when docker stack and gitlab_docker_registry_enabled"
   value = (
-    var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled ? local.registry_fqdn : null
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_registry_enabled ? local.registry_fqdn : null
   )
 }
 
 output "registry_url" {
-  description = "Container Registry URL when docker_compose and gitlab_docker_registry_enabled (https when Traefik ACME is enabled)"
+  description = "Container Registry URL when docker stack and gitlab_docker_registry_enabled (https when Traefik ACME is enabled)"
   value = (
-    var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_registry_enabled ?
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_registry_enabled ?
     "${local.gitlab_docker_external_url_scheme}://${local.registry_fqdn}" : null
   )
 }
 
 output "gitlab_docker_renovate_webhook_secret" {
   description = "Webhook secret for Renovate CE and GitLab project hooks (sensitive; in Terraform state)"
-  value       = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : null
+  value       = local.gitlab_docker_stack_enabled && var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : null
   sensitive   = true
 }
 
 output "gitlab_docker_initial_root_password" {
-  description = "Initial GitLab root password in docker_compose mode (stored in Terraform state; rotate after first login)."
-  value       = var.gitlab_install_mode == "docker_compose" ? random_password.gitlab_docker_root[0].result : null
+  description = "Initial GitLab root password for docker stack (Hetzner or Proxmox; stored in state; rotate after first login)."
+  value       = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_root[0].result : null
   sensitive   = true
 }
 
 output "gitlab_docker_postgres_password" {
-  description = "PostgreSQL password for the GitLab application DB in docker_compose mode (stored in Terraform state and cloud-init user_data)."
-  value       = var.gitlab_install_mode == "docker_compose" ? random_password.gitlab_docker_postgres[0].result : null
+  description = "PostgreSQL password for GitLab docker stack (stored in state and cloud-init)."
+  value       = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_postgres[0].result : null
   sensitive   = true
+}
+
+output "proxmox_gitlab_vm_id" {
+  description = "Proxmox VM ID for proxmox_vm_qemu.gitlab when enable_proxmox_resources is true"
+  value       = var.enable_proxmox_resources ? proxmox_vm_qemu.gitlab[0].vmid : null
+}
+
+output "proxmox_gitlab_cloud_init_snippet" {
+  description = "cicustom user= path for GitLab VM cloud-init on Proxmox"
+  value       = local.proxmox_gitlab_docker ? "user=local:snippets/${var.proxmox_cloud_init_snippet_name}" : null
 }
 
 output "gitlab_devops_group_id" {
