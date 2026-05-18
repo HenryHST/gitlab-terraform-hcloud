@@ -1,5 +1,5 @@
 # Terraform working directory: terraform/ (init, state, .terraform)
-terraform/.generated/
+**/.generated/
 # Local .terraform directories
 .terraform/
 
