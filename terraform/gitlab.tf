@@ -6,7 +6,7 @@ module "gitlab_api" {
     gitlab = gitlab.gitlab
   }
 
-  domain = var.domain_cicd_showcase_de
+  domain = var.dns_domain
 
   create_renovate_hook = (
     var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled
@@ -30,7 +30,7 @@ resource "gitlab_user" "gitlab_admin" {
 
   name     = "GitLab Admin"
   username = "gadmin"
-  email    = "gadmin@${var.domain_cicd_showcase_de}"
+  email    = "gadmin@${var.dns_domain}"
   password = random_password.gitlab_admin_password[0].result
   note     = "GitLab Admin User"
   is_admin = true

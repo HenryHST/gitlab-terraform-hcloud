@@ -1,13 +1,13 @@
 locals {
-  gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.domain_cicd_showcase_de}"
-  renovate_fqdn              = "${var.gitlab_docker_renovate_dns_label}.${var.domain_cicd_showcase_de}"
-  registry_fqdn              = "${var.gitlab_docker_registry_dns_label}.${var.domain_cicd_showcase_de}"
+  gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.dns_domain}"
+  renovate_fqdn              = "${var.gitlab_docker_renovate_dns_label}.${var.dns_domain}"
+  registry_fqdn              = "${var.gitlab_docker_registry_dns_label}.${var.dns_domain}"
   gitlab_enabled             = var.gitlab_install_mode != "none"
-  gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
+  gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.dns_domain}"
   gitlab_root_email_effective = (
     var.gitlab_root_email != "" ? var.gitlab_root_email :
     var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email :
-    "gitlab-root@${var.domain_cicd_showcase_de}"
+    "gitlab-root@${var.dns_domain}"
   )
 
   proxmox_gitlab_docker       = var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
@@ -17,7 +17,7 @@ locals {
 
   gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
   gitlab_api_v4_endpoint            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/api/v4/"
-  gitlab_smtp_domain_effective      = var.gitlab_smtp_domain != "" ? var.gitlab_smtp_domain : var.domain_cicd_showcase_de
+  gitlab_smtp_domain_effective      = var.gitlab_smtp_domain != "" ? var.gitlab_smtp_domain : var.dns_domain
 
   gitlab_docker_cloud_init_vars = {
     gitlab_fqdn          = local.gitlab_fqdn
@@ -98,10 +98,10 @@ locals {
     var.gitlab_install_mode == "docker_compose" ? local.gitlab_docker_user_data : ""
   )
 
-  rdns_fqdn     = local.gitlab_enabled ? local.gitlab_fqdn : var.domain_cicd_showcase_de
+  rdns_fqdn     = local.gitlab_enabled ? local.gitlab_fqdn : var.dns_domain
   dns_ipv4_name = local.gitlab_enabled ? var.gitlab_dns_record_name : var.dns_ipv4_record_name
 
-  gitlab_runner_fqdn = "${var.gitlab_runner_dns_label}.${var.domain_cicd_showcase_de}"
+  gitlab_runner_fqdn = "${var.gitlab_runner_dns_label}.${var.dns_domain}"
   gitlab_runner_location_effective = (
     var.gitlab_runner_location != "" ? var.gitlab_runner_location : var.location
   )
@@ -223,7 +223,7 @@ module "dns" {
   source = "./modules/dns"
 
   create_zone        = var.create_hcloud_dns_zone
-  domain_name        = var.domain_cicd_showcase_de
+  domain_name        = var.dns_domain
   server_ipv4        = module.server.server_ipv4
   ipv4_a_record_name = local.dns_ipv4_name
 

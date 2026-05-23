@@ -4,3 +4,8 @@ moved {
   from = module.dns
   to   = module.dns[0]
 }
+
+moved {
+  from = output.domain_cicd_showcase_de
+  to   = output.dns_domain
+}

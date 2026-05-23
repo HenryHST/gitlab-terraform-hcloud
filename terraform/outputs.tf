@@ -63,9 +63,9 @@ output "website_url" {
   value       = var.site_url
 }
 
-output "domain_cicd_showcase_de" {
+output "dns_domain" {
   description = "Configured zone/domain name (from DNS module when managed, else variable)"
-  value       = local.manage_hetzner_dns ? module.dns[0].zone_name : var.domain_cicd_showcase_de
+  value       = local.manage_hetzner_dns ? module.dns[0].zone_name : var.dns_domain
 }
 
 output "gitlab_url" {

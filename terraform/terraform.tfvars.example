@@ -12,7 +12,7 @@ location     = "fsn1"
 # Hetzner DNS API token (https://dns.hetzner.com/) — NOT hcloud_token; docker_compose → HETZNER_API_TOKEN in Traefik .env
 hetzner_api_key = "your_hetzner_dns_api_key_here"
 
-domain_cicd_showcase_de = "example.com"
+dns_domain = "example.com"
 create_hcloud_dns_zone  = false
 
 mail_mx_value = "10 mail.example.com"
@@ -72,7 +72,7 @@ enable_gitlab_resources = false
 # gitlab_smtp_port                 = 587
 # gitlab_smtp_user_name            = "gitlab"
 # gitlab_smtp_password             = "…"
-# gitlab_smtp_domain               = ""   # empty = domain_cicd_showcase_de
+# gitlab_smtp_domain               = ""   # empty = dns_domain
 # gitlab_smtp_authentication       = "login"
 # gitlab_smtp_enable_starttls_auto = true
 # gitlab_smtp_tls                  = false

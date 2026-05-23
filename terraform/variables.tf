@@ -504,7 +504,7 @@ variable "gitlab_smtp_password" {
 }
 
 variable "gitlab_smtp_domain" {
-  description = "HELO/EHLO domain for SMTP; if empty, domain_cicd_showcase_de is used"
+  description = "HELO/EHLO domain for SMTP; if empty, dns_domain is used"
   type        = string
   default     = ""
 }
@@ -605,7 +605,7 @@ variable "gitlab_runner_server_name" {
 }
 
 variable "gitlab_runner_dns_label" {
-  description = "Relative DNS name (A record) for the runner in domain_cicd_showcase_de; FQDN becomes <label>.<zone> (e.g. runner05.cicd-showcase.de)"
+  description = "Relative DNS name (A record) for the runner in dns_domain; FQDN becomes <label>.<zone> (e.g. runner05.cicd-showcase.de)"
   type        = string
   default     = "runner05"
 
@@ -644,7 +644,7 @@ variable "dns_ipv4_record_name" {
 }
 # Hetzner DNS variables
 variable "create_hcloud_dns_zone" {
-  description = "If false, use an existing Hetzner DNS zone named domain_cicd_showcase_de (no hcloud_zone create; avoids 409 uniqueness_error)"
+  description = "If false, use an existing Hetzner DNS zone named dns_domain (no hcloud_zone create; avoids 409 uniqueness_error)"
   type        = bool
   default     = true
 }
@@ -680,13 +680,13 @@ variable "site_url" {
 
 ## domain variables
 
-variable "domain_cicd_showcase_de" {
-  description = "Domain for the website (e.g. cicd-showcase.de)"
+variable "dns_domain" {
+  description = "Hetzner DNS zone name (e.g. example.com); base for gitlab_fqdn, mail records, and PTR when GitLab is disabled"
   type        = string
   default     = "cicd-showcase.de"
 
   validation {
-    condition     = can(regex("^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$", var.domain_cicd_showcase_de)) && strcontains(var.domain_cicd_showcase_de, ".")
+    condition     = can(regex("^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$", var.dns_domain)) && strcontains(var.dns_domain, ".")
     error_message = "Domain must be a valid hostname with at least one dot (e.g. example.com)."
   }
 }

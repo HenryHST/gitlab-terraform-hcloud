@@ -41,7 +41,7 @@ module "gitlab_api" {
     gitlab = gitlab.gitlab
   }
 
-  domain = var.domain_cicd_showcase_de
+  domain = var.dns_domain
 
   create_renovate_hook   = var.gitlab_install_mode == "docker_compose" && var.gitlab_docker_renovate_enabled
   renovate_dns_label     = var.gitlab_docker_renovate_dns_label

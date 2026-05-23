@@ -102,7 +102,7 @@ In [`provider.tf`](terraform/provider.tf):
 - [Terraform](https://developer.hashicorp.com/terraform/install) **>= 1.14.4** (empfohlen; CI nutzt 1.14.4) **oder** [OpenTofu](https://opentofu.org/docs/intro/install/) **>= 1.9.0** (z. B. 1.12.x) — siehe [Terraform und OpenTofu](#terraform-und-opentofu)
 - Hetzner Cloud **API-Token** mit passenden Rechten (Server, Firewalls, SSH-Keys, DNS je nach Nutzung)
 - Öffentlicher **SSH-Schlüssel** für den Root-Zugang auf dem Server
-- Für DNS: Domain, die du in Hetzner DNS verwalten willst (Zonenname = Variable `domain_cicd_showcase_de` bzw. dein Override)
+- Für DNS: Domain, die du in Hetzner DNS verwalten willst (Zonenname = Variable `dns_domain` bzw. dein Override)
 - Für **`enable_gitlab_resources = true`**: GitLab-Instanz erreichbar unter **`gitlab_api_url`**, **Personal/Project Access Token** mit Rechten zum Anlegen von Gruppen und Projekten (`gitlab_api_token`)
 - Für **`gitlab_docker_renovate_enabled = true`** (nur mit `gitlab_install_mode = docker_compose`): [Mend Renovate CE](https://www.mend.io/renovate-community/) **License Key**, GitLab-**PAT** für den Renovate-Bot (`gitlab_docker_renovate_gitlab_pat`, `api`-Scope auf deiner Instanz)
 - Für **Proxmox** (optional): laufendes **Proxmox VE**, API-Token mit VM-Rechten, QEMU Guest Agent auf den VMs, Netzwerk-Bridge (z. B. `vmbr1`) — Details unter [GitLab auf Proxmox](#gitlab-auf-proxmox)
@@ -200,7 +200,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_smtp_address` | `""` | SMTP-Host; Pflicht bei `gitlab_smtp_enabled = true` |
 | `gitlab_smtp_port` | `587` | SMTP-Port (587 STARTTLS, 465 SMTPS) |
 | `gitlab_smtp_user_name` / `gitlab_smtp_password` | `""` | Optional (sensitiv); nur gesetzt wenn nicht leer |
-| `gitlab_smtp_domain` | `""` | HELO-Domain; leer → `domain_cicd_showcase_de` |
+| `gitlab_smtp_domain` | `""` | HELO-Domain; leer → `dns_domain` |
 | `gitlab_smtp_authentication` | `login` | `login`, `plain`, `cram_md5`, `none` |
 | `gitlab_smtp_enable_starttls_auto` | `true` | STARTTLS (typisch Port 587) |
 | `gitlab_smtp_tls` | `false` | Implicit TLS (typisch Port 465) |
@@ -211,13 +211,13 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `enable_gitlab_runner` | `false` | `true`: zweite VM (**cpx22**), Runner-Firewall, A-Record + PTR auf `<gitlab_runner_dns_label>.<zone>` |
 | `gitlab_runner_install_package` | `true` | Bei aktivem Runner: Cloud-Init installiert **.deb**-Pakete von GitLab S3 (siehe [manuelle Installation](https://docs.gitlab.com/runner/install/linux-manually/)), Log `/var/log/gitlab-runner-terraform-bootstrap.log`; `false`: nur Ubuntu |
 | `gitlab_runner_server_name` | `runner05` | Name des `hcloud_server` für den Runner |
-| `gitlab_runner_dns_label` | `runner05` | Relativer A-Record-Name; FQDN = `<label>.<domain_cicd_showcase_de>` (z. B. `runner05.cicd-showcase.de`; ursprünglich oft als Platzhalter `runner05.example.com` gedacht) |
+| `gitlab_runner_dns_label` | `runner05` | Relativer A-Record-Name; FQDN = `<label>.<dns_domain>` (z. B. `runner05.cicd-showcase.de`; ursprünglich oft als Platzhalter `runner05.example.com` gedacht) |
 | `gitlab_runner_image` | `ubuntu-24.04` | Hetzner-Image-Slug für die Runner-VM |
 | `gitlab_runner_location` | `""` | Leer = gleiche Region wie `location`; sonst z. B. `fsn1`, `nbg1`, … |
 | `create_hcloud_dns_zone` | `true` | `false`, wenn die Zone in Hetzner DNS schon existiert (vermeidet 409 *Zone already exists*) |
 | `ssh_public_key_file` | `""` | Optional: Pfad zur `.pub`-Datei (z. B. `~/.ssh/id_ed25519.pub`), überschreibt `ssh_public_key` |
 | `site_url` | `https://cicd-showcase.de` | Wird als Output `website_url` ausgegeben |
-| `domain_cicd_showcase_de` | `cicd-showcase.de` | DNS-Zonenname; bei GitLab auch Basis für `gitlab_fqdn` und PTR |
+| `dns_domain` | `cicd-showcase.de` | DNS-Zonenname; bei GitLab auch Basis für `gitlab_fqdn` und PTR |
 | `mail_server_ipv4` | IPv4 | Mail-**A**-Record (`module.dns`) |
 | `mail_server_ipv6` | IPv6 | Mail-**AAAA**-Record |
 | `mail_server_cname_target` | Hostname | CNAME-Ziel Autoconfig/Autodiscover |
@@ -245,7 +245,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `ssh_connection` | Vorschlag: `ssh root@<ipv4>` |
 | `dns_zone_id` / `dns_zone_name` | DNS-Zone |
 | `website_url` | Wert von `var.site_url` |
-| `domain_cicd_showcase_de` | Entspricht dem Zonennamen aus dem DNS-Modul |
+| `dns_domain` | Entspricht dem Zonennamen aus dem DNS-Modul |
 | `gitlab_url` | Bei aktivem GitLab-Modus: `http://…` oder `https://…` (Omnibus: `gitlab_letsencrypt_enabled`; Docker: `gitlab_docker_traefik_acme_enabled`), sonst `null` |
 | `gitlab_fqdn` | FQDN des GitLab-A-Records oder `null` |
 | `gitlab_docker_initial_root_password` | Nur `docker_compose`: initiales `root`-Passwort (sensitiv; liegt im **Terraform State**) |
@@ -518,7 +518,7 @@ Wenn `enable_gitlab_runner = true`:
 
 - **Server:** Zweites [`modules/server`](terraform/modules/server) mit festem Typ **`cpx22`**, Image `gitlab_runner_image` (Standard Ubuntu 24.04), Region `gitlab_runner_location` oder wie `location`.
 - **Firewall:** [`module.firewall_runner`](terraform/modules/firewall) mit **SSH (22)** und **ICMP** eingehend; **ausgehend** DNS/HTTP/HTTPS (Defaults). Kein eingehendes HTTP/HTTPS/DNS/Node-Exporter.
-- **DNS:** [`hcloud_zone_record.gitlab_runner`](terraform/main.tf) in derselben Zone wie `domain_cicd_showcase_de`; PTR zeigt auf **`gitlab_runner_fqdn`** (Standard `runner05.<zone>`).
+- **DNS:** [`hcloud_zone_record.gitlab_runner`](terraform/main.tf) in derselben Zone wie `dns_domain`; PTR zeigt auf **`gitlab_runner_fqdn`** (Standard `runner05.<zone>`).
 - **Paket-Install:** `gitlab_runner_install_package` steuert Cloud-Init ([`templates/gitlab-runner-cloud-init.yaml.tpl`](terraform/templates/gitlab-runner-cloud-init.yaml.tpl)): bei `true` [manuelle .deb-Installation](https://docs.gitlab.com/runner/install/linux-manually/) inkl. Arch-Mapping (`armhf`→`arm`), `dpkg`/`apt-get install -f`, `systemctl enable --now gitlab-runner`; bei `false` bleibt die VM ohne Runner-Paket.
 - **Registrierung:** Kein `gitlab-runner register` in Terraform (Token würde im State landen). Nach dem Apply per SSH auf die Runner-VM verbinden und [Runner registrieren](https://docs.gitlab.com/runner/register/) (URL z. B. `terraform output -raw gitlab_url`, Token aus GitLab UI / CI-Variable).
 
@@ -604,7 +604,7 @@ flowchart TB
    cipassword                            = "…"
    ssh_public_key_file                   = "~/.ssh/id_ed25519.pub"
    gitlab_install_mode                   = "none"
-   domain_cicd_showcase_de               = "example.com"
+   dns_domain               = "example.com"
    hetzner_api_key                       = "…"   # Traefik ACME DNS-01 (API, kein module.dns)
    # enable_hetzner_dns = null            # Default: kein Terraform-Hetzner-DNS bei Proxmox-only
    ```
@@ -686,7 +686,7 @@ Weitere Links: [Proxmox VE API](https://pve.proxmox.com/pve-docs/api-viewer/inde
 - **Firewall:** Standard erlaubt eingehend und ausgehend typischerweise `0.0.0.0/0` und `::/0` auf die konfigurierten Ports. Für Produktion `ssh_source_ips` / `egress_destination_ips` einschränken oder `custom_rules` nutzen.
 - **Token:** `hcloud_token`, `gitlab_api_token` und andere Secrets nur in `terraform.tfvars` oder CI-Secrets; nicht versionieren. Bei `docker_compose` liegen initiale Passwörter zusätzlich im **Terraform State** und in **`/opt/gitlab/data/config/gitlab.rb`** bzw. Traefik-`.env` auf der VM (Outputs sensitiv).
 - **Backups:** Bei `docker_compose`: `/opt/gitlab/backups/` und `/opt/gitlab/data/config/config_backup/`; bei `hetzner_app`: `/var/opt/gitlab/backups/` und `/etc/gitlab/config_backup/` — regelmäßig offsite sichern; Archive sind nicht verschlüsselt, sofern nicht separat konfiguriert.
-- **PTR/rDNS:** Wenn `gitlab_install_mode` **nicht** `none`, zeigt PTR auf die GitLab-FQDN, sonst auf `domain_cicd_showcase_de`. Bei HTTPS (Omnibus-LE oder Traefik-ACME) sollte der Hostname zum Zertifikat passen.
+- **PTR/rDNS:** Wenn `gitlab_install_mode` **nicht** `none`, zeigt PTR auf die GitLab-FQDN, sonst auf `dns_domain`. Bei HTTPS (Omnibus-LE oder Traefik-ACME) sollte der Hostname zum Zertifikat passen.
 - **Mail/DNS:** Über die Variablen **`mail_server_ipv4`**, **`mail_server_ipv6`**, **`mail_server_cname_target`**, **`dns_tlsa_name`** (und bestehende MX/SPF/DMARC/…) an die eigene Infrastruktur anpassen.
 
 ## Cloud-Init und user_data
