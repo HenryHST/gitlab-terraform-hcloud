@@ -60,6 +60,12 @@ enable_gitlab_resources = false
 # Sign-up on login page (docker_compose only) — gitlab_rails['gitlab_signup_enabled'] in gitlab.rb
 # gitlab_signup_enabled = false
 
+# GitLab Runner in same Compose stack (after first GitLab login: Admin -> CI/CD -> Runners -> New instance runner)
+# gitlab_docker_runner_enabled     = false
+# gitlab_docker_runner_token       = "glrt-…"
+# gitlab_docker_runner_description = "docker-compose"
+# gitlab_docker_runner_tags        = ["docker"]
+
 # Outbound mail (docker_compose only) — written to /opt/gitlab/data/config/gitlab.rb
 # gitlab_smtp_enabled              = false
 # gitlab_smtp_address              = "smtp.example.com"

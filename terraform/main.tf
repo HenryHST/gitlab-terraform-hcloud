@@ -61,6 +61,16 @@ locals {
     backup_enabled            = var.gitlab_docker_backup_enabled
     backup_keep_time          = var.gitlab_docker_backup_keep_time
     backup_cron               = var.gitlab_docker_backup_cron
+    runner_enabled            = var.gitlab_docker_runner_enabled
+    runner_image              = var.gitlab_docker_runner_image
+    runner_token              = var.gitlab_docker_runner_token
+    runner_description        = var.gitlab_docker_runner_description
+    runner_executor           = var.gitlab_docker_runner_executor
+    runner_default_image      = var.gitlab_docker_runner_default_image
+    runner_concurrent         = var.gitlab_docker_runner_concurrent
+    runner_privileged         = var.gitlab_docker_runner_privileged
+    runner_tag_list           = join(", ", [for t in var.gitlab_docker_runner_tags : "\"${t}\""])
+    gitlab_url                = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}"
   }
 
   gitlab_docker_user_data = local.gitlab_docker_stack_enabled ? templatefile(

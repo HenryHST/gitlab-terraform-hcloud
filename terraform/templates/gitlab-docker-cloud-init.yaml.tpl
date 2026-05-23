@@ -217,6 +217,37 @@ write_files:
       MEND_RNV_GITLAB_PAT=${renovate_gitlab_pat}
       MEND_RNV_WEBHOOK_SECRET=${renovate_webhook_secret}
 %{ endif ~}
+%{ if runner_enabled ~}
+  - path: /opt/gitlab/gitlab-runner/config.toml
+    owner: root:root
+    permissions: "0600"
+    content: |
+      concurrent = ${runner_concurrent}
+      check_interval = 0
+      shutdown_timeout = 0
+
+      [session_server]
+        session_timeout = 1800
+
+      [[runners]]
+        name = "${runner_description}"
+        url = "${gitlab_url}/"
+        token = "${runner_token}"
+        executor = "${runner_executor}"
+        tag_list = [${runner_tag_list}]
+%{ if runner_executor == "docker" ~}
+        [runners.docker]
+          tls_verify = false
+          image = "${runner_default_image}"
+          privileged = ${runner_privileged}
+          disable_entrypoint_overwrite = false
+          oom_kill_disable = false
+          disable_cache = false
+          volumes = ["/cache"]
+          shm_size = 0
+          network_mode = "bridge"
+%{ endif ~}
+%{ endif ~}
 
   # https://docs.gitlab.com/install/docker/configuration/ — /etc/gitlab/gitlab.rb via ./data/config
   - path: /opt/gitlab/data/config/gitlab.rb
@@ -556,6 +587,24 @@ write_files:
 %{ endif ~}
             - "traefik.http.routers.registry.middlewares=registry-buffering@docker,default@file"
 %{ endif ~}
+%{ if runner_enabled ~}
+
+        gitlab-runner:
+          container_name: $${SERVICES_GITLAB_RUNNER_CONTAINER_NAME:-gitlab-runner}
+          image: ${runner_image}
+          restart: unless-stopped
+          depends_on:
+            gitlab:
+              condition: service_started
+          volumes:
+            - ./gitlab-runner:/etc/gitlab-runner
+            - /var/run/docker.sock:/var/run/docker.sock
+          networks:
+            proxy:
+              ipv4_address: $${SERVICES_GITLAB_RUNNER_NETWORKS_PROXY_IPV4:-172.31.129.250}
+              ipv6_address: $${SERVICES_GITLAB_RUNNER_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffc}
+            socket_proxy: {}
+%{ endif ~}
 %{ if renovate_enabled ~}
 
         renovate-ce:
@@ -656,6 +705,9 @@ runcmd:
 %{ if backup_enabled ~}
     install -m 0750 -d /opt/gitlab/backups /opt/gitlab/scripts
     chown root:root /opt/gitlab/backups
+%{ endif ~}
+%{ if runner_enabled ~}
+    install -m 0700 -d /opt/gitlab/gitlab-runner
 %{ endif ~}
 %{ if renovate_enabled ~}
     install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db

@@ -199,6 +199,96 @@ variable "gitlab_docker_renovate_gitlab_pat" {
   }
 }
 
+variable "gitlab_docker_runner_enabled" {
+  description = "When docker_compose (or Proxmox GitLab Docker stack), deploy gitlab/gitlab-runner in the same Compose stack (Docker executor)"
+  type        = bool
+  default     = false
+
+  validation {
+    condition = !var.gitlab_docker_runner_enabled || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_docker_runner_enabled is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
+variable "gitlab_docker_runner_image" {
+  description = "GitLab Runner image (pin version; see https://gitlab.com/gitlab-org/gitlab-runner/container_registry)"
+  type        = string
+  default     = "gitlab/gitlab-runner:alpine-v17.11.0"
+
+  validation {
+    condition = can(regex(
+      "^gitlab/gitlab-runner:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_runner_image,
+    ))
+    error_message = "gitlab_docker_runner_image must be gitlab/gitlab-runner:<tag>."
+  }
+}
+
+variable "gitlab_docker_runner_token" {
+  description = "Runner authentication token (glrt-…) from Admin -> CI/CD -> Runners -> New instance runner; required when gitlab_docker_runner_enabled is true (set after first GitLab bootstrap)"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition     = !var.gitlab_docker_runner_enabled || length(trimspace(var.gitlab_docker_runner_token)) >= 20
+    error_message = "gitlab_docker_runner_token is required when gitlab_docker_runner_enabled is true (glrt-… from GitLab UI)."
+  }
+}
+
+variable "gitlab_docker_runner_description" {
+  description = "Runner name in GitLab and config.toml"
+  type        = string
+  default     = "docker-compose"
+
+  validation {
+    condition     = length(trimspace(var.gitlab_docker_runner_description)) > 0
+    error_message = "gitlab_docker_runner_description must not be empty."
+  }
+}
+
+variable "gitlab_docker_runner_executor" {
+  description = "GitLab Runner executor (docker recommended for this stack)"
+  type        = string
+  default     = "docker"
+
+  validation {
+    condition     = contains(["docker", "shell"], var.gitlab_docker_runner_executor)
+    error_message = "gitlab_docker_runner_executor must be docker or shell."
+  }
+}
+
+variable "gitlab_docker_runner_default_image" {
+  description = "Default Docker image for job containers when executor is docker"
+  type        = string
+  default     = "ruby:3.3"
+}
+
+variable "gitlab_docker_runner_concurrent" {
+  description = "Maximum concurrent jobs for this runner"
+  type        = number
+  default     = 4
+
+  validation {
+    condition     = var.gitlab_docker_runner_concurrent >= 1 && var.gitlab_docker_runner_concurrent <= 64
+    error_message = "gitlab_docker_runner_concurrent must be between 1 and 64."
+  }
+}
+
+variable "gitlab_docker_runner_privileged" {
+  description = "Privileged mode for Docker executor job containers (e.g. Docker-in-Docker)"
+  type        = bool
+  default     = false
+}
+
+variable "gitlab_docker_runner_tags" {
+  description = "Runner tags (tag_list in config.toml)"
+  type        = list(string)
+  default     = ["docker"]
+}
+
 variable "gitlab_docker_registry_enabled" {
   description = "When gitlab_install_mode is docker_compose, enable GitLab Container Registry (Traefik + DNS A record registry.<zone>)"
   type        = bool
