@@ -670,7 +670,7 @@ variable "hetzner_api_key" {
 variable "site_url" {
   description = "Main URL of the website"
   type        = string
-  default     = "https://cicd-showcase.de"
+  default     = ""
 
   validation {
     condition     = can(regex("^https://", var.site_url))

@@ -13,6 +13,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- **GitLab CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) — `terraform fmt -check`, `terraform validate`, `tofu validate`, `tflint` (ohne Apply/Cloud-Tokens).
 - **`gitlab_root_email`:** Variable und `GITLAB_ROOT_EMAIL` in [`gitlab-docker-cloud-init.yaml.tpl`](terraform/templates/gitlab-docker-cloud-init.yaml.tpl) für den initialen GitLab-`root`-Benutzer (`docker_compose` / Proxmox-Docker-Stack); Fallback über `gitlab_letsencrypt_email` bzw. `gitlab-root@<zone>`.
 - **`gitlab_docker_runner_enabled`:** Optionaler `gitlab-runner`-Service im Docker-Compose-Stack (`config.toml` + Docker-Executor); Variablen u. a. `gitlab_docker_runner_token`, `gitlab_docker_runner_tags`.
 

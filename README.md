@@ -719,6 +719,7 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 ## Qualitätssicherung (lokal / CI)
 
 - **Makefile** (vom Repo-Root): `make fmt` / `make validate` führt Befehle in **`terraform/`** aus (vorher einmal `cd terraform && terraform init`).
+- **GitLab CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) – dieselben Checks wie GitHub Actions (`fmt`, `terraform validate`, `tofu validate`, `tflint`); keine Secrets/`apply` in der Pipeline.
 - **GitHub Actions:** [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) – `working-directory: terraform`; bei Push/PR: `terraform fmt -check`, `terraform validate`, `tofu validate`, `tflint` (ohne Cloud-Token für `apply`).
 
 ## Bekannte Einschränkungen

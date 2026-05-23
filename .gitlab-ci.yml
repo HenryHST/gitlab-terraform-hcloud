@@ -1,0 +1,73 @@
+# Terraform/OpenTofu quality checks (no cloud apply; no secrets required).
+# Mirrors .github/workflows/terraform.yml — run from repo root or via included jobs.
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+variables:
+  TF_ROOT: terraform
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_CLI_ARGS_init: "-backend=false -input=false"
+  TERRAFORM_VERSION: "1.14.4"
+  TOFU_VERSION: "1.12.0"
+  TFLINT_VERSION: "v0.55.1"
+
+stages:
+  - validate
+  - lint
+
+.terraform_job:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_BRANCH
+
+fmt:
+  extends: .terraform_job
+  stage: validate
+  image:
+    name: hashicorp/terraform:$TERRAFORM_VERSION
+    entrypoint: [""]
+  script:
+    - cd "$TF_ROOT"
+    - terraform fmt -check -recursive
+
+validate:terraform:
+  extends: .terraform_job
+  stage: validate
+  needs: [fmt]
+  image:
+    name: hashicorp/terraform:$TERRAFORM_VERSION
+    entrypoint: [""]
+  script:
+    - cd "$TF_ROOT"
+    - terraform init -backend=false -input=false
+    - terraform validate -no-color
+
+validate:tofu:
+  extends: .terraform_job
+  stage: validate
+  needs: [fmt]
+  image:
+    name: ghcr.io/opentofu/opentofu:$TOFU_VERSION
+    entrypoint: [""]
+  script:
+    - cd "$TF_ROOT"
+    - tofu init -backend=false -input=false
+    - tofu validate -no-color
+
+tflint:
+  extends: .terraform_job
+  stage: lint
+  needs: [validate:terraform]
+  image:
+    name: ghcr.io/terraform-linters/tflint:$TFLINT_VERSION
+    entrypoint: [""]
+  script:
+    - cd "$TF_ROOT"
+    - tflint --init
+    - tflint -f compact
