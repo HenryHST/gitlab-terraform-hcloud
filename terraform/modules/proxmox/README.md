@@ -34,4 +34,4 @@ The root module enables this with `enable_proxmox_resources = true` (see reposit
 | null | ~> 3.2 |
 | local | ~> 2.5 |
 
-Copy `proxmox.tf.example` → `proxmox.tf`, `provider_proxmox.tf.example` → `provider_proxmox.tf`, and `outputs_proxmox.tf.example` → `outputs_proxmox.tf`. Without those files and with `enable_proxmox_resources = false`, no Proxmox provider or API calls occur during `plan`.
+Copy `proxmox.tf.example` → `proxmox.tf`, `provider_proxmox.tf.example` → `provider_proxmox.tf`, `proxmox_variables.tf.example` → `proxmox_variables.tf`, and `outputs_proxmox.tf.example` → `outputs_proxmox.tf`. Without those files and with `enable_proxmox_resources = false`, no Proxmox provider or API calls occur during `plan`.

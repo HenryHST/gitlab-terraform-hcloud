@@ -82,6 +82,7 @@ enable_gitlab_resources = false
 # Proxmox (optional; Hetzner docker_compose: leave false and do not copy proxmox*.tf):
 # cp proxmox.tf.example proxmox.tf
 # cp provider_proxmox.tf.example provider_proxmox.tf
+# cp proxmox_variables.tf.example proxmox_variables.tf
 # cp outputs_proxmox.tf.example outputs_proxmox.tf
 # enable_proxmox_resources              = false
 # proxmox_gitlab_docker_compose_enabled = true   # required with enable_proxmox_resources for GitLab on Proxmox

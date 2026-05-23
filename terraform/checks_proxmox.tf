@@ -4,23 +4,21 @@ check "proxmox_tf_files_when_enabled" {
   assert {
     condition = (
       !var.enable_proxmox_resources ||
-      (fileexists("${path.module}/proxmox.tf") && fileexists("${path.module}/provider_proxmox.tf"))
+      (
+        fileexists("${path.module}/proxmox.tf") &&
+        fileexists("${path.module}/provider_proxmox.tf") &&
+        fileexists("${path.module}/proxmox_variables.tf")
+      )
     )
     error_message = <<-EOT
-      enable_proxmox_resources is true but proxmox.tf and/or provider_proxmox.tf are missing.
+      enable_proxmox_resources is true but proxmox.tf, provider_proxmox.tf, and/or proxmox_variables.tf are missing.
       Run from terraform/:
         cp proxmox.tf.example proxmox.tf
         cp provider_proxmox.tf.example provider_proxmox.tf
+        cp proxmox_variables.tf.example proxmox_variables.tf
         cp outputs_proxmox.tf.example outputs_proxmox.tf
       Set proxmox_api_token, cipassword (min. 8 characters), and gitlab_install_mode = "none" for Proxmox-only GitLab.
     EOT
-  }
-}
-
-check "proxmox_ci_password" {
-  assert {
-    condition     = !var.enable_proxmox_resources || length(var.cipassword) >= 8
-    error_message = "enable_proxmox_resources is true: set cipassword (min. 8 characters) for Proxmox cloud-init."
   }
 }
 

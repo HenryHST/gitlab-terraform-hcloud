@@ -1,5 +1,5 @@
 # Copy to proxmox.tf when enable_proxmox_resources = true (see README "GitLab auf Proxmox").
-# Also copy provider_proxmox.tf.example → provider_proxmox.tf and outputs_proxmox.tf.example → outputs_proxmox.tf.
+# Also copy: provider_proxmox.tf.example, proxmox_variables.tf.example, outputs_proxmox.tf.example.
 
 module "proxmox" {
   count  = var.enable_proxmox_resources ? 1 : 0

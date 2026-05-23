@@ -21,6 +21,7 @@ crash.*.log
 # Optional Proxmox stack (copy from terraform/*.example)
 terraform/proxmox.tf
 terraform/proxmox_moved.tf
+terraform/proxmox_variables.tf
 terraform/provider_proxmox.tf
 terraform/outputs_proxmox.tf
 

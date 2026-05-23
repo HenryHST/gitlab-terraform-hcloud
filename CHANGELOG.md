@@ -9,6 +9,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- **Proxmox-Variablen:** Ausgelagert nach [`proxmox_variables.tf.example`](terraform/proxmox_variables.tf.example) (mit `proxmox.tf` kopieren) — behebt TFLint `terraform_unused_declarations` im Hetzner-only-Stack.
 - **`domain_cicd_showcase_de` → `dns_domain`:** Variable und Output umbenannt (Hetzner-DNS-Zonenname); in `terraform.tfvars` anpassen.
 
 ### Added

@@ -587,6 +587,7 @@ flowchart TB
    cd terraform
    cp proxmox.tf.example proxmox.tf
    cp provider_proxmox.tf.example provider_proxmox.tf
+   cp proxmox_variables.tf.example proxmox_variables.tf
    cp outputs_proxmox.tf.example outputs_proxmox.tf
    terraform init    # lädt telmate/proxmox nur mit provider_proxmox.tf
    ```
