@@ -50,6 +50,7 @@ enable_gitlab_resources = false
 # Self-hosted (docker_compose): instance URL, not https://gitlab.com
 # gitlab_api_url     = "https://gitlab.example.com"
 # gitlab_letsencrypt_email  = "info@example.com"
+# gitlab_root_email         = ""   # docker_compose / Proxmox: root email (GITLAB_ROOT_EMAIL); empty = gitlab_letsencrypt_email or gitlab-root@<zone>
 
 # Backups (docker_compose or hetzner_app) — gitlab.rb + cron; archives in /opt/gitlab/backups or /var/opt/gitlab/backups
 # gitlab_docker_backup_enabled    = true

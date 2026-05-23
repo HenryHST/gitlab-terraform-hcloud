@@ -506,6 +506,7 @@ write_files:
             postgres:
               condition: service_healthy
           environment:
+            GITLAB_ROOT_EMAIL: "${gitlab_root_email}"
             GITLAB_ROOT_PASSWORD: "${gitlab_root_password}"
           volumes:
             - ./data/config:/etc/gitlab

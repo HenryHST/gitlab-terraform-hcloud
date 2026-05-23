@@ -4,6 +4,11 @@ locals {
   registry_fqdn              = "${var.gitlab_docker_registry_dns_label}.${var.domain_cicd_showcase_de}"
   gitlab_enabled             = var.gitlab_install_mode != "none"
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.domain_cicd_showcase_de}"
+  gitlab_root_email_effective = (
+    var.gitlab_root_email != "" ? var.gitlab_root_email :
+    var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email :
+    "gitlab-root@${var.domain_cicd_showcase_de}"
+  )
 
   proxmox_gitlab_docker       = var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
   proxmox_gitlab_primary      = local.proxmox_gitlab_docker && var.gitlab_install_mode == "none"
@@ -19,6 +24,7 @@ locals {
     hetzner_api_token    = var.hetzner_api_key
     renovate_fqdn        = local.renovate_fqdn
     gitlab_root_password = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_root[0].result : ""
+    gitlab_root_email    = local.gitlab_root_email_effective
     postgres_password    = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_postgres[0].result : ""
     traefik_image        = var.gitlab_docker_traefik_image
     gitlab_ce_image      = var.gitlab_docker_gitlab_ce_image

@@ -337,6 +337,24 @@ variable "gitlab_letsencrypt_email" {
   }
 }
 
+variable "gitlab_root_email" {
+  description = "Email for GitLab root on first boot (GITLAB_ROOT_EMAIL in docker_compose / Proxmox Docker stack). Empty: gitlab_letsencrypt_email, else gitlab-root@<zone>. Only applied on initial install (empty data dir)."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.gitlab_root_email == "" || can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.gitlab_root_email))
+    error_message = "gitlab_root_email must be empty or a simple email without spaces or quotes."
+  }
+
+  validation {
+    condition = var.gitlab_root_email == "" || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_root_email is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
 variable "gitlab_signup_enabled" {
   description = "When gitlab_install_mode is docker_compose, set gitlab_rails['gitlab_signup_enabled'] in gitlab.rb (allow new users to register on the sign-in page)"
   type        = bool

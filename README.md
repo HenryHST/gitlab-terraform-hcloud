@@ -191,6 +191,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `server_image` | `ubuntu-24.04` | Nur bei `gitlab_install_mode = none` (Hetzner-Image-Slug) |
 | `gitlab_dns_record_name` | `gitlab` | Relativer A-Record bei GitLab: FQDN = `<name>.<zone>` |
 | `gitlab_letsencrypt_email` | leer | ACME-Kontakt; leer → `gitlab-acme@<zone>` (nur relevant, wenn LE aktiv) |
+| `gitlab_root_email` | leer | Nur **`docker_compose`** / Proxmox-Docker: `GITLAB_ROOT_EMAIL` für `root` beim ersten Start; leer → `gitlab_letsencrypt_email`, sonst `gitlab-root@<zone>` |
 | `gitlab_smtp_enabled` | `false` | Nur **`docker_compose`**: `gitlab_rails['smtp_enable']` in `gitlab.rb` ([SMTP-Doku](https://docs.gitlab.com/omnibus/settings/smtp.html)) |
 | `gitlab_smtp_address` | `""` | SMTP-Host; Pflicht bei `gitlab_smtp_enabled = true` |
 | `gitlab_smtp_port` | `587` | SMTP-Port (587 STARTTLS, 465 SMTPS) |
