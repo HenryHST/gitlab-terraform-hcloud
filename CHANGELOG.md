@@ -7,16 +7,37 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
-### Changed
+## [0.1.0] - 2026-05-23
 
-- **Proxmox-Variablen:** Ausgelagert nach [`proxmox_variables.tf.example`](terraform/proxmox_variables.tf.example) (mit `proxmox.tf` kopieren) — behebt TFLint `terraform_unused_declarations` im Hetzner-only-Stack.
-- **`domain_cicd_showcase_de` → `dns_domain`:** Variable und Output umbenannt (Hetzner-DNS-Zonenname); in `terraform.tfvars` anpassen.
+Minor-Release: Hetzner-`docker_compose` als Standardpfad mit CI/TFLint; optionale Proxmox-Schicht über kopierte `.example`-Dateien; GitLab Runner im Compose-Stack; DNS-Variable `dns_domain`.
 
 ### Added
 
-- **GitLab CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) — `terraform fmt -check`, `terraform validate`, `tofu validate`, `tflint` (ohne Apply/Cloud-Tokens).
+- **GitLab CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) — `terraform fmt -check`, `terraform validate`, `tofu validate`, `tflint` (ohne Apply/Cloud-Tokens); `make ci` für lokale Parität.
 - **`gitlab_root_email`:** Variable und `GITLAB_ROOT_EMAIL` in [`gitlab-docker-cloud-init.yaml.tpl`](terraform/templates/gitlab-docker-cloud-init.yaml.tpl) für den initialen GitLab-`root`-Benutzer (`docker_compose` / Proxmox-Docker-Stack); Fallback über `gitlab_letsencrypt_email` bzw. `gitlab-root@<zone>`.
 - **`gitlab_docker_runner_enabled`:** Optionaler `gitlab-runner`-Service im Docker-Compose-Stack (`config.toml` + Docker-Executor); Variablen u. a. `gitlab_docker_runner_token`, `gitlab_docker_runner_tags`.
+- **Proxmox optional (Hetzner-only):** [`proxmox.tf.example`](terraform/proxmox.tf.example), [`provider_proxmox.tf.example`](terraform/provider_proxmox.tf.example), [`proxmox_variables.tf.example`](terraform/proxmox_variables.tf.example), [`outputs_proxmox.tf.example`](terraform/outputs_proxmox.tf.example) — kein Proxmox-Provider im Default-`plan`; [`checks_proxmox.tf`](terraform/checks_proxmox.tf) für fehlende Dateien bei `enable_proxmox_resources = true`.
+- **Modul [`modules/proxmox`](terraform/modules/proxmox):** QEMU-VMs, Cloud-Init-Snippet-Upload; Root-Wrapper als optionale Kopie von `proxmox.tf.example`.
+
+### Changed
+
+- **`domain_cicd_showcase_de` → `dns_domain`:** Variable und Output umbenannt (Hetzner-DNS-Zonenname); `moved`-Block für Output-State; in `terraform.tfvars` anpassen.
+- **Proxmox-Variablen:** Aus [`variables.tf`](terraform/variables.tf) nach [`proxmox_variables.tf.example`](terraform/proxmox_variables.tf.example) — behebt TFLint `terraform_unused_declarations` im Hetzner-only-Stack.
+- **GitLab-Provider:** `gitlab_early_auth_check` (Standard `false`); Platzhalter-Token nur bei `enable_gitlab_resources`; README Zwei-Phasen-Bootstrap.
+- **`enable_hetzner_dns`:** Automatisch aus, wenn Proxmox alleiniger GitLab-Ziel ist; optionaler Override.
+
+### Fixed
+
+- **`terraform plan` ohne Proxmox:** Kein erzwungener `proxmox`-Provider und keine Verbindung zu `127.0.0.1:8006`, wenn nur Hetzner-`docker_compose` genutzt wird.
+- **TFLint CI:** Exit-Code 2 durch 30 ungenutzte Proxmox-Variablen im Root-Modul.
+
+### Migration
+
+- `domain_cicd_showcase_de` in `terraform.tfvars` → `dns_domain`.
+- Proxmox: zusätzlich `cp proxmox_variables.tf.example proxmox_variables.tf` (neben `proxmox.tf`, `provider_proxmox.tf`, `outputs_proxmox.tf`).
+- GitLab Runner im Compose: erst GitLab betreiben, dann `glrt-…`-Token setzen und `gitlab_docker_runner_enabled = true`.
+
+[0.1.0]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.1.0
 
 ## [0.0.5] - 2026-05-18
 
