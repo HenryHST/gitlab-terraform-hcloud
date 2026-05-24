@@ -7,6 +7,11 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- **PlantUML (`docker_compose`):** Optionaler Service `plantuml/plantuml-server` im Compose-Stack; `nginx['custom_gitlab_server_config']` leitet `/-/plantuml/` an `http://plantuml:8080/`; `PLANTUML_ENCODING=deflate`; Bootstrap-Skript setzt `plantuml_enabled` / `plantuml_url` in den Application Settings. Variablen `gitlab_docker_plantuml_enabled` (Standard `true`), `gitlab_docker_plantuml_image`.
+- **CI job artifacts (`docker_compose`):** Variablen `artifacts_enabled` (Standard `true`) und `artifacts_path` in `gitlab.rb`; dedizierter Host-Bind-Mount `/opt/gitlab/artifacts/data` → Container-Pfad (Standard `/var/opt/gitlab/gitlab-rails/shared/artifacts`).
+
 ## [0.1.0] - 2026-05-23
 
 Minor-Release: Hetzner-`docker_compose` als Standardpfad mit CI/TFLint; optionale Proxmox-Schicht über kopierte `.example`-Dateien; GitLab Runner im Compose-Stack; DNS-Variable `dns_domain`.

@@ -61,6 +61,37 @@ variable "server_image" {
   type        = string
   default     = "ubuntu-24.04"
 }
+## GitLab variables
+variable "gitlab_theme_id" {
+  description = "Theme ID for GitLab (e.g. 2)"
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.gitlab_theme_id > 0 && var.gitlab_theme_id <= 10
+    error_message = "gitlab_theme_id must be between 1 and 10."
+  }
+}
+variable "gitlab_color_mode" {
+  description = "Color mode for GitLab (e.g. 3)"
+  type        = number
+  default     = 3
+
+  validation {
+    condition     = var.gitlab_color_mode > 0 && var.gitlab_color_mode <= 3
+    error_message = "gitlab_color_mode must be between 1 and 3."
+  }
+}
+variable "gitlab_time_zone" {
+  description = "Time zone for GitLab (e.g. Europe/Berlin)"
+  type        = string
+  default     = "Europe/Berlin"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9/_-]+$", var.gitlab_time_zone))
+    error_message = "gitlab_time_zone must be a valid time zone (e.g. Europe/Berlin)."
+  }
+}
 
 variable "gitlab_install_mode" {
   description = "GitLab platform: none (no GitLab), hetzner_app (Hetzner GitLab image + Omnibus cloud-init), docker_compose (Debian VM + Docker Compose GitLab CE + Traefik v3.7)"
@@ -289,6 +320,52 @@ variable "gitlab_docker_runner_tags" {
   default     = ["docker"]
 }
 
+variable "gitlab_docker_plantuml_enabled" {
+  description = "When docker_compose (or Proxmox GitLab Docker stack), deploy plantuml/plantuml-server and proxy /-/plantuml/ via bundled GitLab NGINX"
+  type        = bool
+  default     = true
+
+  validation {
+    condition = !var.gitlab_docker_plantuml_enabled || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_docker_plantuml_enabled is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
+variable "gitlab_docker_plantuml_image" {
+  description = "PlantUML server image (https://docs.gitlab.com/administration/integration/plantuml/)"
+  type        = string
+  default     = "plantuml/plantuml-server:tomcat"
+
+  validation {
+    condition = can(regex(
+      "^plantuml/plantuml-server:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_plantuml_image,
+    ))
+    error_message = "gitlab_docker_plantuml_image must be plantuml/plantuml-server:<tag>."
+  }
+}
+variable "gitlab_artifacts_enabled" {
+  description = "If true, enable GitLab Artifacts (gitlab_rails['artifacts_enabled'])"
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = !var.gitlab_artifacts_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_artifacts_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+variable "gitlab_artifacts_path" {
+  description = "Path to the GitLab Artifacts (gitlab_rails['artifacts_path'])"
+  type        = string
+  default     = "/opt/gitlab/data/artifacts"
+
+  validation {
+    condition     = can(regex("^/[^\\s]+$", var.gitlab_artifacts_path))
+    error_message = "gitlab_artifacts_path must be a valid path."
+  }
+}
 variable "gitlab_docker_registry_enabled" {
   description = "When gitlab_install_mode is docker_compose, enable GitLab Container Registry (Traefik + DNS A record registry.<zone>)"
   type        = bool
@@ -455,6 +532,78 @@ variable "gitlab_signup_enabled" {
     error_message = "gitlab_signup_enabled is only supported when gitlab_install_mode is docker_compose."
   }
 }
+variable "gitlab_display_initial_root_password" {
+  description = "If true, display the initial root password in gitlab.rb (gitlab_rails['display_initial_root_password'])"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.gitlab_display_initial_root_password || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_display_initial_root_password is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+
+variable "artifacts_enabled" {
+  description = "When docker_compose (or Proxmox GitLab Docker stack), enable CI job artifacts in gitlab.rb (gitlab_rails['artifacts_enabled'])"
+  type        = bool
+  default     = true
+
+  validation {
+    condition = !var.artifacts_enabled || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "artifacts_enabled is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
+variable "artifacts_path" {
+  description = "Job artifacts directory inside the GitLab CE container (bind-mount host path ./artifacts/data when artifacts_enabled)"
+  type        = string
+  default     = "/var/opt/gitlab/gitlab-rails/shared/artifacts"
+
+  validation {
+    condition     = can(regex("^/[^\\s]+$", var.artifacts_path))
+    error_message = "artifacts_path must be an absolute path without spaces."
+  }
+
+  validation {
+    condition     = !var.artifacts_enabled || can(regex("^/var/opt/gitlab/", var.artifacts_path))
+    error_message = "artifacts_path must be under /var/opt/gitlab/ when artifacts_enabled (matches ./artifacts/data bind-mount)."
+  }
+}
+
+###! Docs: https://docs.gitlab.com/ee/administration/terraform_state
+variable "gitlab_terraform_enabled" {
+  description = "If true, enable Terraform in gitlab.rb (gitlab_rails['terraform_enabled'])"
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.gitlab_terraform_enabled || var.gitlab_install_mode == "docker_compose"
+    error_message = "gitlab_terraform_enabled is only supported when gitlab_install_mode is docker_compose."
+  }
+}
+variable "gitlab_terraform_state_path" {
+  description = "GitLab Terraform state directory inside the CE container (bind-mount host path ./data/terraform/state)"
+  type        = string
+  default     = "/var/opt/gitlab/data/terraform/state"
+
+  validation {
+    condition     = can(regex("^/[^\\s]+$", var.gitlab_terraform_state_path))
+    error_message = "gitlab_terraform_state_path must be an absolute path without spaces."
+  }
+}
+variable "gitlab_terraform_state_file" {
+  description = "Terraform state file name under gitlab_terraform_state_path"
+  type        = string
+  default     = "terraform.tfstate"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9._-]*$", var.gitlab_terraform_state_file))
+    error_message = "gitlab_terraform_state_file must be a valid file name (e.g. terraform.tfstate)."
+  }
+}
+
 
 variable "gitlab_smtp_enabled" {
   description = "If true (only docker_compose), enable outbound email in gitlab.rb (gitlab_rails SMTP settings)"

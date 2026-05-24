@@ -188,6 +188,10 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_runner_token` | `""` | Pflicht wenn Runner aktiv; nach erstem GitLab-Bootstrap unter Admin → CI/CD → Runners erzeugen |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (`tag_list` in `config.toml`) |
+| `gitlab_docker_plantuml_enabled` | `true` | **`docker_compose`** / Proxmox-Docker: `plantuml/plantuml-server` im Stack, NGINX-Proxy `/-/plantuml/` ([PlantUML-Doku](https://docs.gitlab.com/administration/integration/plantuml/)) |
+| `gitlab_docker_plantuml_image` | `plantuml/plantuml-server:tomcat` | PlantUML-Container-Image |
+| `artifacts_enabled` | `true` | **`docker_compose`**: CI job artifacts in `gitlab.rb`; Host `./artifacts/data` → `artifacts_path` ([Doku](https://docs.gitlab.com/administration/cicd/job_artifacts/)) |
+| `artifacts_path` | `/var/opt/gitlab/gitlab-rails/shared/artifacts` | Artifacts-Verzeichnis im GitLab-Container (muss unter `/var/opt/gitlab/` liegen) |
 | `enable_gitlab_resources` | `false` | `true`: Gruppe/Projekte in [`gitlab.tf`](terraform/gitlab.tf) per GitLab-Provider; erfordert **`gitlab_api_url` erreichbar** (nach erstem Apply/DNS) |
 | `gitlab_early_auth_check` | `false` | `true`: Token-Check beim Plan (nur wenn GitLab schon läuft) |
 | `gitlab_api_token` | `""` | GitLab API-Token (sensitiv); Pflicht bei `enable_gitlab_resources = true` (min. 8 Zeichen, keine Leerzeichen) |
@@ -301,6 +305,7 @@ Wenn `gitlab_install_mode = "docker_compose"`:
 | `/opt/gitlab/data/logs/` | GitLab-Logs → `/var/log/gitlab` |
 | `/opt/gitlab/data/gitlab/` | GitLab-Anwendungsdaten → `/var/opt/gitlab` |
 | `/opt/gitlab/backups/` | GitLab-Backup-Archive → `/var/opt/gitlab/backups` (wenn **`gitlab_docker_backup_enabled`**) |
+| `/opt/gitlab/artifacts/data/` | CI job artifacts → `artifacts_path` (wenn **`artifacts_enabled`**) |
 | `/opt/gitlab/scripts/gitlab-backup.sh` | Host-Skript für Cron (Application + `gitlab-ctl backup-etc`) |
 | `/opt/gitlab/scripts/gitlab-restore.sh` | Restore: `--list`, `<BACKUP_ID>`, `--config-only` |
 | `/opt/gitlab/registry/data/` | Registry-Blobs → `/var/opt/gitlab/gitlab-rails/shared/registry` (wenn **`gitlab_docker_registry_enabled`**) |

@@ -270,6 +270,8 @@ write_files:
 
       # https://docs.gitlab.com/install/docker/configuration/#expose-gitlab-on-different-ports
       gitlab_rails['gitlab_shell_ssh_port'] = 2424
+      gitlab_rails['display_initial_root_password'] = ${gitlab_display_initial_root_password}
+      # gitlab_rails['store_initial_root_password'] = true
 
       # External PostgreSQL (docker service postgres on socket_proxy)
       postgresql['enable'] = false
@@ -281,10 +283,20 @@ write_files:
       gitlab_rails['db_password'] = '${postgres_password}'
       gitlab_rails['db_database'] = 'gitlabhq_production'
       gitlab_pages['enable'] = false
-      gitlab_rails['gitlab_default_theme'] = 2
+      gitlab_rails['gitlab_default_theme'] = ${gitlab_theme_id}
+      gitlab_rails['gitlab_default_color_mode'] = ${gitlab_color_mode}
+      gitlab_rails['time_zone'] = '${gitlab_time_zone}'
       gitlab_rails['gitlab_default_can_create_group'] = true
       gitlab_rails['gitlab_username_changing_enabled'] = true
       gitlab_rails['webhook_timeout'] = 10
+%{ if artifacts_enabled ~}
+
+      # https://docs.gitlab.com/administration/cicd/job_artifacts/
+      gitlab_rails['artifacts_enabled'] = true
+      gitlab_rails['artifacts_path'] = "${artifacts_path}"
+%{ else ~}
+      gitlab_rails['artifacts_enabled'] = false
+%{ endif ~}
       gitlab_rails['gitlab_signup_enabled'] = ${gitlab_signup_enabled}
 %{ if registry_enabled ~}
 
@@ -304,6 +316,14 @@ write_files:
       gitlab_rails['manage_backup_path'] = true
       gitlab_rails['backup_path'] = "/var/opt/gitlab/backups"
       gitlab_rails['backup_keep_time'] = ${backup_keep_time}
+%{ endif ~}
+
+      # https://docs.gitlab.com/ee/administration/terraform_state
+%{ if terraform_enabled ~}
+      gitlab_rails['terraform_enabled'] = true
+      gitlab_rails['terraform_state_storage'] = 'local'
+      gitlab_rails['terraform_state_path'] = "${gitlab_terraform_state_path}"
+      gitlab_rails['terraform_state_file'] = "${gitlab_terraform_state_file}"
 %{ endif ~}
 
       # https://docs.gitlab.com/omnibus/settings/smtp.html
@@ -328,6 +348,12 @@ write_files:
 %{ endif ~}
 %{ else ~}
       gitlab_rails['smtp_enable'] = false
+%{ endif ~}
+%{ if plantuml_enabled ~}
+
+      # https://docs.gitlab.com/administration/integration/plantuml/ — proxy /-/plantuml/ to Compose service plantuml:8080
+      nginx['custom_gitlab_server_config'] = "location /-/plantuml/ { \n  rewrite ^/-/plantuml/(.*) /$1 break;\n  proxy_cache off;\n  proxy_pass http://plantuml:8080/;\n}\n"
+      gitlab_rails['env'] = { 'PLANTUML_ENCODING' => 'deflate' }
 %{ endif ~}
 %{ if backup_enabled ~}
 
@@ -464,6 +490,39 @@ write_files:
       PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
       ${backup_cron} root /opt/gitlab/scripts/gitlab-backup.sh
 %{ endif ~}
+%{ if plantuml_enabled ~}
+
+  - path: /opt/gitlab/scripts/gitlab-plantuml-enable.sh
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      # Enable PlantUML in ApplicationSettings after GitLab is up (Admin UI equivalent).
+      set -euo pipefail
+      COMPOSE_DIR=/opt/gitlab
+      PLANTUML_URL='${plantuml_url}'
+      LOG=/var/log/gitlab-plantuml-enable.log
+      exec >>"$LOG" 2>&1
+      echo "=== gitlab-plantuml-enable $(date -Is) url=$PLANTUML_URL ==="
+      cd "$COMPOSE_DIR"
+      for attempt in $(seq 1 40); do
+        if [ "$(docker compose ps gitlab --format '{{.State}}' 2>/dev/null | head -1)" != "running" ]; then
+          echo "attempt $attempt: gitlab not running yet"
+          sleep 30
+          continue
+        fi
+        if docker compose exec -T gitlab gitlab-rails runner \
+          "ApplicationSetting.current.update!(plantuml_enabled: true, plantuml_url: '${plantuml_url}'); puts 'plantuml_ok'" \
+          2>/dev/null | grep -q plantuml_ok; then
+          echo "=== plantuml enabled $(date -Is) ==="
+          exit 0
+        fi
+        echo "attempt $attempt: rails runner not ready"
+        sleep 30
+      done
+      echo "=== plantuml enable timed out $(date -Is) ===" >&2
+      exit 1
+%{ endif ~}
 
   - path: /opt/gitlab/docker-compose.yml
     owner: root:root
@@ -536,6 +595,10 @@ write_files:
           depends_on:
             postgres:
               condition: service_healthy
+%{ if plantuml_enabled ~}
+            plantuml:
+              condition: service_started
+%{ endif ~}
           environment:
             GITLAB_ROOT_EMAIL: "${gitlab_root_email}"
             GITLAB_ROOT_PASSWORD: "${gitlab_root_password}"
@@ -546,9 +609,15 @@ write_files:
 %{ if backup_enabled ~}
             - ./backups:/var/opt/gitlab/backups
 %{ endif ~}
+%{ if artifacts_enabled ~}
+            - ./artifacts/data:${artifacts_path}
+%{ endif ~}
 %{ if registry_enabled ~}
             - ./registry/data:/var/opt/gitlab/gitlab-rails/shared/registry
             - ./registry/certs:/etc/gitlab/ssl/registry
+%{ endif ~}
+%{ if terraform_enabled ~}
+            - ./data/terraform/state:${gitlab_terraform_state_path}
 %{ endif ~}
           ports:
             - "2424:22"
@@ -586,6 +655,15 @@ write_files:
             - "traefik.http.routers.registry.entrypoints=web"
 %{ endif ~}
             - "traefik.http.routers.registry.middlewares=registry-buffering@docker,default@file"
+%{ endif ~}
+%{ if plantuml_enabled ~}
+
+        plantuml:
+          container_name: plantuml
+          image: ${plantuml_image}
+          restart: unless-stopped
+          networks:
+            socket_proxy: {}
 %{ endif ~}
 %{ if runner_enabled ~}
 
@@ -709,12 +787,22 @@ runcmd:
 %{ if runner_enabled ~}
     install -m 0700 -d /opt/gitlab/gitlab-runner
 %{ endif ~}
+%{ if plantuml_enabled ~}
+    install -m 0750 -d /opt/gitlab/scripts
+    nohup /opt/gitlab/scripts/gitlab-plantuml-enable.sh >>/var/log/gitlab-plantuml-enable.log 2>&1 &
+%{ endif ~}
 %{ if renovate_enabled ~}
     install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db
+%{ endif ~}
+%{ if artifacts_enabled ~}
+    install -m 0750 -d /opt/gitlab/artifacts/data
 %{ endif ~}
 %{ if registry_enabled ~}
     install -m 0750 -d /opt/gitlab/registry/data /opt/gitlab/registry/certs
     touch /opt/gitlab/registry/certs/.gitkeep
+%{ endif ~}
+%{ if terraform_enabled ~}
+    install -m 0750 -d /opt/gitlab/data/terraform/state
 %{ endif ~}
     cd /opt/gitlab
     docker compose pull
