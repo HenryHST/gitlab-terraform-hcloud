@@ -69,8 +69,11 @@ locals {
     backup_keep_time                     = var.gitlab_docker_backup_keep_time
     backup_cron                          = var.gitlab_docker_backup_cron
     runner_enabled                       = var.gitlab_docker_runner_enabled
+    runner_static_config                 = var.gitlab_docker_runner_enabled && length(trimspace(var.gitlab_docker_runner_token)) >= 20
+    runner_autoregister                  = var.gitlab_docker_runner_enabled && var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) < 20
     runner_image                         = var.gitlab_docker_runner_image
     runner_token                         = var.gitlab_docker_runner_token
+    runner_tag_list_api                  = join(",", var.gitlab_docker_runner_tags)
     runner_description                   = var.gitlab_docker_runner_description
     runner_executor                      = var.gitlab_docker_runner_executor
     runner_default_image                 = var.gitlab_docker_runner_default_image

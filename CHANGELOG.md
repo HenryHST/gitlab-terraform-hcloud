@@ -11,6 +11,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 - **PlantUML (`docker_compose`):** Optionaler Service `plantuml/plantuml-server` im Compose-Stack; `nginx['custom_gitlab_server_config']` leitet `/-/plantuml/` an `http://plantuml:8080/`; `PLANTUML_ENCODING=deflate`; Bootstrap-Skript setzt `plantuml_enabled` / `plantuml_url` in den Application Settings. Variablen `gitlab_docker_plantuml_enabled` (Standard `true`), `gitlab_docker_plantuml_image`.
 - **CI job artifacts (`docker_compose`):** Variablen `artifacts_enabled` (Standard `true`) und `artifacts_path` in `gitlab.rb`; dedizierter Host-Bind-Mount `/opt/gitlab/artifacts/data` → Container-Pfad (Standard `/var/opt/gitlab/gitlab-rails/shared/artifacts`).
+- **GitLab Runner Autoregister (`docker_compose`):** `gitlab_docker_runner_autoregister` (Standard `true`) — Bootstrap-Skript `gitlab-runner-autoregister.sh` erstellt Instance-Runner via `POST /api/v4/user/runners`, schreibt `config.toml`, startet Compose-Profil `runner`; manuelles `glrt-…` weiterhin möglich.
 
 ## [0.1.0] - 2026-05-23
 

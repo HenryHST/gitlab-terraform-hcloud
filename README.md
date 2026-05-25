@@ -32,6 +32,7 @@ Alle Befehle `terraform` / `tofu` und `terraform.tfvars` gehören in den Ordner 
     - [`docker_compose` (GitLab CE + Traefik)](#docker_compose-gitlab-ce--traefik)
     - [Container Registry (`docker_compose`)](#container-registry-docker_compose)
     - [Renovate CE (`docker_compose`)](#renovate-ce-docker_compose)
+    - [GitLab Runner im Compose-Stack (Autoregister)](#gitlab-runner-im-compose-stack-autoregister)
   - [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
   - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
   - [GitLab auf Proxmox](#gitlab-auf-proxmox)
@@ -148,6 +149,8 @@ Empfohlene **Zwei-Phasen-Bootstrap** für neues Hetzner-`docker_compose`:
 1. `enable_gitlab_resources = false` → `terraform apply` (Server, DNS, Compose)
 2. Warten bis `https://gitlab.<zone>` erreichbar → `enable_gitlab_resources = true` → erneut `apply`
 
+**GitLab Runner im Compose-Stack:** Mit **`gitlab_docker_runner_autoregister = true`** (Standard) und leerem **`gitlab_docker_runner_token`** läuft die Registrierung per Bootstrap-Skript automatisch nach GitLab-Start — kein manuelles `glrt-…` nötig (siehe [GitLab Runner im Compose-Stack (Autoregister)](#gitlab-runner-im-compose-stack-autoregister)).
+
 ## Variablen (Root)
 
 Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
@@ -184,8 +187,9 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_backup_keep_time` | `604800` | Aufbewahrung in Sekunden (Standard 7 Tage); `0` = alle Archive behalten ([Backup-Doku](https://docs.gitlab.com/omnibus/settings/backups.html)) |
 | `gitlab_docker_backup_cron` | `0 3 * * *` | Cron-Zeitplan auf dem GitLab-Host für `gitlab-backup create` (fünf Felder) |
 | `gitlab_signup_enabled` | `false` | Nur **`docker_compose`**: `gitlab_rails['gitlab_signup_enabled']` — Registrierung auf der Anmeldeseite |
-| `gitlab_docker_runner_enabled` | `false` | **`docker_compose`** / Proxmox-Docker: `gitlab/gitlab-runner` im gleichen Compose-Stack (Docker-Executor); Token aus GitLab-UI (`glrt-…`) |
-| `gitlab_docker_runner_token` | `""` | Pflicht wenn Runner aktiv; nach erstem GitLab-Bootstrap unter Admin → CI/CD → Runners erzeugen |
+| `gitlab_docker_runner_enabled` | `false` | **`docker_compose`** / Proxmox-Docker: `gitlab/gitlab-runner` im gleichen Compose-Stack (Docker-Executor) |
+| `gitlab_docker_runner_autoregister` | `true` | Leeres `gitlab_docker_runner_token`: Bootstrap-Skript legt Instance-Runner per API an (`glrt-…`); Log: `/var/log/gitlab-runner-autoregister.log` |
+| `gitlab_docker_runner_token` | `""` | Optional `glrt-…` aus der UI; bei gesetztem Token wird Autoregister übersprungen |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (`tag_list` in `config.toml`) |
 | `gitlab_docker_plantuml_enabled` | `true` | **`docker_compose`** / Proxmox-Docker: `plantuml/plantuml-server` im Stack, NGINX-Proxy `/-/plantuml/` ([PlantUML-Doku](https://docs.gitlab.com/administration/integration/plantuml/)) |
@@ -310,6 +314,8 @@ Wenn `gitlab_install_mode = "docker_compose"`:
 | `/opt/gitlab/scripts/gitlab-restore.sh` | Restore: `--list`, `<BACKUP_ID>`, `--config-only` |
 | `/opt/gitlab/registry/data/` | Registry-Blobs → `/var/opt/gitlab/gitlab-rails/shared/registry` (wenn **`gitlab_docker_registry_enabled`**) |
 | `/opt/gitlab/registry/certs/` | Omnibus-Registry-Zertifikatsverzeichnis → `/etc/gitlab/ssl/registry` (öffentliches TLS via Traefik/ACME in `traefik/certs/`) |
+| `/opt/gitlab/gitlab-runner/` | `config.toml` für **`gitlab/gitlab-runner`** (wenn **`gitlab_docker_runner_enabled`**) |
+| `/opt/gitlab/scripts/gitlab-runner-autoregister.sh` | Bootstrap: Instance-Runner per API anlegen (wenn Autoregister aktiv) |
 
 **GitLab-Konfiguration** folgt der [GitLab-Docker-Doku](https://docs.gitlab.com/install/docker/configuration/): Cloud-Init schreibt **`/opt/gitlab/data/config/gitlab.rb`** (im Container `/etc/gitlab/gitlab.rb`). Dort u. a. `external_url`, externe PostgreSQL, NGINX nur HTTP (TLS bei Traefik), `gitlab_rails['gitlab_shell_ssh_port'] = 2424`, **`gitlab_rails['gitlab_signup_enabled']`** (Terraform: **`gitlab_signup_enabled`**, Standard `false`). **`GITLAB_OMNIBUS_CONFIG`** wird nicht verwendet. Änderungen auf der VM:
 
@@ -355,6 +361,8 @@ docker compose exec -T gitlab gitlab-backup create
 | **traefik** | `proxy`, `socket_proxy` | Host **80/443**; statische IPs im `proxy`-Subnetz (`172.31.128.0/18`) |
 | **postgres** | `socket_proxy` | nur intern; DB-Host `postgres` für GitLab |
 | **gitlab** | `proxy`, `socket_proxy` | HTTP **:80** hinter Traefik (`gitlab`); optional Registry **:5050** (`registry`-Router); Git/SSH **Host 2424** → Container 22 |
+| **gitlab-runner** | `proxy`, `socket_proxy` | Nur mit **`gitlab_docker_runner_enabled`**; bei Autoregister zunächst Compose-Profil **`runner`** (Start durch Skript) |
+| **plantuml** | `socket_proxy` | Nur mit **`gitlab_docker_plantuml_enabled`**; Proxy `/-/plantuml/` über GitLab-NGINX |
 
 Die **Hetzner-Firewall** öffnet **TCP 2424** (`enable_ssh_high`, Standard `true`) zusätzlich zu SSH 22 — passend zum Port-Mapping und `gitlab_shell_ssh_port`.
 
@@ -484,6 +492,120 @@ gitlab_api_token        = "glpat-…"
 
 **Logs auf der VM:** `docker logs renovate-ce`; Bootstrap: `/var/log/gitlab-docker-bootstrap.log`.
 
+### GitLab Runner im Compose-Stack (Autoregister)
+
+Optionaler **`gitlab/gitlab-runner`** im **gleichen** Compose-Stack wie GitLab (nicht die separate Runner-VM unter [`enable_gitlab_runner`](#gitlab-runner-optionale-zweite-vm)). Orientierung: [Tutorial: Automate runner creation](https://docs.gitlab.com/tutorials/automate_runner_creation/).
+
+**Steuerung in `terraform.tfvars`:**
+
+| Variable | Standard | Bedeutung |
+|----------|----------|-----------|
+| `gitlab_docker_runner_enabled` | `false` | `true`: Runner-Service in `docker-compose.yml` |
+| `gitlab_docker_runner_autoregister` | `true` | `true` + leerer Token → API-Bootstrap; `false` → Token manuell (`glrt-…`) |
+| `gitlab_docker_runner_token` | `""` | `glrt-…` aus **Admin → CI/CD → Runners → New instance runner**; leer = Autoregister |
+| `gitlab_docker_runner_description` | `docker-compose` | Name in GitLab und `config.toml` |
+| `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (API: kommagetrennt) |
+| `gitlab_docker_runner_executor` | `docker` | `docker` oder `shell` |
+| `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
+
+**Zwei Betriebsarten:**
+
+```mermaid
+flowchart TD
+  enabled[gitlab_docker_runner_enabled true]
+  token{gitlab_docker_runner_token gesetzt?}
+  auto[Autoregister-Skript]
+  static[Statisches config.toml aus Cloud-Init]
+  api[POST /api/v4/user/runners]
+  compose[docker compose --profile runner up -d]
+  enabled --> token
+  token -->|nein autoregister true| auto
+  token -->|ja glrt| static
+  auto --> api
+  api --> compose
+  static --> compose
+```
+
+#### Automatisch (Autoregister, empfohlen)
+
+Cloud-Init legt **`/opt/gitlab/scripts/gitlab-runner-autoregister.sh`** an und startet es im Hintergrund (`nohup`). Das Skript:
+
+1. wartet, bis der GitLab-Container `running` ist (bis zu ~20 Minuten),
+2. erzeugt kurz ein Root-PAT (`runner-bootstrap-terraform`, Scope `api`) per `gitlab-rails runner`,
+3. ruft **`POST http://localhost/api/v4/user/runners`** im GitLab-Container auf (`runner_type=instance_type`, `description`, `tag_list`),
+4. widerruft das Bootstrap-PAT,
+5. schreibt **`/opt/gitlab/gitlab-runner/config.toml`** mit dem zurückgegebenen **`glrt-…`**-Token,
+6. startet **`docker compose --profile runner up -d gitlab-runner`**.
+
+Der Runner-Container nutzt bis dahin das Compose-Profil **`runner`** und wird **nicht** beim ersten `docker compose up -d` mitgestartet.
+
+**Beispiel `terraform.tfvars`:**
+
+```hcl
+gitlab_install_mode                  = "docker_compose"
+gitlab_docker_runner_enabled         = true
+gitlab_docker_runner_autoregister    = true
+gitlab_docker_runner_token           = ""   # leer lassen
+gitlab_docker_runner_description     = "docker-compose"
+gitlab_docker_runner_tags            = ["docker"]
+gitlab_docker_runner_executor        = "docker"
+gitlab_docker_runner_default_image   = "ruby:3.3"
+```
+
+**Logs:** `/var/log/gitlab-runner-autoregister.log` (auch bei manuellem Start unten).
+
+**Erfolg prüfen:**
+
+```bash
+ssh root@<server_ip>
+tail -30 /var/log/gitlab-runner-autoregister.log   # Zeile: runner autoregister ok
+cd /opt/gitlab && docker compose ps gitlab-runner
+```
+
+In GitLab: **Admin → CI/CD → Runners** — Instance-Runner mit Beschreibung aus `gitlab_docker_runner_description`, Tags aus `gitlab_docker_runner_tags`.
+
+#### Manuell (Token aus der UI)
+
+Wenn du den Token selbst setzen willst:
+
+```hcl
+gitlab_docker_runner_enabled      = true
+gitlab_docker_runner_autoregister = false   # optional; bei gesetztem Token wird Autoregister ohnehin übersprungen
+gitlab_docker_runner_token        = "glrt-xxxxxxxxxxxxxxxxxxxx"
+```
+
+Cloud-Init schreibt dann direkt **`/opt/gitlab/gitlab-runner/config.toml`**; der Runner startet mit dem normalen **`docker compose up -d`** (ohne Profil-Verzögerung).
+
+**Wichtig:** Nur **`glrt-…`** (Instance Runner), **kein** `glpat-…` (Personal Access Token).
+
+#### Manuell auf einer bestehenden VM
+
+Cloud-Init läuft nur beim **ersten** Boot. Auf einem bereits laufenden Server (z. B. nach Template-Update ohne Replace):
+
+```bash
+ssh root@<server_ip>
+install -m 0700 -d /opt/gitlab/gitlab-runner
+# Skript muss existieren (sonst erneut deployen oder aus aktuellem Cloud-Init kopieren):
+ls -l /opt/gitlab/scripts/gitlab-runner-autoregister.sh
+sudo /opt/gitlab/scripts/gitlab-runner-autoregister.sh
+# parallel Log:
+sudo tail -f /var/log/gitlab-runner-autoregister.log
+```
+
+Voraussetzungen: GitLab-Container läuft; `python3` auf dem Host (JSON-Auswertung); in `terraform.tfvars` war **`gitlab_docker_runner_enabled = true`** beim letzten Render des User-Data.
+
+#### Troubleshooting
+
+| Symptom | Maßnahme |
+|---------|----------|
+| Kein Container `gitlab-runner` | `docker compose ps` — nur mit Profil `runner` nach Skript; Log auf `user/runners API failed` prüfen |
+| `attempt N: gitlab not running yet` | GitLab-Stack noch am Starten; warten oder `docker compose logs gitlab` |
+| API-Fehler im Log | GitLab erreichbar? Root-User vorhanden? PAT-Erstellung in Log; GitLab-Version ≥ 16 (neuer Runner-Workflow) |
+| Runner in UI, Jobs pending | Tags in `.gitlab-ci.yml` (`tags: [docker]`) müssen zu `gitlab_docker_runner_tags` passen |
+| Skript fehlt | Server mit neuem `user_data` ersetzen oder Snippet/Cloud-Init erneut einspielen |
+
+**Abgrenzung:** [`enable_gitlab_runner`](#gitlab-runner-optionale-zweite-vm) = **eigene Hetzner-VM** (`cpx22`) mit `.deb`-Installation; **kein** Autoregister-Skript aus diesem Abschnitt.
+
 ## GitLab-Provider-Ressourcen (`gitlab.tf`)
 
 Steuerung über **`enable_gitlab_resources`** (Default: `false`). Das ist **unabhängig** von **`gitlab_install_mode`**: Du kannst z. B. nur Infrastruktur provisionieren, nur API-Ressourcen anlegen, oder beides kombinieren (Self-Hosted GitLab auf Hetzner + Projekte per Terraform).
@@ -518,6 +640,8 @@ gitlab_api_token        = "glpat-…"                     # nicht committen
 - Das Passwort des Bot-Users wird **nicht** per Terraform gesetzt (`#password` auskommentiert) — PAT manuell anlegen und in `gitlab_docker_renovate_gitlab_pat` eintragen.
 
 ## GitLab Runner (optionale zweite VM)
+
+Für einen Runner **auf dem gleichen Host** wie GitLab (Docker Compose) siehe [GitLab Runner im Compose-Stack (Autoregister)](#gitlab-runner-im-compose-stack-autoregister) (`gitlab_docker_runner_*`). Dieser Abschnitt beschreibt eine **zweite Hetzner-VM**.
 
 Wenn `enable_gitlab_runner = true`:
 

@@ -217,7 +217,7 @@ write_files:
       MEND_RNV_GITLAB_PAT=${renovate_gitlab_pat}
       MEND_RNV_WEBHOOK_SECRET=${renovate_webhook_secret}
 %{ endif ~}
-%{ if runner_enabled ~}
+%{ if runner_enabled && runner_static_config ~}
   - path: /opt/gitlab/gitlab-runner/config.toml
     owner: root:root
     permissions: "0600"
@@ -247,6 +247,100 @@ write_files:
           shm_size = 0
           network_mode = "bridge"
 %{ endif ~}
+%{ endif ~}
+%{ if runner_autoregister ~}
+
+  - path: /opt/gitlab/scripts/gitlab-runner-autoregister.sh
+    owner: root:root
+    permissions: "0750"
+    content: |
+      #!/usr/bin/env bash
+      # Create instance runner via POST /api/v4/user/runners and write config.toml (https://docs.gitlab.com/tutorials/automate_runner_creation/)
+      set -euo pipefail
+      COMPOSE_DIR=/opt/gitlab
+      GITLAB_URL='${gitlab_url}'
+      LOG=/var/log/gitlab-runner-autoregister.log
+      exec >>"$LOG" 2>&1
+      echo "=== gitlab-runner-autoregister $(date -Is) ==="
+      cd "$COMPOSE_DIR"
+
+      write_config() {
+        local glrt_token="$1"
+        {
+          echo "concurrent = ${runner_concurrent}"
+          echo "check_interval = 0"
+          echo "shutdown_timeout = 0"
+          echo ""
+          echo "[session_server]"
+          echo "  session_timeout = 1800"
+          echo ""
+          echo "[[runners]]"
+          echo "  name = \"${runner_description}\""
+          echo "  url = \"${gitlab_url}/\""
+          echo "  token = \"$glrt_token\""
+          echo "  executor = \"${runner_executor}\""
+          echo "  tag_list = [${runner_tag_list}]"
+%{ if runner_executor == "docker" ~}
+          echo ""
+          echo "  [runners.docker]"
+          echo "    tls_verify = false"
+          echo "    image = \"${runner_default_image}\""
+          echo "    privileged = ${runner_privileged}"
+          echo "    disable_entrypoint_overwrite = false"
+          echo "    oom_kill_disable = false"
+          echo "    disable_cache = false"
+          echo "    volumes = [\"/cache\"]"
+          echo "    shm_size = 0"
+          echo "    network_mode = \"bridge\""
+%{ endif ~}
+        } >"$COMPOSE_DIR/gitlab-runner/config.toml"
+        chmod 0600 "$COMPOSE_DIR/gitlab-runner/config.toml"
+      }
+
+      for attempt in $(seq 1 40); do
+        if [ "$(docker compose ps gitlab --format '{{.State}}' 2>/dev/null | head -1)" != "running" ]; then
+          echo "attempt $attempt: gitlab not running yet"
+          sleep 30
+          continue
+        fi
+        PAT="$(docker compose exec -T gitlab gitlab-rails runner "
+          u = User.find_by_username('root')
+          raise 'root user missing' unless u
+          pat = u.personal_access_tokens.create!(
+            name: 'runner-bootstrap-terraform',
+            scopes: [:api],
+            expires_at: 1.day.from_now
+          )
+          puts pat.token
+        " 2>/dev/null | tail -1 | tr -d '\r')"
+        if [ -z "$PAT" ]; then
+          echo "attempt $attempt: could not create bootstrap PAT"
+          sleep 30
+          continue
+        fi
+        RESP="$(docker compose exec -T gitlab curl -sf \
+          --request POST "http://localhost/api/v4/user/runners" \
+          --header "PRIVATE-TOKEN: $PAT" \
+          --form "runner_type=instance_type" \
+          --form "description=${runner_description}" \
+          --form "tag_list=${runner_tag_list_api}" \
+          2>/dev/null || true)"
+        docker compose exec -T gitlab gitlab-rails runner "
+          u = User.find_by_username('root')
+          u.personal_access_tokens.find_by(name: 'runner-bootstrap-terraform')&.revoke!
+        " 2>/dev/null || true
+        GLRT="$(printf '%s' "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || true)"
+        if [ -n "$GLRT" ]; then
+          write_config "$GLRT"
+          docker compose --profile runner up -d gitlab-runner
+          echo "=== runner autoregister ok $(date -Is) ==="
+          exit 0
+        fi
+        echo "attempt $attempt: user/runners API failed: $RESP"
+        sleep 30
+      done
+      echo "=== runner autoregister timed out $(date -Is) ===" >&2
+      exit 1
 %{ endif ~}
 
   # https://docs.gitlab.com/install/docker/configuration/ — /etc/gitlab/gitlab.rb via ./data/config
@@ -671,6 +765,10 @@ write_files:
           container_name: $${SERVICES_GITLAB_RUNNER_CONTAINER_NAME:-gitlab-runner}
           image: ${runner_image}
           restart: unless-stopped
+%{ if runner_autoregister ~}
+          profiles:
+            - runner
+%{ endif ~}
           depends_on:
             gitlab:
               condition: service_started
@@ -786,6 +884,10 @@ runcmd:
 %{ endif ~}
 %{ if runner_enabled ~}
     install -m 0700 -d /opt/gitlab/gitlab-runner
+%{ endif ~}
+%{ if runner_autoregister ~}
+    install -m 0750 -d /opt/gitlab/scripts
+    nohup /opt/gitlab/scripts/gitlab-runner-autoregister.sh >>/var/log/gitlab-runner-autoregister.log 2>&1 &
 %{ endif ~}
 %{ if plantuml_enabled ~}
     install -m 0750 -d /opt/gitlab/scripts

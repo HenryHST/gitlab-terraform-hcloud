@@ -60,11 +60,12 @@ enable_gitlab_resources = false
 # Sign-up on login page (docker_compose only) — gitlab_rails['gitlab_signup_enabled'] in gitlab.rb
 # gitlab_signup_enabled = false
 
-# GitLab Runner in same Compose stack (after first GitLab login: Admin -> CI/CD -> Runners -> New instance runner)
-# gitlab_docker_runner_enabled     = false
-# gitlab_docker_runner_token       = "glrt-…"
-# gitlab_docker_runner_description = "docker-compose"
-# gitlab_docker_runner_tags        = ["docker"]
+# GitLab Runner in same Compose stack (https://docs.gitlab.com/tutorials/automate_runner_creation/)
+# gitlab_docker_runner_enabled        = false
+# gitlab_docker_runner_autoregister   = true   # empty token → POST /api/v4/user/runners after bootstrap
+# gitlab_docker_runner_token          = ""     # or glrt-… from UI when autoregister = false
+# gitlab_docker_runner_description    = "docker-compose"
+# gitlab_docker_runner_tags           = ["docker"]
 
 # PlantUML in Compose (https://docs.gitlab.com/administration/integration/plantuml/)
 # gitlab_docker_plantuml_enabled = true

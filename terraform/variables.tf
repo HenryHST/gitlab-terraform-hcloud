@@ -257,15 +257,30 @@ variable "gitlab_docker_runner_image" {
   }
 }
 
+variable "gitlab_docker_runner_autoregister" {
+  description = "When gitlab_docker_runner_enabled and gitlab_docker_runner_token is empty, create an instance runner via POST /api/v4/user/runners after GitLab bootstrap (https://docs.gitlab.com/tutorials/automate_runner_creation/)"
+  type        = bool
+  default     = true
+
+  validation {
+    condition = !var.gitlab_docker_runner_autoregister || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_docker_runner_autoregister is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
 variable "gitlab_docker_runner_token" {
-  description = "Runner authentication token (glrt-…) from Admin -> CI/CD -> Runners -> New instance runner; required when gitlab_docker_runner_enabled is true (set after first GitLab bootstrap)"
+  description = "Runner authentication token (glrt-…). Empty with gitlab_docker_runner_autoregister = true triggers API bootstrap; otherwise set manually from Admin -> CI/CD -> Runners"
   type        = string
   sensitive   = true
   default     = ""
 
   validation {
-    condition     = !var.gitlab_docker_runner_enabled || length(trimspace(var.gitlab_docker_runner_token)) >= 20
-    error_message = "gitlab_docker_runner_token is required when gitlab_docker_runner_enabled is true (glrt-… from GitLab UI)."
+    condition = !var.gitlab_docker_runner_enabled || (
+      var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) == 0
+    ) || length(trimspace(var.gitlab_docker_runner_token)) >= 20
+    error_message = "gitlab_docker_runner_token must be glrt-… (min. 20 chars) when set, or leave empty with gitlab_docker_runner_autoregister = true."
   }
 }
 
@@ -344,26 +359,6 @@ variable "gitlab_docker_plantuml_image" {
       var.gitlab_docker_plantuml_image,
     ))
     error_message = "gitlab_docker_plantuml_image must be plantuml/plantuml-server:<tag>."
-  }
-}
-variable "gitlab_artifacts_enabled" {
-  description = "If true, enable GitLab Artifacts (gitlab_rails['artifacts_enabled'])"
-  type        = bool
-  default     = true
-
-  validation {
-    condition     = !var.gitlab_artifacts_enabled || var.gitlab_install_mode == "docker_compose"
-    error_message = "gitlab_artifacts_enabled is only supported when gitlab_install_mode is docker_compose."
-  }
-}
-variable "gitlab_artifacts_path" {
-  description = "Path to the GitLab Artifacts (gitlab_rails['artifacts_path'])"
-  type        = string
-  default     = "/opt/gitlab/data/artifacts"
-
-  validation {
-    condition     = can(regex("^/[^\\s]+$", var.gitlab_artifacts_path))
-    error_message = "gitlab_artifacts_path must be a valid path."
   }
 }
 variable "gitlab_docker_registry_enabled" {
