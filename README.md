@@ -18,11 +18,13 @@ Alle Befehle `terraform` / `tofu` und `terraform.tfvars` gehören in den Ordner 
 ## Inhaltsverzeichnis
 
 - [gitlab-terraform-hcloud](#gitlab-terraform-hcloud)
+  - [Repository-Layout](#repository-layout)
   - [Inhaltsverzeichnis](#inhaltsverzeichnis)
   - [Architektur](#architektur)
     - [Provider](#provider)
   - [Voraussetzungen](#voraussetzungen)
   - [Schnellstart](#schnellstart)
+    - [Plan: GitLab-DNS oder Proxmox-401](#plan-gitlab-dns-oder-proxmox-401)
   - [Variablen (Root)](#variablen-root)
     - [Ohne Default (bei `apply` erforderlich)](#ohne-default-bei-apply-erforderlich)
     - [Mit Default (optional überschreibbar)](#mit-default-optional-überschreibbar)
@@ -30,18 +32,32 @@ Alle Befehle `terraform` / `tofu` und `terraform.tfvars` gehören in den Ordner 
   - [GitLab-Installationsmodi](#gitlab-installationsmodi)
     - [`hetzner_app` (Hetzner App-Image)](#hetzner_app-hetzner-app-image)
     - [`docker_compose` (GitLab CE + Traefik)](#docker_compose-gitlab-ce--traefik)
+    - [Web IDE (`docker_compose`)](#web-ide-docker_compose)
     - [Container Registry (`docker_compose`)](#container-registry-docker_compose)
     - [Renovate CE (`docker_compose`)](#renovate-ce-docker_compose)
     - [GitLab Runner im Compose-Stack (Autoregister)](#gitlab-runner-im-compose-stack-autoregister)
+      - [Automatisch (Autoregister, empfohlen)](#automatisch-autoregister-empfohlen)
+      - [Manuell (Token aus der UI)](#manuell-token-aus-der-ui)
+      - [Manuell auf einer bestehenden VM](#manuell-auf-einer-bestehenden-vm)
+      - [Troubleshooting](#troubleshooting)
   - [GitLab-Provider-Ressourcen (`gitlab.tf`)](#gitlab-provider-ressourcen-gitlabtf)
   - [GitLab Runner (optionale zweite VM)](#gitlab-runner-optionale-zweite-vm)
   - [GitLab auf Proxmox](#gitlab-auf-proxmox)
+    - [Voraussetzungen auf Proxmox](#voraussetzungen-auf-proxmox)
+    - [Einrichtung in Proxmox (Checkliste)](#einrichtung-in-proxmox-checkliste)
+    - [Terraform-Ressourcen](#terraform-ressourcen)
+    - [Variablen (Proxmox)](#variablen-proxmox)
+    - [Nach dem Apply](#nach-dem-apply)
+    - [Abgrenzung zu Hetzner-Modi](#abgrenzung-zu-hetzner-modi)
+    - [Bekannte Punkte / Troubleshooting](#bekannte-punkte--troubleshooting)
   - [Module im Detail](#module-im-detail)
   - [Sicherheit und Betrieb](#sicherheit-und-betrieb)
   - [Cloud-Init und user\_data](#cloud-init-und-user_data)
+  - [Terraform und OpenTofu](#terraform-und-opentofu)
   - [Qualitätssicherung (lokal / CI)](#qualitätssicherung-lokal--ci)
   - [Bekannte Einschränkungen](#bekannte-einschränkungen)
   - [Weiterführende Links](#weiterführende-links)
+- [Test for Renovate App](#test-for-renovate-app)
 
 ## Architektur
 
@@ -862,6 +878,8 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 6. **Renovate:** Lizenz und GitLab-PAT liegen in `terraform.tfvars` (sensitiv). Webhook-Secret steht im State; nach Änderung ggf. Hook in GitLab und Env auf der VM anpassen.
 7. **Proxmox:** GitLab-Docker-Stack per Cloud-Init-Snippet; siehe [GitLab auf Proxmox](#gitlab-auf-proxmox).
 
+
+
 ## Weiterführende Links
 
 - [OpenTofu](https://opentofu.org/docs/)
@@ -875,3 +893,6 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 - [GitLab – Container Registry](https://docs.gitlab.com/administration/packages/container_registry/)
 - [Proxmox VE API](https://pve.proxmox.com/pve-docs/api-viewer/index.html)
 - [Terraform Provider telmate/proxmox (Registry)](https://registry.terraform.io/providers/telmate/proxmox/latest/docs)
+
+
+# Test for Renovate App
