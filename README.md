@@ -288,6 +288,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_runner_token` | `""` | Optional `glrt-…` aus der UI; bei gesetztem Token wird Autoregister übersprungen |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (`tag_list` in `config.toml`) |
+| `gitlab_docker_runner_gitlab_url` | `http://gitlab` | Coordinator-URL in `config.toml` — interner Compose-Service (nicht `https://<fqdn>`, GitLab lauscht intern nicht auf :443) |
 | `gitlab_docker_plantuml_enabled` | `true` | **`docker_compose`** / Proxmox-Docker: `plantuml/plantuml-server` im Stack, NGINX-Proxy `/-/plantuml/` ([PlantUML-Doku](https://docs.gitlab.com/administration/integration/plantuml/)) |
 | `gitlab_docker_plantuml_image` | `plantuml/plantuml-server:tomcat` | PlantUML-Container-Image |
 | `artifacts_enabled` | `true` | **`docker_compose`**: CI job artifacts in `gitlab.rb`; Host `./artifacts/data` → `artifacts_path` ([Doku](https://docs.gitlab.com/administration/cicd/job_artifacts/)) |
@@ -601,6 +602,7 @@ Optionaler **`gitlab/gitlab-runner`** im **gleichen** Compose-Stack wie GitLab (
 | `gitlab_docker_runner_token` | `""` | `glrt-…` aus **Admin → CI/CD → Runners → New instance runner**; leer = Autoregister |
 | `gitlab_docker_runner_description` | `docker-compose` | Name in GitLab und `config.toml` |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (API: kommagetrennt) |
+| `gitlab_docker_runner_gitlab_url` | `http://gitlab` | Interne GitLab-URL für Runner-API (`config.toml` → `url`); Job-Clone-URLs bleiben über `external_url` |
 | `gitlab_docker_runner_executor` | `docker` | `docker` oder `shell` |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 

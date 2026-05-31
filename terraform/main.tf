@@ -80,6 +80,7 @@ locals {
     runner_concurrent                    = var.gitlab_docker_runner_concurrent
     runner_privileged                    = var.gitlab_docker_runner_privileged
     runner_tag_list                      = join(", ", [for t in var.gitlab_docker_runner_tags : "\"${t}\""])
+    runner_gitlab_url                    = var.gitlab_docker_runner_gitlab_url
     gitlab_url                           = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}"
     plantuml_enabled                     = var.gitlab_docker_plantuml_enabled
     plantuml_image                       = var.gitlab_docker_plantuml_image

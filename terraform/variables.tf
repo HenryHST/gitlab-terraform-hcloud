@@ -335,6 +335,17 @@ variable "gitlab_docker_runner_tags" {
   default     = ["docker"]
 }
 
+variable "gitlab_docker_runner_gitlab_url" {
+  description = "GitLab URL in runner config.toml (coordinator API). Use Docker service name on the Compose proxy network (default http://gitlab), not the public FQDN — the GitLab container does not listen on :443."
+  type        = string
+  default     = "http://gitlab"
+
+  validation {
+    condition     = can(regex("^https?://", var.gitlab_docker_runner_gitlab_url))
+    error_message = "gitlab_docker_runner_gitlab_url must start with http:// or https://."
+  }
+}
+
 variable "gitlab_docker_plantuml_enabled" {
   description = "When docker_compose (or Proxmox GitLab Docker stack), deploy plantuml/plantuml-server and proxy /-/plantuml/ via bundled GitLab NGINX"
   type        = bool
