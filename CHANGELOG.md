@@ -7,11 +7,29 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-05-31
+
+Patch-Release: PlantUML und CI-Artifacts im Docker-Compose-Stack, Runner-Autoregister, erweitertes Proxmox-Modul (Validierung, Outputs, `vm_state`).
+
 ### Added
 
 - **PlantUML (`docker_compose`):** Optionaler Service `plantuml/plantuml-server` im Compose-Stack; `nginx['custom_gitlab_server_config']` leitet `/-/plantuml/` an `http://plantuml:8080/`; `PLANTUML_ENCODING=deflate`; Bootstrap-Skript setzt `plantuml_enabled` / `plantuml_url` in den Application Settings. Variablen `gitlab_docker_plantuml_enabled` (Standard `true`), `gitlab_docker_plantuml_image`.
 - **CI job artifacts (`docker_compose`):** Variablen `artifacts_enabled` (Standard `true`) und `artifacts_path` in `gitlab.rb`; dedizierter Host-Bind-Mount `/opt/gitlab/artifacts/data` → Container-Pfad (Standard `/var/opt/gitlab/gitlab-rails/shared/artifacts`).
 - **GitLab Runner Autoregister (`docker_compose`):** `gitlab_docker_runner_autoregister` (Standard `true`) — Bootstrap-Skript `gitlab-runner-autoregister.sh` erstellt Instance-Runner via `POST /api/v4/user/runners`, schreibt `config.toml`, startet Compose-Profil `runner`; manuelles `glrt-…` weiterhin möglich.
+- **Proxmox-Modul [`modules/proxmox`](terraform/modules/proxmox):** Variablen-Validierung in `variables.tf` und Querbezüge in `checks.tf`; Outputs `gitlab_vm_status`, `gitlab_vm_network`, `gitlab_vm` (sowie Runner-Pendants) mit VM-ID, Power-State und Netzwerk; Variablen `vm_state` / `vm_state_runner` (Standard `stopped`, Werte `running`/`stopped`); Root-Outputs in [`outputs_proxmox.tf.example`](terraform/outputs_proxmox.tf.example) ergänzt.
+- **README:** Abschnitt [Tech Stack](README.md) mit Logos und Kurzbeschreibungen der eingesetzten Technologien.
+
+### Changed
+
+- **Proxmox-Provider (Modul):** Mindestversion `>= 3.0.0` (für `vm_state` und erweiterte Outputs); [`provider_proxmox.tf.example`](terraform/provider_proxmox.tf.example) angepasst.
+
+### Fixed
+
+- **Renovate (GitHub):** `assignees` in [`renovate.json`](renovate.json) auf `henryhst` korrigiert.
+- **TFLint:** Doppelte ungenutzte Variablen `gitlab_artifacts_*` entfernt (zugunsten `artifacts_*`).
+- **CI:** `terraform fmt -check` für [`modules/proxmox/main.tf`](terraform/modules/proxmox/main.tf).
+
+[0.1.1]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.1.1
 
 ## [0.1.0] - 2026-05-23
 
