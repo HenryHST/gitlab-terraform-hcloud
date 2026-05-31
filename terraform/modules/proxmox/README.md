@@ -25,13 +25,24 @@ module "proxmox" {
 
 The root module enables this with `enable_proxmox_resources = true` (see repository README, section GitLab auf Proxmox).
 
+Module inputs are validated in `variables.tf` (format, bounds, Proxmox naming). Cross-field rules live in `checks.tf` (e.g. distinct VM names and IP configs when the runner VM is enabled, non-empty cloud-init when `gitlab_docker_enabled` is true).
+
 ## Requirements
 
 | Name | Version |
 |------|---------|
 | terraform | >= 1.9.0 |
-| proxmox | telmate/proxmox <= 3.0.2-rc07 |
+| proxmox | telmate/proxmox >= 3.0.0, <= 3.0.2-rc07 |
 | null | ~> 3.2 |
 | local | ~> 2.5 |
 
 Copy `proxmox.tf.example` → `proxmox.tf`, `provider_proxmox.tf.example` → `provider_proxmox.tf`, `proxmox_variables.tf.example` → `proxmox_variables.tf`, and `outputs_proxmox.tf.example` → `outputs_proxmox.tf`. Without those files and with `enable_proxmox_resources = false`, no Proxmox provider or API calls occur during `plan`.
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| `gitlab_vm_id` / `runner_vm_id` | Proxmox VM ID (`vmid`) |
+| `gitlab_vm_status` / `runner_vm_status` | Desired power state (`vm_state`: `running`, `stopped`, `started`) |
+| `gitlab_vm_network` / `runner_vm_network` | Cloud-init IP config, bridge/model, DNS, and guest-agent IPv4/IPv6 when available |
+| `gitlab_vm` / `runner_vm` | Combined object with id, name, node, status, and network |

@@ -42,19 +42,23 @@ resource "proxmox_vm_qemu" "gitlab" {
   name        = var.gitlab_vm_name
   desc        = "GitLab CE + Traefik (Terraform cloud-init)"
   target_node = var.node
-  agent       = 1
+  agent       = var.qemu_agent
+  clone_wait   = var.clone_wait
+  additional_wait = var.additional_wait
   qemu_os     = var.vm_qemu_os
   bios        = var.vm_bios
-  tags        = "docker,gitlab"
+  skip_ipv6   = var.skip_ipv6
+  tags        = var.tags  # "docker,gitlab"
 
   define_connection_info = false
 
   clone      = var.enable_clone ? var.clone_template : null
   full_clone = var.clone_full
 
-  onboot           = true
+  onboot           = var.onboot
   startup          = ""
   automatic_reboot = false
+  vm_state         = "running"
 
   cores   = var.gitlab_cores
   sockets = var.gitlab_sockets
@@ -72,11 +76,17 @@ resource "proxmox_vm_qemu" "gitlab" {
       size    = var.disk_size
     }
   }
-
+    # Serial console
+  serial {
+    id   = 0
+    type = "socket"
+  }
   network {
     bridge = var.network_bridge
-    model  = "virtio"
+    model  = var.network_model
     tag    = -1
+    link_down = var.network_link_down
+    firewall = var.network_firewall
   }
 
   lifecycle {
@@ -113,9 +123,10 @@ resource "proxmox_vm_qemu" "gitlab_runner" {
   clone      = var.enable_clone ? var.clone_template : null
   full_clone = var.clone_full
 
-  onboot           = true
+  onboot           = var.onboot
   startup          = ""
   automatic_reboot = false
+  vm_state         = "running"
 
   cores   = var.runner_cores
   sockets = var.runner_sockets
@@ -136,7 +147,7 @@ resource "proxmox_vm_qemu" "gitlab_runner" {
 
   network {
     bridge = var.network_bridge
-    model  = "virtio"
+    model  = var.network_model
     tag    = -1
   }
 
