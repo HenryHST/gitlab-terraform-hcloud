@@ -69,6 +69,28 @@ variable "gitlab_docker_user_data" {
   description = "Rendered cloud-init YAML (#cloud-config) for GitLab docker_compose stack"
 }
 
+variable "vm_state" {
+  type        = string
+  default     = "stopped"
+  description = "VM state"
+
+  validation {
+    condition     = contains(["stopped", "running"], var.vm_state)
+    error_message = "vm_state must be one of: stopped, running."
+  }
+}
+
+variable "vm_state_runner" {
+  type        = string
+  default     = "stopped"
+  description = "VM state for runner"
+
+  validation {
+    condition     = contains(["stopped", "running"], var.vm_state_runner)
+    error_message = "vm_state_runner must be one of: stopped, running."
+  }
+}
+
 variable "cloud_init_snippet_name" {
   type        = string
   default     = "gitlab-docker-cloud-init.yaml"

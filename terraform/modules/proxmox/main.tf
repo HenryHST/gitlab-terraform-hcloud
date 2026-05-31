@@ -39,16 +39,16 @@ resource "null_resource" "upload_cloud_init_snippet" {
 }
 
 resource "proxmox_vm_qemu" "gitlab" {
-  name        = var.gitlab_vm_name
-  desc        = "GitLab CE + Traefik (Terraform cloud-init)"
-  target_node = var.node
-  agent       = var.qemu_agent
-  clone_wait   = var.clone_wait
+  name            = var.gitlab_vm_name
+  desc            = "GitLab CE + Traefik (Terraform cloud-init)"
+  target_node     = var.node
+  agent           = var.qemu_agent
+  clone_wait      = var.clone_wait
   additional_wait = var.additional_wait
-  qemu_os     = var.vm_qemu_os
-  bios        = var.vm_bios
-  skip_ipv6   = var.skip_ipv6
-  tags        = var.tags  # "docker,gitlab"
+  qemu_os         = var.vm_qemu_os
+  bios            = var.vm_bios
+  skip_ipv6       = var.skip_ipv6
+  tags            = var.tags # "docker,gitlab"
 
   define_connection_info = false
 
@@ -76,17 +76,17 @@ resource "proxmox_vm_qemu" "gitlab" {
       size    = var.disk_size
     }
   }
-    # Serial console
+  # Serial console
   serial {
     id   = 0
     type = "socket"
   }
   network {
-    bridge = var.network_bridge
-    model  = var.network_model
-    tag    = -1
+    bridge    = var.network_bridge
+    model     = var.network_model
+    tag       = -1
     link_down = var.network_link_down
-    firewall = var.network_firewall
+    firewall  = var.network_firewall
   }
 
   lifecycle {
