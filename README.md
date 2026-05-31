@@ -288,7 +288,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_runner_token` | `""` | Optional `glrt-…` aus der UI; bei gesetztem Token wird Autoregister übersprungen |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (`tag_list` in `config.toml`) |
-| `gitlab_docker_runner_gitlab_url` | `http://gitlab` | Coordinator-URL in `config.toml` — interner Compose-Service (nicht `https://<fqdn>`, GitLab lauscht intern nicht auf :443) |
+| `gitlab_docker_traefik_proxy_ipv4` | `172.31.191.247` | Traefik-IP für `extra_hosts` am Runner-Container (FQDN → Traefik, damit Coordinator-API per HTTPS erreichbar ist) |
 | `gitlab_docker_plantuml_enabled` | `true` | **`docker_compose`** / Proxmox-Docker: `plantuml/plantuml-server` im Stack, NGINX-Proxy `/-/plantuml/` ([PlantUML-Doku](https://docs.gitlab.com/administration/integration/plantuml/)) |
 | `gitlab_docker_plantuml_image` | `plantuml/plantuml-server:tomcat` | PlantUML-Container-Image |
 | `artifacts_enabled` | `true` | **`docker_compose`**: CI job artifacts in `gitlab.rb`; Host `./artifacts/data` → `artifacts_path` ([Doku](https://docs.gitlab.com/administration/cicd/job_artifacts/)) |
@@ -602,7 +602,7 @@ Optionaler **`gitlab/gitlab-runner`** im **gleichen** Compose-Stack wie GitLab (
 | `gitlab_docker_runner_token` | `""` | `glrt-…` aus **Admin → CI/CD → Runners → New instance runner**; leer = Autoregister |
 | `gitlab_docker_runner_description` | `docker-compose` | Name in GitLab und `config.toml` |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (API: kommagetrennt) |
-| `gitlab_docker_runner_gitlab_url` | `http://gitlab` | Interne GitLab-URL für Runner-API (`config.toml` → `url`); Job-Clone-URLs bleiben über `external_url` |
+| `gitlab_docker_traefik_proxy_ipv4` | `172.31.191.247` | Traefik-IP für Runner-`extra_hosts` (Coordinator-HTTPS vom Runner-Container) |
 | `gitlab_docker_runner_executor` | `docker` | `docker` oder `shell` |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 
@@ -700,6 +700,8 @@ Voraussetzungen: GitLab-Container läuft; `python3` auf dem Host (JSON-Auswertun
 | `attempt N: gitlab not running yet` | GitLab-Stack noch am Starten; warten oder `docker compose logs gitlab` |
 | API-Fehler im Log | GitLab erreichbar? Root-User vorhanden? PAT-Erstellung in Log; GitLab-Version ≥ 16 (neuer Runner-Workflow) |
 | Runner in UI, Jobs pending | Tags in `.gitlab-ci.yml` (`tags: [docker]`) müssen zu `gitlab_docker_runner_tags` passen |
+| Artifacts/`pages` Upload schlägt fehl (`no such host` für `gitlab`) | `config.toml` → `url` muss die **öffentliche** Instanz-URL sein (`https://<fqdn>`), nicht `http://gitlab`. Der Runner-Container braucht `extra_hosts: [<fqdn>:<traefik-proxy-ip>]` (Terraform: `gitlab_docker_traefik_proxy_ipv4`), damit Coordinator-HTTPS intern über Traefik läuft |
+| `connection refused` bei `https://<fqdn>` (Runner-Container) | FQDN zeigt intern auf GitLab-Container-IP ohne :443 — `extra_hosts` am `gitlab-runner`-Service setzen (siehe oben) |
 | Skript fehlt | Server mit neuem `user_data` ersetzen oder Snippet/Cloud-Init erneut einspielen |
 
 **Abgrenzung:** [`enable_gitlab_runner`](#gitlab-runner-optionale-zweite-vm) = **eigene Hetzner-VM** (`cpx22`) mit `.deb`-Installation; **kein** Autoregister-Skript aus diesem Abschnitt.

@@ -335,14 +335,14 @@ variable "gitlab_docker_runner_tags" {
   default     = ["docker"]
 }
 
-variable "gitlab_docker_runner_gitlab_url" {
-  description = "GitLab URL in runner config.toml (coordinator API). Use Docker service name on the Compose proxy network (default http://gitlab), not the public FQDN — the GitLab container does not listen on :443."
+variable "gitlab_docker_traefik_proxy_ipv4" {
+  description = "Traefik static IPv4 on the Compose proxy network; used in gitlab-runner extra_hosts so the runner container reaches GitLab via HTTPS (FQDN → Traefik, not GitLab container :443)"
   type        = string
-  default     = "http://gitlab"
+  default     = "172.31.191.247"
 
   validation {
-    condition     = can(regex("^https?://", var.gitlab_docker_runner_gitlab_url))
-    error_message = "gitlab_docker_runner_gitlab_url must start with http:// or https://."
+    condition     = can(regex("^([0-9]{1,3}\\.){3}[0-9]{1,3}$", var.gitlab_docker_traefik_proxy_ipv4))
+    error_message = "gitlab_docker_traefik_proxy_ipv4 must be an IPv4 address."
   }
 }
 

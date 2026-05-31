@@ -231,7 +231,7 @@ write_files:
 
       [[runners]]
         name = "${runner_description}"
-        url = "${runner_gitlab_url}/"
+        url = "${gitlab_url}/"
         token = "${runner_token}"
         executor = "${runner_executor}"
         tag_list = [${runner_tag_list}]
@@ -258,7 +258,6 @@ write_files:
       # Create instance runner via POST /api/v4/user/runners and write config.toml (https://docs.gitlab.com/tutorials/automate_runner_creation/)
       set -euo pipefail
       COMPOSE_DIR=/opt/gitlab
-      RUNNER_GITLAB_URL='${runner_gitlab_url}'
       LOG=/var/log/gitlab-runner-autoregister.log
       exec >>"$LOG" 2>&1
       echo "=== gitlab-runner-autoregister $(date -Is) ==="
@@ -276,7 +275,7 @@ write_files:
           echo ""
           echo "[[runners]]"
           echo "  name = \"${runner_description}\""
-          echo "  url = \"${runner_gitlab_url}/\""
+          echo "  url = \"${gitlab_url}/\""
           echo "  token = \"$glrt_token\""
           echo "  executor = \"${runner_executor}\""
           printf '%s\n' '  tag_list = [${runner_tag_list}]'
@@ -295,10 +294,6 @@ write_files:
 %{ endif ~}
         } >"$COMPOSE_DIR/gitlab-runner/config.toml"
         chmod 0600 "$COMPOSE_DIR/gitlab-runner/config.toml"
-        # #region agent log
-        echo "DEBUG hypothesisId=A location=gitlab-runner-autoregister.sh:write_config tag_list_line=$(grep tag_list "$COMPOSE_DIR/gitlab-runner/config.toml" || true)"
-        echo "DEBUG hypothesisId=B location=gitlab-runner-autoregister.sh:write_config runner_url_line=$(grep -E '^\s*url' "$COMPOSE_DIR/gitlab-runner/config.toml" || true)"
-        # #endregion
       }
 
       for attempt in $(seq 1 40); do
@@ -776,6 +771,8 @@ write_files:
           depends_on:
             gitlab:
               condition: service_started
+          extra_hosts:
+            - "${gitlab_fqdn}:${traefik_proxy_ipv4}"
           volumes:
             - ./gitlab-runner:/etc/gitlab-runner
             - /var/run/docker.sock:/var/run/docker.sock
