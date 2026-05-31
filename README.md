@@ -15,10 +15,90 @@ Provider: [`hetznercloud/hcloud`](https://registry.terraform.io/providers/hetzne
 
 Alle Befehle `terraform` / `tofu` und `terraform.tfvars` gehören in den Ordner **`terraform/`** (oder `make` vom Repo-Root aus).
 
+**[Tech Stack](#tech-stack)** • **[Architektur](#architektur)** • **[Schnellstart](#schnellstart)** • **[GitLab-Installationsmodi](#gitlab-installationsmodi)**
+
+## Tech Stack
+
+<table>
+  <tr>
+    <th>Logo</th>
+    <th>Name</th>
+    <th>Beschreibung</th>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/terraform/terraform-original.svg" alt="Terraform"></td>
+    <td><a href="https://developer.hashicorp.com/terraform">Terraform</a> / <a href="https://opentofu.org/">OpenTofu</a></td>
+    <td>Infrastructure as Code für Hetzner Cloud (Server, Firewall, DNS, optional GitLab-API-Ressourcen). Konfiguration unter <a href="terraform/">terraform/</a>; siehe auch <a href="#terraform-und-opentofu">Terraform und OpenTofu</a>.</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/hetzner.png" alt="Hetzner Cloud"></td>
+    <td><a href="https://www.hetzner.com/cloud">Hetzner Cloud</a></td>
+    <td>Cloud-Provider für VM, Firewall und SSH-Keys (<code>hcloud_token</code>). Standard-Stack: ein <code>cpx*</code>-Server in <code>fsn1</code> / <code>nbg1</code> / …</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/hetzner.png" alt="Hetzner DNS"></td>
+    <td><a href="https://dns.hetzner.com/">Hetzner DNS</a></td>
+    <td>Authoritative DNS-Zone (<code>dns_domain</code>), A-Records für GitLab/Registry/Renovate/Runner und Mail-Records. Separates API-Token <code>hetzner_api_key</code> (nicht <code>hcloud_token</code>).</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/gitlab/gitlab-original.svg" alt="GitLab"></td>
+    <td><a href="https://about.gitlab.com/install/">GitLab CE</a></td>
+    <td>CI/CD-Plattform: <code>hetzner_app</code> (Hetzner App-Image + Omnibus) oder <code>docker_compose</code> (<code>gitlab/gitlab-ce</code> im Compose-Stack). Siehe <a href="#gitlab-installationsmodi">GitLab-Installationsmodi</a>.</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/docker/docker-original.svg" alt="Docker"></td>
+    <td><a href="https://docs.docker.com/compose/">Docker Compose</a></td>
+    <td>Bei <code>gitlab_install_mode = docker_compose</code>: GitLab CE, Traefik, PostgreSQL, optional Runner, PlantUML und Renovate CE unter <code>/opt/gitlab</code> auf Debian (<code>gitlab_docker_host_image</code>).</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/traefikproxy/traefikproxy-original.svg" alt="Traefik"></td>
+    <td><a href="https://traefik.io/traefik">Traefik</a></td>
+    <td>Reverse Proxy und TLS-Terminierung (HTTP/HTTPS, optional ACME DNS-01 über Hetzner). Image: <code>gitlab_docker_traefik_image</code> (Standard <code>traefik:v3.7.1</code>).</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg" alt="PostgreSQL"></td>
+    <td><a href="https://www.postgresql.org/">PostgreSQL</a></td>
+    <td>Externe Datenbank für GitLab im Compose-Modus (<code>postgres:16-alpine</code>, nur internes Netz <code>socket_proxy</code>).</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/gitlab/gitlab-original.svg" alt="GitLab Runner"></td>
+    <td><a href="https://docs.gitlab.com/runner/">GitLab Runner</a></td>
+    <td>Optional im Compose-Stack (<code>gitlab_docker_runner_enabled</code>, Autoregister per API) oder als eigene Hetzner-VM (<code>enable_gitlab_runner</code>, <code>.deb</code>-Installation). Siehe <a href="#gitlab-runner-im-compose-stack-autoregister">Autoregister</a>.</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/debian/debian-original.svg" alt="Debian"></td>
+    <td><a href="https://www.debian.org/">Debian</a></td>
+    <td>Standard-Host-OS für <code>docker_compose</code> (<code>debian-13</code>). Cloud-Init installiert Docker Engine und startet den Stack.</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/proxmox/proxmox-original-wordmark.svg" alt="Proxmox"></td>
+    <td><a href="https://www.proxmox.com/en/products/proxmox-virtual-environment/overview">Proxmox VE</a> <em>(optional)</em></td>
+    <td>Alternative Zielplattform: QEMU-VMs + Cloud-Init-Snippet aus demselben Compose-Template (<code>proxmox.tf.example</code>, <code>enable_proxmox_resources</code>). Siehe <a href="#gitlab-auf-proxmox">GitLab auf Proxmox</a>.</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/gitlab/gitlab-original.svg" alt="GitLab Provider"></td>
+    <td><a href="https://registry.terraform.io/providers/gitlabhq/gitlab/latest/docs">GitLab Terraform Provider</a></td>
+    <td>Optionale API-Ressourcen (<code>enable_gitlab_resources</code>): Gruppe, Projekte, Bot-User, Renovate-Webhook in <a href="terraform/gitlab.tf">gitlab.tf</a> / Modul <a href="terraform/modules/gitlab-api/">gitlab-api</a>.</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/renovatebot.svg" alt="Renovate" width="32"></td>
+    <td><a href="https://docs.renovatebot.com/">Renovate</a></td>
+    <td>Dependency-Updates: <a href="renovate.json">renovate.json</a> im Repo-Root (Mend GitHub App auf github.com); optional Mend Renovate CE im Compose-Stack (<code>gitlab_docker_renovate_enabled</code>).</td>
+  </tr>
+  <tr>
+    <td><img width="32" src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/github/github-original.svg" alt="GitHub Actions"></td>
+    <td><a href="https://docs.github.com/en/actions">GitHub Actions</a> / <a href="https://docs.gitlab.com/ee/ci/">GitLab CI</a></td>
+    <td>Qualitätssicherung: <code>fmt</code>, <code>validate</code>, TFLint (<a href=".github/workflows/terraform.yml">.github/workflows/terraform.yml</a>, <a href=".gitlab-ci.yml">.gitlab-ci.yml</a>, <code>make ci</code>).</td>
+  </tr>
+</table>
+
+Orientierung am Aufbau von <a href="https://github.com/phsaurav/Home-Lab/blob/main/README.md">PH's HomeLab — Tech Stack</a>.
+
 ## Inhaltsverzeichnis
 
 - [gitlab-terraform-hcloud](#gitlab-terraform-hcloud)
   - [Repository-Layout](#repository-layout)
+  - [Tech Stack](#tech-stack)
   - [Inhaltsverzeichnis](#inhaltsverzeichnis)
   - [Architektur](#architektur)
     - [Provider](#provider)
