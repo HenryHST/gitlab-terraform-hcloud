@@ -18,6 +18,12 @@ locals {
   manage_hetzner_dns          = var.enable_hetzner_dns != null ? var.enable_hetzner_dns : !local.proxmox_gitlab_primary
   gitlab_docker_stack_enabled = var.gitlab_install_mode == "docker_compose" || local.proxmox_gitlab_docker
 
+  gitlab_docker_backup_time_parts = split(":", var.gitlab_docker_backup_time)
+  gitlab_docker_backup_cron_effective = (
+    trimspace(var.gitlab_docker_backup_cron) != "" ? trimspace(var.gitlab_docker_backup_cron) :
+    "${tonumber(local.gitlab_docker_backup_time_parts[1])} ${tonumber(local.gitlab_docker_backup_time_parts[0])} * * *"
+  )
+
   gitlab_docker_external_url_scheme = var.gitlab_docker_traefik_acme_enabled ? "https" : "http"
   gitlab_api_v4_endpoint            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/api/v4/"
   gitlab_smtp_domain_effective      = var.gitlab_smtp_domain != "" ? var.gitlab_smtp_domain : var.dns_domain
@@ -69,8 +75,9 @@ locals {
     gitlab_terraform_state_path          = var.gitlab_terraform_state_path
     gitlab_terraform_state_file          = var.gitlab_terraform_state_file
     backup_enabled                       = var.gitlab_docker_backup_enabled
+    backup_auto_enabled                  = var.gitlab_docker_backup_auto_enabled
     backup_keep_time                     = var.gitlab_docker_backup_keep_time
-    backup_cron                          = var.gitlab_docker_backup_cron
+    backup_cron_effective                = local.gitlab_docker_backup_cron_effective
     runner_enabled                       = var.gitlab_docker_runner_enabled
     runner_static_config                 = var.gitlab_docker_runner_enabled && length(trimspace(var.gitlab_docker_runner_token)) >= 20
     runner_autoregister                  = var.gitlab_docker_runner_enabled && var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) < 20
@@ -111,8 +118,9 @@ locals {
       bootstrap_wait             = var.gitlab_bootstrap_wait_seconds
       gitlab_letsencrypt_enabled = var.gitlab_letsencrypt_enabled
       backup_enabled             = var.gitlab_docker_backup_enabled
+      backup_auto_enabled        = var.gitlab_docker_backup_auto_enabled
       backup_keep_time           = var.gitlab_docker_backup_keep_time
-      backup_cron                = var.gitlab_docker_backup_cron
+      backup_cron_effective      = local.gitlab_docker_backup_cron_effective
     }) :
     var.gitlab_install_mode == "docker_compose" ? local.gitlab_docker_user_data : ""
   )

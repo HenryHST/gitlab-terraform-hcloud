@@ -450,7 +450,7 @@ write_files:
 %{ endif ~}
 %{ if backup_enabled ~}
 
-  # Host cron: docker compose exec gitlab gitlab-backup create (see scripts/gitlab-backup.sh)
+  # Backup/restore scripts (manual, cron, or GitLab CI). See /opt/gitlab/docs/BACKUP.md
   - path: /opt/gitlab/scripts/gitlab-backup.sh
     owner: root:root
     permissions: "0750"
@@ -460,16 +460,24 @@ write_files:
       set -euo pipefail
       COMPOSE_DIR=/opt/gitlab
       LOG=/var/log/gitlab-backup.log
+      LOCK=/var/run/gitlab-backup.lock
+      SOURCE="$${GITLAB_BACKUP_SOURCE:-manual}"
+      exec 9>"$LOCK"
+      flock -n 9 || { echo "gitlab-backup already running (lock $LOCK)"; exit 1; }
       exec >>"$LOG" 2>&1
-      echo "=== gitlab-backup $(date -Is) ==="
+      echo "=== gitlab-backup $(date -Is) source=$SOURCE ==="
       cd "$COMPOSE_DIR"
       if [ "$(docker compose ps gitlab --format '{{.State}}' 2>/dev/null | head -1)" != "running" ]; then
         echo "ERROR: gitlab service not running"
         exit 1
       fi
-      docker compose exec -T gitlab gitlab-backup create CRON=1
+      BACKUP_ARGS=(gitlab-backup create)
+      if [[ "$SOURCE" == "cron" || "$${CRON:-}" == "1" ]]; then
+        BACKUP_ARGS+=(CRON=1)
+      fi
+      docker compose exec -T gitlab "$${BACKUP_ARGS[@]}"
       docker compose exec -T gitlab gitlab-ctl backup-etc --delete-old-backups
-      echo "=== finished $(date -Is) ==="
+      echo "=== finished $(date -Is) source=$SOURCE ==="
 
   - path: /opt/gitlab/scripts/gitlab-restore.sh
     owner: root:root
@@ -575,13 +583,29 @@ write_files:
 
       main "$@"
 
+  - path: /opt/gitlab/docs/BACKUP.md
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # GitLab backups on this host
+
+      - **Automatic:** cron when `gitlab_docker_backup_auto_enabled` (Terraform); schedule via `gitlab_docker_backup_time` or `gitlab_docker_backup_cron`.
+      - **Manual:** `sudo /opt/gitlab/scripts/gitlab-backup.sh` (set `GITLAB_BACKUP_SOURCE=manual`).
+      - **GitLab CI:** use a shell runner on this host; see repo `docs/examples/gitlab-backup-ci.yml.example` and `docs/backup.md`.
+      - **Restore:** `/opt/gitlab/scripts/gitlab-restore.sh --list`
+      - Log: `/var/log/gitlab-backup.log` — Archives: `/opt/gitlab/backups/`
+
+      There is no GitLab REST API for full-instance backups on self-managed CE.
+%{ if backup_auto_enabled ~}
+
   - path: /etc/cron.d/gitlab-backup
     owner: root:root
     permissions: "0644"
     content: |
       SHELL=/bin/bash
       PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-      ${backup_cron} root /opt/gitlab/scripts/gitlab-backup.sh
+      ${backup_cron_effective} root GITLAB_BACKUP_SOURCE=cron /opt/gitlab/scripts/gitlab-backup.sh
+%{ endif ~}
 %{ endif ~}
 %{ if plantuml_enabled ~}
 
@@ -880,6 +904,7 @@ runcmd:
     chown 999:999 /opt/gitlab/postgres/data
     install -m 0755 -d /opt/gitlab/data/config /opt/gitlab/data/logs /opt/gitlab/data/gitlab
 %{ if backup_enabled ~}
+    install -m 0755 -d /opt/gitlab/docs
     install -m 0750 -d /opt/gitlab/backups /opt/gitlab/scripts
     chown root:root /opt/gitlab/backups
 %{ endif ~}

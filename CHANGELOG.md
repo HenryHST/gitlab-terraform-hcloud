@@ -7,9 +7,14 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Added
+
+- **Backups (Docker Compose / Omnibus):** `gitlab_docker_backup_auto_enabled`, `gitlab_docker_backup_time` (HH:MM), optionaler `gitlab_docker_backup_cron`-Override; Cron nur bei Auto aktiv; erweiterte Host-Skripte (`GITLAB_BACKUP_SOURCE`, Lockfile); [`docs/backup.md`](docs/backup.md) und [`docs/examples/gitlab-backup-ci.yml.example`](docs/examples/gitlab-backup-ci.yml.example).
+
 ### Changed
 
 - **Dokumentation:** README auf Einstieg, Architektur und Schnellstart reduziert; Tiefgang nach [`docs/`](docs/) mit zentralem [Inhaltsverzeichnis](docs/README.md) (`reference.md`, `gitlab-install-modes.md`, `proxmox.md`, `operations.md`).
+- **`gitlab_docker_backup_enabled`:** auch bei `gitlab_install_mode = "proxmox"` (und Legacy Proxmox-Docker-Stack); `gitlab_docker_backup_cron` Default leer (Zeit aus `gitlab_docker_backup_time`).
 
 ## [0.1.2] - 2026-06-04
 

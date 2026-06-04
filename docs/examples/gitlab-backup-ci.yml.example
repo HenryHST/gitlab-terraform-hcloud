@@ -1,0 +1,30 @@
+# Example: trigger full-instance backup from GitLab CI (no REST API for backups).
+# Requires a shell executor runner on the GitLab host (or SSH to the same script).
+# Copy relevant jobs into your project's .gitlab-ci.yml and adjust `tags`.
+
+stages:
+  - maintenance
+
+gitlab-backup-manual:
+  stage: maintenance
+  when: manual
+  tags:
+    - shell-on-gitlab-host   # must match your instance runner tags
+  script:
+    - export GITLAB_BACKUP_SOURCE=gitlab_ci
+    - /opt/gitlab/scripts/gitlab-backup.sh
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+# Optional: run on a pipeline schedule (GitLab → Build → Pipeline schedules)
+gitlab-backup-scheduled:
+  stage: maintenance
+  tags:
+    - shell-on-gitlab-host
+  script:
+    - export GITLAB_BACKUP_SOURCE=gitlab_ci
+    - /opt/gitlab/scripts/gitlab-backup.sh
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# hetzner_app: use /usr/local/sbin/gitlab-backup.sh instead of /opt/gitlab/scripts/...

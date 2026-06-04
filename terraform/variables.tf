@@ -484,13 +484,48 @@ variable "gitlab_letsencrypt_enabled" {
 }
 
 variable "gitlab_docker_backup_enabled" {
-  description = "When gitlab_install_mode is docker_compose or hetzner_app, configure gitlab_rails backup settings and a host cron job (gitlab-backup create)."
+  description = "When Docker Compose / Omnibus GitLab stack is active, configure gitlab_rails backup settings, host backup/restore scripts, and optional scheduled backups."
   type        = bool
   default     = true
 
   validation {
-    condition     = !var.gitlab_docker_backup_enabled || contains(["docker_compose", "hetzner_app"], var.gitlab_install_mode)
-    error_message = "gitlab_docker_backup_enabled is only supported when gitlab_install_mode is docker_compose or hetzner_app."
+    condition = !var.gitlab_docker_backup_enabled || var.gitlab_install_mode == "docker_compose" || var.gitlab_install_mode == "hetzner_app" || var.gitlab_install_mode == "proxmox" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_docker_backup_enabled is only supported when gitlab_install_mode is docker_compose, hetzner_app, proxmox, or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
+variable "gitlab_docker_backup_auto_enabled" {
+  description = "When gitlab_docker_backup_enabled is true, install /etc/cron.d/gitlab-backup for scheduled gitlab-backup create on the host."
+  type        = bool
+  default     = true
+
+  validation {
+    condition     = !var.gitlab_docker_backup_auto_enabled || var.gitlab_docker_backup_enabled
+    error_message = "gitlab_docker_backup_auto_enabled requires gitlab_docker_backup_enabled = true."
+  }
+}
+
+variable "gitlab_docker_backup_time" {
+  description = "Daily backup time (HH:MM, 24h, host timezone) when gitlab_docker_backup_cron is empty."
+  type        = string
+  default     = "03:00"
+
+  validation {
+    condition     = can(regex("^([01][0-9]|2[0-3]):[0-5][0-9]$", var.gitlab_docker_backup_time))
+    error_message = "gitlab_docker_backup_time must be HH:MM in 24h format (e.g. 03:00)."
+  }
+}
+
+variable "gitlab_docker_backup_cron" {
+  description = "Optional cron override (minute hour dom month dow). Empty = derive from gitlab_docker_backup_time."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = trimspace(var.gitlab_docker_backup_cron) == "" || can(regex("^[^\\s]+ [^\\s]+ [^\\s]+ [^\\s]+ [^\\s]+$", trimspace(var.gitlab_docker_backup_cron)))
+    error_message = "gitlab_docker_backup_cron must be empty or five cron fields (e.g. 0 3 * * *)."
   }
 }
 
@@ -502,17 +537,6 @@ variable "gitlab_docker_backup_keep_time" {
   validation {
     condition     = var.gitlab_docker_backup_keep_time >= 0
     error_message = "gitlab_docker_backup_keep_time must be >= 0."
-  }
-}
-
-variable "gitlab_docker_backup_cron" {
-  description = "Cron schedule (minute hour dom month dow) for gitlab-backup on the GitLab host"
-  type        = string
-  default     = "0 3 * * *"
-
-  validation {
-    condition     = can(regex("^[^\\s]+ [^\\s]+ [^\\s]+ [^\\s]+ [^\\s]+$", var.gitlab_docker_backup_cron))
-    error_message = "gitlab_docker_backup_cron must be five cron fields (e.g. 0 3 * * *)."
   }
 }
 

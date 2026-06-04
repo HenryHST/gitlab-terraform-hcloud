@@ -52,10 +52,12 @@ enable_gitlab_resources = false
 # gitlab_letsencrypt_email  = "info@example.com"
 # gitlab_root_email         = ""   # docker_compose / Proxmox: root email (GITLAB_ROOT_EMAIL); empty = gitlab_letsencrypt_email or gitlab-root@<zone>
 
-# Backups (docker_compose or hetzner_app) — gitlab.rb + cron; archives in /opt/gitlab/backups or /var/opt/gitlab/backups
-# gitlab_docker_backup_enabled    = true
-# gitlab_docker_backup_keep_time  = 604800   # 7 days; 0 = keep all
-# gitlab_docker_backup_cron       = "0 3 * * *"
+# Backups (docker_compose, hetzner_app, proxmox) — see docs/backup.md
+# gitlab_docker_backup_enabled       = true
+# gitlab_docker_backup_auto_enabled  = true   # false = scripts only, no /etc/cron.d/gitlab-backup
+# gitlab_docker_backup_time          = "03:00" # HH:MM when gitlab_docker_backup_cron is empty
+# gitlab_docker_backup_cron          = ""      # optional override, e.g. "0 2 * * 0"
+# gitlab_docker_backup_keep_time     = 604800  # 7 days; 0 = keep all
 
 # Sign-up on login page (docker_compose only) — gitlab_rails['gitlab_signup_enabled'] in gitlab.rb
 # gitlab_signup_enabled = false

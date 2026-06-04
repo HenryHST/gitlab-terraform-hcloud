@@ -33,9 +33,11 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_registry_enabled` | `true` | `true`: GitLab **Container Registry** (Omnibus + Traefik); nur bei `docker_compose`; `false` = kein DNS, keine Registry-Router |
 | `gitlab_docker_registry_dns_label` | `registry` | DNS + `registry_external_url`: `<label>.<zone>` |
 | `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (DNS-01 via Hetzner); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
-| `gitlab_docker_backup_enabled` | `true` | **`docker_compose`** oder **`hetzner_app`**: `gitlab_rails` Backup in `gitlab.rb`, Host-Cron + Backup-Skript |
+| `gitlab_docker_backup_enabled` | `true` | **`docker_compose`**, **`hetzner_app`**, **`proxmox`** (bzw. Proxmox-Docker-Stack): `gitlab_rails` Backup in `gitlab.rb`, Host-Skripte; siehe [backup.md](backup.md) |
+| `gitlab_docker_backup_auto_enabled` | `true` | Nur wenn `true`: `/etc/cron.d/gitlab-backup` auf dem GitLab-Host |
+| `gitlab_docker_backup_time` | `03:00` | Tägliche Uhrzeit (HH:MM, 24h), wenn `gitlab_docker_backup_cron` leer |
+| `gitlab_docker_backup_cron` | `""` | Optional: fünf Cron-Felder; leer = aus `gitlab_docker_backup_time` |
 | `gitlab_docker_backup_keep_time` | `604800` | Aufbewahrung in Sekunden (Standard 7 Tage); `0` = alle Archive behalten ([Backup-Doku](https://docs.gitlab.com/omnibus/settings/backups.html)) |
-| `gitlab_docker_backup_cron` | `0 3 * * *` | Cron-Zeitplan auf dem GitLab-Host für `gitlab-backup create` (fünf Felder) |
 | `gitlab_signup_enabled` | `false` | Nur **`docker_compose`**: `gitlab_rails['gitlab_signup_enabled']` — Registrierung auf der Anmeldeseite |
 | `gitlab_docker_runner_enabled` | `false` | **`docker_compose`** / Proxmox-Docker: `gitlab/gitlab-runner` im gleichen Compose-Stack (Docker-Executor) |
 | `gitlab_docker_runner_autoregister` | `true` | Leeres `gitlab_docker_runner_token`: Bootstrap-Skript legt Instance-Runner per API an (`glrt-…`); Log: `/var/log/gitlab-runner-autoregister.log` |

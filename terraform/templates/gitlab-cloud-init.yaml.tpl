@@ -125,15 +125,23 @@ write_files:
       # Application + gitlab.rb/config backup (Omnibus). Archives: /var/opt/gitlab/backups
       set -euo pipefail
       LOG=/var/log/gitlab-backup.log
+      LOCK=/var/run/gitlab-backup.lock
+      SOURCE="$${GITLAB_BACKUP_SOURCE:-manual}"
+      exec 9>"$LOCK"
+      flock -n 9 || { echo "gitlab-backup already running (lock $LOCK)"; exit 1; }
       exec >>"$LOG" 2>&1
-      echo "=== gitlab-backup $(date -Is) ==="
+      echo "=== gitlab-backup $(date -Is) source=$SOURCE ==="
       if ! gitlab-ctl status >/dev/null 2>&1; then
         echo "ERROR: gitlab-ctl status failed (GitLab not ready)"
         exit 1
       fi
-      gitlab-backup create CRON=1
+      if [[ "$SOURCE" == "cron" || "$${CRON:-}" == "1" ]]; then
+        gitlab-backup create CRON=1
+      else
+        gitlab-backup create
+      fi
       gitlab-ctl backup-etc --delete-old-backups
-      echo "=== finished $(date -Is) ==="
+      echo "=== finished $(date -Is) source=$SOURCE ==="
 
   - path: /usr/local/sbin/gitlab-restore.sh
     permissions: "0755"
@@ -235,6 +243,7 @@ write_files:
       }
 
       main "$@"
+%{ if backup_auto_enabled ~}
 
   - path: /etc/cron.d/gitlab-backup
     permissions: "0644"
@@ -242,7 +251,8 @@ write_files:
     content: |
       SHELL=/bin/bash
       PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
-      ${backup_cron} root /usr/local/sbin/gitlab-backup.sh
+      ${backup_cron_effective} root GITLAB_BACKUP_SOURCE=cron /usr/local/sbin/gitlab-backup.sh
+%{ endif ~}
 %{ endif ~}
 
   - path: /etc/systemd/system/gitlab-terraform-bootstrap.service

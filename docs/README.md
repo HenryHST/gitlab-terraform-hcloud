@@ -25,6 +25,9 @@ gitlab-terraform-hcloud/
 │   ├── gitlab-install-modes.md            # hetzner_app, docker_compose, Registry, Runner, …
 │   ├── proxmox.md                         # Proxmox-Checkliste, VM-IDs, Troubleshooting
 │   ├── operations.md                      # Module, Sicherheit, Cloud-Init, CI
+│   ├── backup.md                          # Backups: Variablen, Cron, CI, Restore
+│   ├── examples/
+│   │   └── gitlab-backup-ci.yml.example   # GitLab CI: manuelles/scheduled Backup
 │   └── diagrams/
 │       ├── registry-architecture.mmd      # Registry-Topologie (Mermaid-Quelle)
 │       └── registry-request-flow.mmd      # Registry-Request-Flow (Mermaid-Quelle)
@@ -85,6 +88,7 @@ Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per
 
 ### GitLab
 
+- [Backups](backup.md) — Variablen, Auto-Cron, manuell, GitLab CI
 - [Installationsmodi](gitlab-install-modes.md)
   - [`hetzner_app`](gitlab-install-modes.md#hetzner_app-hetzner-app-image)
   - [`docker_compose`](gitlab-install-modes.md#docker_compose-gitlab-ce--traefik)
