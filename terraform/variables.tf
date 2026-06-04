@@ -145,7 +145,7 @@ variable "gitlab_docker_traefik_image" {
 variable "gitlab_docker_gitlab_ce_image" {
   description = "gitlab/gitlab-ce image tag for Docker Compose mode"
   type        = string
-  default     = "gitlab/gitlab-ce:18.10.5-ce.0"
+  default     = "gitlab/gitlab-ce:18.11.4-ce.0"
 
   validation {
     condition = can(regex(
