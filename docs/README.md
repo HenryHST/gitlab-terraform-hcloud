@@ -6,7 +6,7 @@ Ausführliche Anleitungen und Referenz für **gitlab-terraform-hcloud**. Kurzüb
 
 ## Verzeichnisübersicht
 
-Orientierung am [Directory Overview in PH's HomeLab](https://github.com/phsaurav/Home-Lab/blob/main/README.md#directory-overview). Nur versionierte Pfade; lokale Secrets (`terraform.tfvars`), `.terraform/` und Plan-Artefakte sind ausgelassen.
+Nur versionierte Pfade; lokale Secrets (`terraform.tfvars`), `.terraform/` und Plan-Artefakte sind ausgelassen.
 
 ```txt
 gitlab-terraform-hcloud/
@@ -26,11 +26,13 @@ gitlab-terraform-hcloud/
 │   ├── proxmox.md                         # Proxmox-Checkliste, VM-IDs, Troubleshooting
 │   ├── operations.md                      # Module, Sicherheit, Cloud-Init, CI
 │   ├── backup.md                          # Backups: Variablen, Cron, CI, Restore
+│   ├── pages.md                           # GitLab Pages: Wildcard-DNS, Traefik, CI
 │   ├── examples/
 │   │   └── gitlab-backup-ci.yml.example   # GitLab CI: manuelles/scheduled Backup
 │   └── diagrams/
 │       ├── registry-architecture.mmd      # Registry-Topologie (Mermaid-Quelle)
-│       └── registry-request-flow.mmd      # Registry-Request-Flow (Mermaid-Quelle)
+│       ├── registry-request-flow.mmd      # Registry-Request-Flow (Mermaid-Quelle)
+│       └── pages-architecture.mmd         # Pages-Topologie (Mermaid-Quelle)
 ├── scripts/
 │   ├── check-compose-image-versions.sh    # Docker-Hub-Vergleich (make check-images)
 │   └── proxmox-check-vmids.sh             # Plan-Check: freie Proxmox-VM-IDs
@@ -89,11 +91,13 @@ Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per
 ### GitLab
 
 - [Backups](backup.md) — Variablen, Auto-Cron, manuell, GitLab CI
+- [GitLab Pages](pages.md) — Wildcard-DNS, Traefik, CI
 - [Installationsmodi](gitlab-install-modes.md)
   - [`hetzner_app`](gitlab-install-modes.md#hetzner_app-hetzner-app-image)
   - [`docker_compose`](gitlab-install-modes.md#docker_compose-gitlab-ce--traefik)
   - [Web IDE](gitlab-install-modes.md#web-ide-docker_compose)
   - [Container Registry](gitlab-install-modes.md#container-registry-docker_compose)
+  - [GitLab Pages](gitlab-install-modes.md#gitlab-pages-docker_compose--proxmox-docker)
   - [Renovate CE](gitlab-install-modes.md#renovate-ce-docker_compose)
   - [Runner im Compose-Stack (Autoregister)](gitlab-install-modes.md#gitlab-runner-im-compose-stack-autoregister)
   - [GitLab-Provider-Ressourcen (`gitlab.tf`)](gitlab-install-modes.md#gitlab-provider-ressourcen-gitlabtf)
@@ -110,3 +114,4 @@ Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per
 
 - [Registry-Architektur](diagrams/registry-architecture.mmd)
 - [Registry-Request-Flow](diagrams/registry-request-flow.mmd)
+- [Pages-Architektur](diagrams/pages-architecture.mmd)

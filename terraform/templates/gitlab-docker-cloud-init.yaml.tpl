@@ -375,7 +375,20 @@ write_files:
       gitlab_rails['db_username'] = 'gitlab'
       gitlab_rails['db_password'] = '${postgres_password}'
       gitlab_rails['db_database'] = 'gitlabhq_production'
+%{ if pages_enabled ~}
+
+      # GitLab Pages behind Traefik (https://docs.gitlab.com/administration/pages/)
+      pages_external_url '${external_url_scheme}://${pages_fqdn}'
+      gitlab_pages['enable'] = true
+      gitlab_pages['listen_proxy'] = '0.0.0.0:8090'
+      pages_nginx['enable'] = false
+%{ if acme_enabled ~}
+      pages_nginx['real_ip_header'] = 'X-Forwarded-For'
+      pages_nginx['real_ip_trusted_cidr'] = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '172.31.0.0/16']
+%{ endif ~}
+%{ else ~}
       gitlab_pages['enable'] = false
+%{ endif ~}
       gitlab_rails['gitlab_default_theme'] = ${gitlab_theme_id}
       gitlab_rails['gitlab_default_color_mode'] = ${gitlab_color_mode}
       gitlab_rails['time_zone'] = '${gitlab_time_zone}'
@@ -772,6 +785,17 @@ write_files:
             - "traefik.http.routers.registry.entrypoints=web"
 %{ endif ~}
             - "traefik.http.routers.registry.middlewares=registry-buffering@docker,default@file"
+%{ endif ~}
+%{ if pages_enabled ~}
+            - "traefik.http.services.pages.loadbalancer.server.port=8090"
+            - "traefik.http.routers.pages.service=pages"
+            - 'traefik.http.routers.pages.rule=Host(`${pages_fqdn}`) || HostRegexp(`^.+\\.${pages_fqdn_host_regex}$$`)'
+            - "traefik.http.routers.pages.entrypoints=websecure"
+            - "traefik.http.routers.pages.tls=true"
+            - "traefik.http.routers.pages.tls.certresolver=hetzner"
+            - "traefik.http.routers.pages.tls.domains[0].main=${pages_fqdn}"
+            - "traefik.http.routers.pages.tls.domains[0].sans=*.${pages_fqdn}"
+            - "traefik.http.routers.pages.middlewares=default@file"
 %{ endif ~}
 %{ if plantuml_enabled ~}
 

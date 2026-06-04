@@ -10,6 +10,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Added
 
 - **Backups (Docker Compose / Omnibus):** `gitlab_docker_backup_auto_enabled`, `gitlab_docker_backup_time` (HH:MM), optionaler `gitlab_docker_backup_cron`-Override; Cron nur bei Auto aktiv; erweiterte Host-Skripte (`GITLAB_BACKUP_SOURCE`, Lockfile); [`docs/backup.md`](docs/backup.md) und [`docs/examples/gitlab-backup-ci.yml.example`](docs/examples/gitlab-backup-ci.yml.example).
+- **GitLab Pages (Docker Compose / Proxmox-Docker):** `gitlab_docker_pages_enabled`, `gitlab_docker_pages_dns_label`; Wildcard-DNS (`pages`, `*.pages`), Traefik-Router auf Port 8090 mit DNS-01-Wildcard-Zertifikat; Outputs `pages_fqdn`, `pages_wildcard_fqdn`, `pages_url`; [`docs/pages.md`](docs/pages.md).
 
 ### Changed
 

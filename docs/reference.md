@@ -32,6 +32,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_renovate_gitlab_pat` | `""` | GitLab-PAT für Renovate (sensitiv); Pflicht wenn Renovate aktiv |
 | `gitlab_docker_registry_enabled` | `true` | `true`: GitLab **Container Registry** (Omnibus + Traefik); nur bei `docker_compose`; `false` = kein DNS, keine Registry-Router |
 | `gitlab_docker_registry_dns_label` | `registry` | DNS + `registry_external_url`: `<label>.<zone>` |
+| `gitlab_docker_pages_enabled` | `false` | **`docker_compose`** / Proxmox-Docker: GitLab Pages (Traefik :8090, Wildcard-DNS); erfordert `gitlab_docker_traefik_acme_enabled`; siehe [pages.md](pages.md) |
+| `gitlab_docker_pages_dns_label` | `pages` | Apex `pages.<zone>`; Projekt-URLs `<namespace>.pages.<zone>` |
 | `gitlab_docker_traefik_acme_enabled` | `false` | `true`: Traefik Let’s Encrypt (DNS-01 via Hetzner); nur bei `gitlab_install_mode = docker_compose`; ACME-Mail über `gitlab_letsencrypt_email` bzw. Fallback `gitlab-acme@<zone>` |
 | `gitlab_docker_backup_enabled` | `true` | **`docker_compose`**, **`hetzner_app`**, **`proxmox`** (bzw. Proxmox-Docker-Stack): `gitlab_rails` Backup in `gitlab.rb`, Host-Skripte; siehe [backup.md](backup.md) |
 | `gitlab_docker_backup_auto_enabled` | `true` | Nur wenn `true`: `/etc/cron.d/gitlab-backup` auf dem GitLab-Host |
@@ -114,6 +116,9 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `renovate_fqdn` | Nur `docker_compose` + Renovate: FQDN des Renovate-A-Records (z. B. `renovate.example.com`) |
 | `registry_fqdn` | Nur `docker_compose` + Registry: FQDN des Registry-A-Records (z. B. `registry.example.com`) |
 | `registry_url` | Nur Registry aktiv: `http://…` oder `https://…` (wie `gitlab_url`, abhängig von `gitlab_docker_traefik_acme_enabled`) |
+| `pages_fqdn` | Docker-/Proxmox-Stack + Pages: Apex-FQDN (z. B. `pages.example.com`) |
+| `pages_wildcard_fqdn` | Pages aktiv: Wildcard-Muster (z. B. `*.pages.example.com`) |
+| `pages_url` | Pages aktiv: `https://pages.<zone>` (bei ACME) |
 | `gitlab_docker_renovate_webhook_secret` | Nur Renovate aktiv: Webhook-Token (sensitiv; muss mit `MEND_RNV_WEBHOOK_SECRET` und ggf. `gitlab_project_hook` übereinstimmen) |
 | `gitlab_devops_group_id` | Nur `enable_gitlab_resources`: ID der Gruppe `devops` oder `null` |
 | `gitlab_devops_project_id` | Nur `enable_gitlab_resources`: ID des Projekts `devops` (in der Gruppe) oder `null` |

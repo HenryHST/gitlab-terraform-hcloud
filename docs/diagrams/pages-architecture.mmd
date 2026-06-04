@@ -1,0 +1,10 @@
+flowchart LR
+  client[Browser]
+  traefik[Traefik_443]
+  pagesDaemon[GitLab_Pages_8090]
+  omnibus[GitLab_Omnibus]
+
+  client -->|"Host pages_fqdn or namespace.pages_fqdn"| traefik
+  traefik -->|"HTTP proxy"| pagesDaemon
+  pagesDaemon --- omnibus
+  ci[Pages_CI_job] --> omnibus

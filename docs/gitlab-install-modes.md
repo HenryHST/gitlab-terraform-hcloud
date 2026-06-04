@@ -160,6 +160,12 @@ Outputs: **`registry_fqdn`**, **`registry_url`**.
 
 Doku: [Container Registry](https://docs.gitlab.com/administration/packages/container_registry/), [Registry hinter Reverse Proxy](https://docs.gitlab.com/administration/packages/container_registry/#use-an-external-reverse-proxy).
 
+### GitLab Pages (`docker_compose` / Proxmox-Docker)
+
+Opt-in über **`gitlab_docker_pages_enabled = true`** (Standard `false`). Erfordert **`gitlab_docker_traefik_acme_enabled = true`** (Wildcard-TLS per DNS-01). Projekt-URLs: **`https://<namespace>.pages.<zone>`** (Label über **`gitlab_docker_pages_dns_label`**, Standard `pages`).
+
+Details, DNS, CI-Beispiel und Troubleshooting: [pages.md](pages.md). Diagramm: [`docs/diagrams/pages-architecture.mmd`](diagrams/pages-architecture.mmd).
+
 ### Renovate CE (`docker_compose`)
 
 Optional über **`gitlab_docker_renovate_enabled = true`** (nur zusammen mit `gitlab_install_mode = docker_compose`). Orientierung am offiziellen [Docker-Compose-Beispiel](https://github.com/mend/renovate-ce-ee/blob/main/examples/docker-compose/docker-compose-renovate-community.yml).

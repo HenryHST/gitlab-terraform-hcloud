@@ -43,6 +43,10 @@ gitlab_install_mode                = "none"
 # Container Registry (docker_compose only; default enabled)
 # gitlab_docker_registry_enabled   = true
 # gitlab_docker_registry_dns_label = "registry"
+# GitLab Pages (docker_compose / Proxmox-Docker; requires gitlab_docker_traefik_acme_enabled) — docs/pages.md
+# gitlab_docker_traefik_acme_enabled = true
+# gitlab_docker_pages_enabled        = true
+# gitlab_docker_pages_dns_label      = "pages"
 enable_gitlab_runner    = false
 enable_gitlab_resources = false
 # gitlab_early_auth_check = false   # true only when gitlab_api_url is reachable at plan time

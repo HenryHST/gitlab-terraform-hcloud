@@ -2,6 +2,9 @@ locals {
   gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.dns_domain}"
   renovate_fqdn              = "${var.gitlab_docker_renovate_dns_label}.${var.dns_domain}"
   registry_fqdn              = "${var.gitlab_docker_registry_dns_label}.${var.dns_domain}"
+  pages_fqdn                 = "${var.gitlab_docker_pages_dns_label}.${var.dns_domain}"
+  pages_wildcard_fqdn        = "*.${var.gitlab_docker_pages_dns_label}.${var.dns_domain}"
+  pages_fqdn_host_regex      = replace(local.pages_fqdn, ".", "\\.")
   gitlab_enabled             = contains(["hetzner_app", "docker_compose"], var.gitlab_install_mode)
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.dns_domain}"
   gitlab_root_email_effective = (
@@ -53,6 +56,9 @@ locals {
     )
     registry_enabled                     = var.gitlab_docker_registry_enabled
     registry_fqdn                        = local.registry_fqdn
+    pages_enabled                        = var.gitlab_docker_pages_enabled
+    pages_fqdn                           = local.pages_fqdn
+    pages_fqdn_host_regex                = local.pages_fqdn_host_regex
     gitlab_api_v4_endpoint               = local.gitlab_api_v4_endpoint
     smtp_enabled                         = var.gitlab_smtp_enabled
     smtp_address                         = var.gitlab_smtp_address
@@ -304,6 +310,24 @@ resource "hcloud_zone_record" "registry" {
   provider = hcloud.dns
   zone     = module.dns[0].zone_name
   name     = var.gitlab_docker_registry_dns_label
+  type     = "A"
+  value    = module.server.server_ipv4
+}
+
+resource "hcloud_zone_record" "pages" {
+  count    = local.gitlab_docker_stack_enabled && var.gitlab_docker_pages_enabled && local.gitlab_enabled && local.manage_hetzner_dns ? 1 : 0
+  provider = hcloud.dns
+  zone     = module.dns[0].zone_name
+  name     = var.gitlab_docker_pages_dns_label
+  type     = "A"
+  value    = module.server.server_ipv4
+}
+
+resource "hcloud_zone_record" "pages_wildcard" {
+  count    = local.gitlab_docker_stack_enabled && var.gitlab_docker_pages_enabled && local.gitlab_enabled && local.manage_hetzner_dns ? 1 : 0
+  provider = hcloud.dns
+  zone     = module.dns[0].zone_name
+  name     = "*.${var.gitlab_docker_pages_dns_label}"
   type     = "A"
   value    = module.server.server_ipv4
 }

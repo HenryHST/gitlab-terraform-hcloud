@@ -107,6 +107,28 @@ output "registry_url" {
   )
 }
 
+output "pages_fqdn" {
+  description = "GitLab Pages apex hostname when docker stack and gitlab_docker_pages_enabled"
+  value = (
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_pages_enabled ? local.pages_fqdn : null
+  )
+}
+
+output "pages_wildcard_fqdn" {
+  description = "GitLab Pages wildcard hostname pattern when docker stack and gitlab_docker_pages_enabled"
+  value = (
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_pages_enabled ? local.pages_wildcard_fqdn : null
+  )
+}
+
+output "pages_url" {
+  description = "GitLab Pages external URL when docker stack and gitlab_docker_pages_enabled"
+  value = (
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_pages_enabled ?
+    "${local.gitlab_docker_external_url_scheme}://${local.pages_fqdn}" : null
+  )
+}
+
 output "gitlab_docker_renovate_webhook_secret" {
   description = "Webhook secret for Renovate CE and GitLab project hooks (sensitive; in Terraform state)"
   value       = local.gitlab_docker_stack_enabled && var.gitlab_docker_renovate_enabled ? random_password.gitlab_renovate_webhook[0].result : null

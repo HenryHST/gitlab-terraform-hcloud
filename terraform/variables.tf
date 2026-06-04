@@ -422,6 +422,35 @@ variable "gitlab_docker_registry_dns_label" {
   }
 }
 
+variable "gitlab_docker_pages_enabled" {
+  description = "When docker_compose or Proxmox GitLab Docker stack, enable GitLab Pages (Traefik, wildcard DNS, pages_external_url). Requires gitlab_docker_traefik_acme_enabled."
+  type        = bool
+  default     = false
+
+  validation {
+    condition = !var.gitlab_docker_pages_enabled || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_docker_pages_enabled is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+
+  validation {
+    condition     = !var.gitlab_docker_pages_enabled || var.gitlab_docker_traefik_acme_enabled
+    error_message = "gitlab_docker_pages_enabled requires gitlab_docker_traefik_acme_enabled = true (HTTPS and DNS-01 wildcard certificate)."
+  }
+}
+
+variable "gitlab_docker_pages_dns_label" {
+  description = "DNS label for GitLab Pages (FQDN <label>.<zone>; project URLs use <namespace>.<label>.<zone>)"
+  type        = string
+  default     = "pages"
+
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$", var.gitlab_docker_pages_dns_label))
+    error_message = "gitlab_docker_pages_dns_label must be a valid DNS label."
+  }
+}
+
 variable "enable_gitlab_resources" {
   description = "If true, create GitLab provider resources in gitlab.tf (groups, projects). Requires gitlab_api_token."
   type        = bool

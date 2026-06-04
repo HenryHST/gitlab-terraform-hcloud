@@ -42,6 +42,13 @@ locals {
   )
 }
 
+check "gitlab_docker_pages_requires_acme" {
+  assert {
+    condition     = !var.gitlab_docker_pages_enabled || var.gitlab_docker_traefik_acme_enabled
+    error_message = "gitlab_docker_pages_enabled requires gitlab_docker_traefik_acme_enabled = true (wildcard TLS via Traefik DNS-01)."
+  }
+}
+
 check "gitlab_docker_postgres_version" {
   assert {
     condition = (
