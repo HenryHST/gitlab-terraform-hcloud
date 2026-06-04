@@ -269,8 +269,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_install_mode` | `none` | `none`: kein GitLab; `hetzner_app`: Image `gitlab` + [`templates/gitlab-cloud-init.yaml.tpl`](terraform/templates/gitlab-cloud-init.yaml.tpl); `docker_compose`: `gitlab_docker_host_image` (Standard `debian-13`) + [`templates/gitlab-docker-cloud-init.yaml.tpl`](terraform/templates/gitlab-docker-cloud-init.yaml.tpl), Stack unter `/opt/gitlab` |
 | `gitlab_docker_host_image` | `debian-13` | Nur `docker_compose`: Hetzner-Image-Slug für den Hauptserver (vor Apply mit `hcloud image list` prüfen; bei abweichendem Slug z. B. `debian-12` setzen) |
 | `gitlab_docker_traefik_image` | `traefik:v3.7.1` | Traefik-Container in `docker_compose` |
-| `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.10.5-ce.0` | GitLab-CE-Image-Tag in `docker_compose` |
-| `gitlab_docker_postgres_image` | `postgres:16-alpine` | PostgreSQL-Container-Image (Version wie bei Traefik pinnen, z. B. `postgres:17`) |
+| `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.11.4-ce.0` | GitLab-CE-Image-Tag (`MAJOR.MINOR.PATCH-ce.0`); Validierung ab GitLab 16+ |
+| `gitlab_docker_postgres_image` | `postgres:16-alpine` | PostgreSQL-Image (Major 13–17); **18.x:** 16 oder 17; **19.x:** Terraform setzt automatisch **postgres:17** (Suffix aus dieser Variable, z. B. `-alpine`) — Output `gitlab_docker_postgres_image_effective` |
 | `gitlab_docker_renovate_enabled` | `false` | `true`: Mend **Renovate CE** im Compose-Stack; nur bei `docker_compose` |
 | `gitlab_docker_renovate_ce_image` | `ghcr.io/mend/renovate-ce:9.1.0` | Image-Tag pinnen ([Container-Pakete](https://github.com/mend/renovate-ce-ee/pkgs/container/renovate-ce)) |
 | `gitlab_docker_renovate_dns_label` | `renovate` | DNS + Traefik-Host: `<label>.<zone>` |
@@ -949,6 +949,7 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 ## Qualitätssicherung (lokal / CI)
 
 - **Makefile** (vom Repo-Root): `make fmt` / `make validate` führt Befehle in **`terraform/`** aus (vorher einmal `cd terraform && terraform init`).
+- **Docker-Image-Versionen:** `make check-images` vergleicht die gepinnten Tags **`gitlab_docker_gitlab_ce_image`** und **`gitlab_docker_traefik_image`** (Defaults in [`variables.tf`](terraform/variables.tf), optional Override in `terraform.tfvars`) mit Docker Hub (`curl`, `jq` erforderlich). `make check-images-strict` beendet mit Exit-Code 1, wenn neuere Tags verfügbar sind. Nach einem Update: Variablen anpassen, `terraform plan`/`apply`, auf dem Host `docker compose pull` und betroffene Services neu starten. Nicht Teil von `make ci` (Netzwerk, Rate-Limits).
 - **GitLab CI:** [`.gitlab-ci.yml`](.gitlab-ci.yml) – dieselben Checks wie GitHub Actions (`fmt`, `terraform validate`, `tofu validate`, `tflint`); keine Secrets/`apply` in der Pipeline.
 - **GitHub Actions:** [`.github/workflows/terraform.yml`](.github/workflows/terraform.yml) – `working-directory: terraform`; bei Push/PR: `terraform fmt -check`, `terraform validate`, `tofu validate`, `tflint` (ohne Cloud-Token für `apply`).
 

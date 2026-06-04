@@ -1,7 +1,7 @@
 # Run from repo root; Terraform lives in terraform/ (terraform init there first).
 TF_DIR := terraform
 
-.PHONY: fmt fmt-check validate check ci plan plan-no-refresh state-rm-stale-gitlab
+.PHONY: fmt fmt-check validate check ci plan plan-no-refresh state-rm-stale-gitlab check-images check-images-strict
 
 fmt:
 	cd $(TF_DIR) && terraform fmt -recursive
@@ -13,6 +13,13 @@ validate: fmt-check
 	cd $(TF_DIR) && terraform validate
 
 check: validate
+
+# Compare pinned GitLab CE / Traefik images (terraform/) against Docker Hub (requires curl, jq).
+check-images:
+	@./scripts/check-compose-image-versions.sh
+
+check-images-strict:
+	@CHECK_IMAGES_STRICT=1 ./scripts/check-compose-image-versions.sh
 
 # Same steps as .gitlab-ci.yml / GitHub Actions (local; requires terraform, tofu, tflint on PATH).
 ci: fmt-check validate

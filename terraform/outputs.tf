@@ -125,6 +125,11 @@ output "gitlab_docker_postgres_password" {
   sensitive   = true
 }
 
+output "gitlab_docker_postgres_image_effective" {
+  description = "PostgreSQL image used in docker-compose (postgres:17 when GitLab CE is 19.x, even if gitlab_docker_postgres_image still pins 16)"
+  value       = local.gitlab_docker_stack_enabled ? local.gitlab_docker_postgres_image_effective : null
+}
+
 output "gitlab_devops_group_id" {
   description = "GitLab group ID from gitlab.tf when enable_gitlab_resources is true"
   value       = var.enable_gitlab_resources ? module.gitlab_api[0].devops_group_id : null

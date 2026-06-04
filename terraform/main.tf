@@ -28,7 +28,7 @@ locals {
     postgres_password    = local.gitlab_docker_stack_enabled ? random_password.gitlab_docker_postgres[0].result : ""
     traefik_image        = var.gitlab_docker_traefik_image
     gitlab_ce_image      = var.gitlab_docker_gitlab_ce_image
-    postgres_image       = var.gitlab_docker_postgres_image
+    postgres_image       = local.gitlab_docker_postgres_image_effective
     acme_enabled         = var.gitlab_docker_traefik_acme_enabled
     acme_email           = local.gitlab_letsencrypt_contact
     external_url_scheme  = local.gitlab_docker_external_url_scheme

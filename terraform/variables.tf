@@ -143,30 +143,48 @@ variable "gitlab_docker_traefik_image" {
 }
 
 variable "gitlab_docker_gitlab_ce_image" {
-  description = "gitlab/gitlab-ce image tag for Docker Compose mode"
+  description = "gitlab/gitlab-ce image tag for Docker Compose mode (official CE release tags: MAJOR.MINOR.PATCH-ce.0)"
   type        = string
   default     = "gitlab/gitlab-ce:18.11.4-ce.0"
 
   validation {
     condition = can(regex(
-      "^gitlab/gitlab-ce:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      "^gitlab/gitlab-ce:[0-9]+\\.[0-9]+\\.[0-9]+-ce\\.0$",
       var.gitlab_docker_gitlab_ce_image,
     ))
-    error_message = "gitlab_docker_gitlab_ce_image must be gitlab/gitlab-ce:<tag> (e.g. gitlab/gitlab-ce:18.10.5-ce.0)."
+    error_message = "gitlab_docker_gitlab_ce_image must be an official CE tag: gitlab/gitlab-ce:MAJOR.MINOR.PATCH-ce.0 (e.g. gitlab/gitlab-ce:18.11.4-ce.0)."
+  }
+
+  validation {
+    condition     = tonumber(regex("^gitlab/gitlab-ce:([0-9]+)", var.gitlab_docker_gitlab_ce_image)[0]) >= 16
+    error_message = "gitlab_docker_gitlab_ce_image must use GitLab 16.0 or newer; see https://docs.gitlab.com/install/requirements/."
   }
 }
 
 variable "gitlab_docker_postgres_image" {
-  description = "PostgreSQL container image for Docker Compose mode (pin major version, e.g. postgres:16-alpine)"
+  description = "PostgreSQL container image for Docker Compose mode. GitLab 18.x: postgres:16+ or 17; GitLab 19.x: Terraform uses postgres:17 automatically (suffix from this variable, default -alpine). See https://docs.gitlab.com/install/requirements/"
   type        = string
   default     = "postgres:16-alpine"
 
   validation {
     condition = can(regex(
-      "^postgres:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      "^postgres:(1[3-7])(\\.[0-9]+)?(-[a-zA-Z0-9._-]+)?$",
       var.gitlab_docker_postgres_image,
     ))
-    error_message = "gitlab_docker_postgres_image must be postgres:<tag> (e.g. postgres:16-alpine)."
+    error_message = "gitlab_docker_postgres_image must be postgres:<major> or postgres:<major>.<minor> with optional suffix (e.g. postgres:16-alpine, postgres:17.7-bookworm)."
+  }
+
+  validation {
+    condition     = contains([13, 14, 15, 16, 17], tonumber(regex("^postgres:([0-9]+)", var.gitlab_docker_postgres_image)[0]))
+    error_message = "gitlab_docker_postgres_image major version must be 13–17 (match GitLab CE requirements: https://docs.gitlab.com/install/requirements/)."
+  }
+
+  validation {
+    condition = (
+      tonumber(regex("^gitlab/gitlab-ce:([0-9]+)", var.gitlab_docker_gitlab_ce_image)[0]) != 19 ||
+      tonumber(regex("^postgres:([0-9]+)", var.gitlab_docker_postgres_image)[0]) == 17
+    )
+    error_message = "When gitlab_docker_gitlab_ce_image is GitLab 19.x, set gitlab_docker_postgres_image to postgres:17 (e.g. postgres:17-alpine), or any postgres:17-* tag; otherwise Terraform overrides to postgres:17 with your tag suffix."
   }
 }
 
