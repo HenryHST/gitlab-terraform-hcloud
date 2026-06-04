@@ -47,6 +47,17 @@ check "proxmox_tf_files_when_install_mode_proxmox" {
   }
 }
 
+check "proxmox_gitlab_runner_distinct_vmid" {
+  assert {
+    condition = (
+      var.proxmox_gitlab_vmid == 0 ||
+      var.proxmox_runner_vmid == 0 ||
+      var.proxmox_gitlab_vmid != var.proxmox_runner_vmid
+    )
+    error_message = "proxmox_gitlab_vmid and proxmox_runner_vmid must differ when both are set (> 0)."
+  }
+}
+
 check "proxmox_gitlab_not_parallel_hetzner_docker" {
   assert {
     condition = !(

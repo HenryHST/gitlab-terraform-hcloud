@@ -1031,11 +1031,6 @@ variable "proxmox_runner_vmid" {
     condition     = var.proxmox_runner_vmid == 0 || (var.proxmox_runner_vmid >= 100 && var.proxmox_runner_vmid <= 999999999)
     error_message = "proxmox_runner_vmid must be 0 (auto) or between 100 and 999999999."
   }
-
-  validation {
-    condition     = var.proxmox_gitlab_vmid == 0 || var.proxmox_runner_vmid == 0 || var.proxmox_gitlab_vmid != var.proxmox_runner_vmid
-    error_message = "proxmox_gitlab_vmid and proxmox_runner_vmid must differ when both are set (> 0)."
-  }
 }
 # Proxmox VM/provider variables: copy proxmox_variables.tf.example → proxmox_variables.tf with proxmox.tf.
 
