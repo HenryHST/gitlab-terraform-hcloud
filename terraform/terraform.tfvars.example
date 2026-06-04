@@ -93,6 +93,7 @@ enable_gitlab_resources = false
 # cp provider_proxmox.tf.example provider_proxmox.tf
 # cp proxmox_variables.tf.example proxmox_variables.tf
 # cp outputs_proxmox.tf.example outputs_proxmox.tf
+# cp proxmox_data.tf.example proxmox_data.tf   # required for gitlab_install_mode = "proxmox"
 # enable_proxmox_resources              = false
 # proxmox_gitlab_docker_compose_enabled = true   # required with enable_proxmox_resources for GitLab on Proxmox
 # proxmox_api_url                       = "https://pve01.example.com:8006/api2/json"
@@ -104,6 +105,8 @@ enable_gitlab_resources = false
 # proxmox_enable_runner                 = false
 # proxmox_enable_clone                  = false
 # pm_tls_insecure                       = true
+# pm_timeout                            = 300   # API timeout (seconds); 30–86400
+# pm_parallel                           = 1     # parallel provider ops; 1–32
 # ciuser                                = "admin"
 # cipassword                            = "…"
 # nameserver                            = "192.168.0.1"
@@ -111,6 +114,12 @@ enable_gitlab_resources = false
 # vm_default_bridge                     = "vmbr0"
 # vm_default_storage                    = "local-lvm"
 # clone_template                        = "ubuntu-tmp"
-# With Proxmox only: gitlab_install_mode = "none"
+# Proxmox-only (recommended):
+# gitlab_install_mode                   = "proxmox"
+# enable_proxmox_resources              = true
+# proxmox_gitlab_docker_compose_enabled = true
+# proxmox_gitlab_vmid                   = 0    # 0 = auto; e.g. 120 = fixed ID (plan checks availability)
+# proxmox_runner_vmid                   = 0
+# Legacy Proxmox-only: gitlab_install_mode = "none" + enable_proxmox_resources = true
 # enable_hetzner_dns = null   # default: no Hetzner DNS when Proxmox is the GitLab target
 # enable_hetzner_dns = true   # override: mail zone / runner A record on Hetzner DNS

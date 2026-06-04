@@ -94,13 +94,23 @@ variable "gitlab_time_zone" {
 }
 
 variable "gitlab_install_mode" {
-  description = "GitLab platform: none (no GitLab), hetzner_app (Hetzner GitLab image + Omnibus cloud-init), docker_compose (Debian VM + Docker Compose GitLab CE + Traefik v3.7)"
+  description = "GitLab platform: none, hetzner_app, docker_compose (Hetzner), proxmox (Proxmox VMs + Docker Compose cloud-init; requires enable_proxmox_resources)"
   type        = string
   default     = "none"
 
   validation {
-    condition     = contains(["none", "hetzner_app", "docker_compose"], var.gitlab_install_mode)
-    error_message = "gitlab_install_mode must be one of: none, hetzner_app, docker_compose."
+    condition     = contains(["none", "hetzner_app", "docker_compose", "proxmox"], var.gitlab_install_mode)
+    error_message = "gitlab_install_mode must be one of: none, hetzner_app, docker_compose, proxmox."
+  }
+
+  validation {
+    condition     = var.gitlab_install_mode != "proxmox" || var.enable_proxmox_resources
+    error_message = "gitlab_install_mode = \"proxmox\" requires enable_proxmox_resources = true."
+  }
+
+  validation {
+    condition     = var.gitlab_install_mode != "proxmox" || var.proxmox_gitlab_docker_compose_enabled
+    error_message = "gitlab_install_mode = \"proxmox\" requires proxmox_gitlab_docker_compose_enabled = true."
   }
 }
 
@@ -998,6 +1008,33 @@ variable "proxmox_gitlab_docker_compose_enabled" {
   validation {
     condition     = !var.proxmox_gitlab_docker_compose_enabled || var.enable_proxmox_resources
     error_message = "proxmox_gitlab_docker_compose_enabled requires enable_proxmox_resources."
+  }
+}
+
+variable "proxmox_gitlab_vmid" {
+  description = "Proxmox VM ID for GitLab VM; 0 = next free ID (no plan-time availability check). Used when gitlab_install_mode = proxmox."
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.proxmox_gitlab_vmid == 0 || (var.proxmox_gitlab_vmid >= 100 && var.proxmox_gitlab_vmid <= 999999999)
+    error_message = "proxmox_gitlab_vmid must be 0 (auto) or between 100 and 999999999."
+  }
+}
+
+variable "proxmox_runner_vmid" {
+  description = "Proxmox VM ID for optional Runner VM; 0 = next free ID (no plan-time availability check)"
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.proxmox_runner_vmid == 0 || (var.proxmox_runner_vmid >= 100 && var.proxmox_runner_vmid <= 999999999)
+    error_message = "proxmox_runner_vmid must be 0 (auto) or between 100 and 999999999."
+  }
+
+  validation {
+    condition     = var.proxmox_gitlab_vmid == 0 || var.proxmox_runner_vmid == 0 || var.proxmox_gitlab_vmid != var.proxmox_runner_vmid
+    error_message = "proxmox_gitlab_vmid and proxmox_runner_vmid must differ when both are set (> 0)."
   }
 }
 # Proxmox VM/provider variables: copy proxmox_variables.tf.example → proxmox_variables.tf with proxmox.tf.

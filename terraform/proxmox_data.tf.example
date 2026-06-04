@@ -1,0 +1,38 @@
+# Copy to proxmox_data.tf when gitlab_install_mode = "proxmox" (see checks_proxmox.tf fileexists check).
+# Requires Proxmox API reachability at terraform plan (cluster/resources).
+
+data "external" "proxmox_vmids" {
+  count = var.gitlab_install_mode == "proxmox" ? 1 : 0
+
+  program = ["${path.module}/../scripts/proxmox-check-vmids.sh"]
+
+  query = {
+    api_url      = var.proxmox_api_url
+    api_token_id = var.proxmox_api_token_id
+    api_token    = var.proxmox_api_token
+    tls_insecure = var.pm_tls_insecure ? "true" : "false"
+    gitlab_vmid  = tostring(var.proxmox_gitlab_vmid)
+    runner_vmid  = tostring(var.proxmox_runner_vmid)
+    check_runner = var.proxmox_enable_runner ? "true" : "false"
+  }
+}
+
+check "proxmox_vmid_available" {
+  assert {
+    condition = (
+      var.gitlab_install_mode != "proxmox" ||
+      (
+        (var.proxmox_gitlab_vmid == 0 || data.external.proxmox_vmids[0].result.gitlab_available == "true") &&
+        (
+          !var.proxmox_enable_runner ||
+          var.proxmox_runner_vmid == 0 ||
+          data.external.proxmox_vmids[0].result.runner_available == "true"
+        )
+      )
+    )
+    error_message = <<-EOT
+      Proxmox VM ID already in use (cluster-wide). Used VMIDs (sample): ${try(data.external.proxmox_vmids[0].result.used_vmids, "unknown")}.
+      Pick a free ID (Proxmox UI or GET /cluster/resources?type=vm) or set proxmox_gitlab_vmid / proxmox_runner_vmid = 0 for auto-assignment (no plan-time check).
+    EOT
+  }
+}

@@ -63,6 +63,9 @@ variable "proxmox_enable_runner" {
   default     = false
 }
 
+# VM IDs are declared in variables.tf (proxmox_gitlab_vmid, proxmox_runner_vmid).
+# Plan-time availability check when gitlab_install_mode = "proxmox": copy proxmox_data.tf.example → proxmox_data.tf.
+
 variable "proxmox_api_token" {
   description = "Proxmox API token secret (pm_api_token_secret); required when enable_proxmox_resources is true"
   type        = string
@@ -97,7 +100,7 @@ variable "proxmox_api_url" {
 variable "proxmox_node" {
   description = "Proxmox cluster node name (target_node for VMs)"
   type        = string
-  default     = "pve01"
+  default     = "pve03"
 
   validation {
     condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9_-]*$", var.proxmox_node))
@@ -114,6 +117,28 @@ variable "pm_tls_insecure" {
   description = "Skip TLS verification for the Proxmox API (pm_tls_insecure)"
   type        = bool
   default     = true
+}
+
+variable "pm_timeout" {
+  description = "Timeout in seconds for Proxmox API calls (pm_timeout); increase for slow clones or storage operations"
+  type        = number
+  default     = 300
+
+  validation {
+    condition     = var.pm_timeout >= 30 && var.pm_timeout <= 86400
+    error_message = "pm_timeout must be between 30 and 86400 seconds (provider default 300)."
+  }
+}
+
+variable "pm_parallel" {
+  description = "Maximum simultaneous Proxmox provider operations (pm_parallel); 1 is safest (provider default)"
+  type        = number
+  default     = 1
+
+  validation {
+    condition     = var.pm_parallel >= 1 && var.pm_parallel <= 32 && var.pm_parallel == floor(var.pm_parallel)
+    error_message = "pm_parallel must be an integer between 1 and 32 (provider default 1)."
+  }
 }
 
 variable "cipassword" {

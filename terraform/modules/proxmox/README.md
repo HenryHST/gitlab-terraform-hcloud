@@ -25,7 +25,9 @@ module "proxmox" {
 
 The root module enables this with `enable_proxmox_resources = true` (see repository README, section GitLab auf Proxmox).
 
-Module inputs are validated in `variables.tf` (format, bounds, Proxmox naming). Cross-field rules live in `checks.tf` (e.g. distinct VM names and IP configs when the runner VM is enabled, non-empty cloud-init when `gitlab_docker_enabled` is true).
+Module inputs are validated in `variables.tf` (format, bounds, Proxmox naming). Cross-field rules live in `checks.tf` (e.g. distinct VM names, IP configs, and VM IDs when the runner VM is enabled, non-empty cloud-init when `gitlab_docker_enabled` is true).
+
+**VM IDs:** `gitlab_vmid` and `runner_vmid` default to `0` (provider assigns the next free cluster-wide ID). With `gitlab_install_mode = "proxmox"` in the root module, copy `proxmox_data.tf.example` → `proxmox_data.tf` for a plan-time API check that fixed IDs (> 0) are not already in use.
 
 ## Requirements
 
@@ -36,7 +38,7 @@ Module inputs are validated in `variables.tf` (format, bounds, Proxmox naming). 
 | null | ~> 3.2 |
 | local | ~> 2.5 |
 
-Copy `proxmox.tf.example` → `proxmox.tf`, `provider_proxmox.tf.example` → `provider_proxmox.tf`, `proxmox_variables.tf.example` → `proxmox_variables.tf`, and `outputs_proxmox.tf.example` → `outputs_proxmox.tf`. Without those files and with `enable_proxmox_resources = false`, no Proxmox provider or API calls occur during `plan`.
+Copy `proxmox.tf.example` → `proxmox.tf`, `provider_proxmox.tf.example` → `provider_proxmox.tf`, `proxmox_variables.tf.example` → `proxmox_variables.tf`, `outputs_proxmox.tf.example` → `outputs_proxmox.tf`, and (for `gitlab_install_mode = "proxmox"`) `proxmox_data.tf.example` → `proxmox_data.tf`. Without those files and with `enable_proxmox_resources = false`, no Proxmox provider or API calls occur during `plan` (except the optional VM-ID external data when mode is `proxmox` and `proxmox_data.tf` is present).
 
 ## Outputs
 

@@ -2,7 +2,7 @@ locals {
   gitlab_fqdn                = "${var.gitlab_dns_record_name}.${var.dns_domain}"
   renovate_fqdn              = "${var.gitlab_docker_renovate_dns_label}.${var.dns_domain}"
   registry_fqdn              = "${var.gitlab_docker_registry_dns_label}.${var.dns_domain}"
-  gitlab_enabled             = var.gitlab_install_mode != "none"
+  gitlab_enabled = contains(["hetzner_app", "docker_compose"], var.gitlab_install_mode)
   gitlab_letsencrypt_contact = var.gitlab_letsencrypt_email != "" ? var.gitlab_letsencrypt_email : "gitlab-acme@${var.dns_domain}"
   gitlab_root_email_effective = (
     var.gitlab_root_email != "" ? var.gitlab_root_email :
@@ -10,8 +10,11 @@ locals {
     "gitlab-root@${var.dns_domain}"
   )
 
-  proxmox_gitlab_docker       = var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
-  proxmox_gitlab_primary      = local.proxmox_gitlab_docker && var.gitlab_install_mode == "none"
+  proxmox_gitlab_docker = (
+    var.gitlab_install_mode == "proxmox" ||
+    (var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled)
+  )
+  proxmox_gitlab_primary = local.proxmox_gitlab_docker && contains(["none", "proxmox"], var.gitlab_install_mode)
   manage_hetzner_dns          = var.enable_hetzner_dns != null ? var.enable_hetzner_dns : !local.proxmox_gitlab_primary
   gitlab_docker_stack_enabled = var.gitlab_install_mode == "docker_compose" || local.proxmox_gitlab_docker
 

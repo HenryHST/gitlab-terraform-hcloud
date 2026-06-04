@@ -1,5 +1,6 @@
 # Copy to proxmox.tf when enable_proxmox_resources = true (see README "GitLab auf Proxmox").
 # Also copy: provider_proxmox.tf.example, proxmox_variables.tf.example, outputs_proxmox.tf.example.
+# For gitlab_install_mode = "proxmox": also copy proxmox_data.tf.example → proxmox_data.tf (VM ID plan check).
 
 module "proxmox" {
   count  = var.enable_proxmox_resources ? 1 : 0
@@ -17,6 +18,8 @@ module "proxmox" {
   snippet_storage         = var.proxmox_snippet_storage
   enable_clone            = var.proxmox_enable_clone
   enable_runner           = var.proxmox_enable_runner
+  gitlab_vmid             = var.proxmox_gitlab_vmid
+  runner_vmid             = var.proxmox_runner_vmid
   gitlab_ipconfig0        = var.proxmox_gitlab_ipconfig0
   runner_ipconfig0        = var.proxmox_runner_ipconfig0
   ssh_public_key          = local.ssh_public_key_effective

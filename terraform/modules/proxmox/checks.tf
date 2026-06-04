@@ -20,3 +20,10 @@ check "gitlab_runner_distinct_ipconfig" {
     error_message = "gitlab_ipconfig0 and runner_ipconfig0 must differ when enable_runner is true (assign distinct static IPs)."
   }
 }
+
+check "gitlab_runner_distinct_vmid" {
+  assert {
+    condition     = !var.enable_runner || var.gitlab_vmid == 0 || var.runner_vmid == 0 || var.gitlab_vmid != var.runner_vmid
+    error_message = "gitlab_vmid and runner_vmid must differ when enable_runner is true and both VM IDs are set (> 0)."
+  }
+}

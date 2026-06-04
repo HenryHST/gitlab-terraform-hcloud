@@ -1,7 +1,7 @@
 # GitLab CE ↔ PostgreSQL version pairing per https://docs.gitlab.com/install/requirements/
 
 locals {
-  gitlab_docker_images_apply = var.gitlab_install_mode == "docker_compose" || (
+  gitlab_docker_images_apply = contains(["docker_compose", "proxmox"], var.gitlab_install_mode) || (
     var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
   )
 

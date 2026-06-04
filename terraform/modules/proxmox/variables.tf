@@ -142,6 +142,28 @@ variable "enable_runner" {
   description = "Create a second VM for GitLab Runner"
 }
 
+variable "gitlab_vmid" {
+  type        = number
+  default     = 0
+  description = "Proxmox VM ID for GitLab; 0 = next free ID (telmate/proxmox provider)"
+
+  validation {
+    condition     = var.gitlab_vmid == 0 || (var.gitlab_vmid >= 100 && var.gitlab_vmid <= 999999999)
+    error_message = "gitlab_vmid must be 0 (auto) or between 100 and 999999999."
+  }
+}
+
+variable "runner_vmid" {
+  type        = number
+  default     = 0
+  description = "Proxmox VM ID for GitLab Runner; 0 = next free ID"
+
+  validation {
+    condition     = var.runner_vmid == 0 || (var.runner_vmid >= 100 && var.runner_vmid <= 999999999)
+    error_message = "runner_vmid must be 0 (auto) or between 100 and 999999999."
+  }
+}
+
 variable "gitlab_vm_name" {
   type        = string
   default     = "gitlab"
