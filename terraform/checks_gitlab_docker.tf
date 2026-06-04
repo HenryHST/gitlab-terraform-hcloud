@@ -25,7 +25,7 @@ locals {
   )
 
   postgres_major_match = try(regex("^postgres:([0-9]+)", local.gitlab_docker_postgres_image_effective), [])
-  postgres_major         = length(local.postgres_major_match) > 0 ? tonumber(local.postgres_major_match[0]) : null
+  postgres_major       = length(local.postgres_major_match) > 0 ? tonumber(local.postgres_major_match[0]) : null
 
   postgres_majors_allowed = (
     local.gitlab_ce_major == 19 ? [17] :
