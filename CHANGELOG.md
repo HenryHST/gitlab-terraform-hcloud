@@ -7,12 +7,18 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-06-04
+
+Patch-Release: dedizierter Proxmox-Installationsmodus mit VM-ID-Plan-Check, Provider-Timeouts, Compose-Image-Checks und GitLab/PostgreSQL-Versionsvalidierung.
+
 ### Added
 
 - **Proxmox:** Provider-Variablen `pm_timeout` (30–86400 s, Default 300) und `pm_parallel` (1–32, Default 1) in [`proxmox_variables.tf.example`](terraform/proxmox_variables.tf.example), an [`provider_proxmox.tf.example`](terraform/provider_proxmox.tf.example) angebunden.
 - **Proxmox:** `gitlab_install_mode = "proxmox"` (erfordert `enable_proxmox_resources` und `proxmox_gitlab_docker_compose_enabled`); Variablen `proxmox_gitlab_vmid` / `proxmox_runner_vmid` (`0` = Auto); Modul [`modules/proxmox`](terraform/modules/proxmox) setzt `vmid` auf den QEMU-Ressourcen; bei festen IDs und `proxmox`-Modus Plan-Check per [`scripts/proxmox-check-vmids.sh`](scripts/proxmox-check-vmids.sh) und [`proxmox_data.tf.example`](terraform/proxmox_data.tf.example) → `proxmox_data.tf`.
 - **Makefile:** `make check-images` und `make check-images-strict` — vergleichen gepinnte GitLab-CE- und Traefik-Docker-Tags mit Docker Hub ([`scripts/check-compose-image-versions.sh`](scripts/check-compose-image-versions.sh)).
 - **GitLab CE / PostgreSQL:** Validierung von `gitlab_docker_gitlab_ce_image` und `gitlab_docker_postgres_image` sowie `check.gitlab_docker_postgres_version` in [`checks_gitlab_docker.tf`](terraform/checks_gitlab_docker.tf) gemäß [GitLab installation requirements](https://docs.gitlab.com/install/requirements/) (z. B. GitLab 18.x → PostgreSQL 16 oder 17; **GitLab 19.x → automatisch `postgres:17`** via `local.gitlab_docker_postgres_image_effective`).
+
+[0.1.2]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.1.2
 
 ## [0.1.1] - 2026-05-31
 
