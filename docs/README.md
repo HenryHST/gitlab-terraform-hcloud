@@ -2,7 +2,70 @@
 
 Ausführliche Anleitungen und Referenz für **gitlab-terraform-hcloud**. Kurzüberblick und Schnellstart: [Repository-README](../README.md).
 
+**[Inhaltsverzeichnis](#inhaltsverzeichnis)** • **[Verzeichnisübersicht](#verzeichnisübersicht)** • [Repository-README](../README.md)
+
+## Verzeichnisübersicht
+
+Orientierung am [Directory Overview in PH's HomeLab](https://github.com/phsaurav/Home-Lab/blob/main/README.md#directory-overview). Nur versionierte Pfade; lokale Secrets (`terraform.tfvars`), `.terraform/` und Plan-Artefakte sind ausgelassen.
+
+```txt
+gitlab-terraform-hcloud/
+├── README.md                              # Einstieg: Tech Stack, Architektur, Schnellstart
+├── CHANGELOG.md
+├── Makefile                               # fmt, validate, ci, check-images
+├── renovate.json                          # Mend Renovate (Repo-Root)
+├── LICENSE
+├── .github/
+│   ├── workflows/
+│   │   └── terraform.yml                  # CI: terraform/tofu fmt, validate, tflint
+│   └── ISSUE_TEMPLATE/                    # Bug- und Feature-Templates
+├── docs/                                  # Erweiterte Doku (dieses Verzeichnis)
+│   ├── README.md                          # Inhaltsverzeichnis + Verzeichnisübersicht
+│   ├── reference.md                       # Root-Variablen & Outputs
+│   ├── gitlab-install-modes.md            # hetzner_app, docker_compose, Registry, Runner, …
+│   ├── proxmox.md                         # Proxmox-Checkliste, VM-IDs, Troubleshooting
+│   ├── operations.md                      # Module, Sicherheit, Cloud-Init, CI
+│   └── diagrams/
+│       ├── registry-architecture.mmd      # Registry-Topologie (Mermaid-Quelle)
+│       └── registry-request-flow.mmd      # Registry-Request-Flow (Mermaid-Quelle)
+├── scripts/
+│   ├── check-compose-image-versions.sh    # Docker-Hub-Vergleich (make check-images)
+│   └── proxmox-check-vmids.sh             # Plan-Check: freie Proxmox-VM-IDs
+└── terraform/                             # Working Directory für terraform/tofu und make
+    ├── main.tf                            # Module firewall → server → dns, Locals
+    ├── variables.tf                       # Root-Variablen inkl. gitlab_install_mode
+    ├── outputs.tf
+    ├── provider.tf                        # hcloud, gitlab, random
+    ├── gitlab.tf                          # Optional: Gruppe/Projekte per GitLab-API
+    ├── dns_moved.tf                       # State-Migration DNS
+    ├── checks_proxmox.tf                  # Proxmox-Datei-Checks, VM-ID-Querbezug
+    ├── checks_gitlab_docker.tf            # GitLab CE / PostgreSQL-Validierung
+    ├── proxmox.tf.example                 # → proxmox.tf (kopieren, in .gitignore)
+    ├── provider_proxmox.tf.example        # → provider_proxmox.tf
+    ├── proxmox_variables.tf.example       # → proxmox_variables.tf
+    ├── proxmox_data.tf.example            # → proxmox_data.tf (VM-ID-Check bei Modus proxmox)
+    ├── proxmox_moved.tf.example           # → proxmox_moved.tf (State-Migration)
+    ├── outputs_proxmox.tf.example         # → outputs_proxmox.tf
+    ├── terraform.tfvars.example           # Vorlage für terraform.tfvars (nicht committen)
+    ├── .tflint.hcl
+    ├── .terraform.lock.hcl
+    ├── templates/
+    │   ├── gitlab-cloud-init.yaml.tpl     # gitlab_install_mode = hetzner_app
+    │   ├── gitlab-docker-cloud-init.yaml.tpl  # docker_compose / Proxmox-Docker
+    │   └── gitlab-runner-cloud-init.yaml.tpl  # enable_gitlab_runner (Hetzner-VM)
+    └── modules/
+        ├── firewall/                      # hcloud_firewall (Hetzner)
+        ├── server/                        # hcloud_server, SSH, user_data
+        ├── dns/                           # hcloud_zone, Mail/Web-Records
+        ├── gitlab-api/                    # gitlab_group, gitlab_project (optional)
+        └── proxmox/                       # proxmox_vm_qemu, Cloud-Init-Snippet
+```
+
+Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per **`make`** vom Repo-Root). Details zu Installationsmodi und Proxmox: [gitlab-install-modes.md](gitlab-install-modes.md), [proxmox.md](proxmox.md).
+
 ## Inhaltsverzeichnis
+
+- [Verzeichnisübersicht](#verzeichnisübersicht)
 
 ### Referenz & Betrieb
 
