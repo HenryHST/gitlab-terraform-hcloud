@@ -164,7 +164,7 @@ Doku: [Container Registry](https://docs.gitlab.com/administration/packages/conta
 
 Opt-in über **`gitlab_docker_pages_enabled = true`** (Standard `false`). Erfordert **`gitlab_docker_traefik_acme_enabled = true`** (Wildcard-TLS per DNS-01). Projekt-URLs: **`https://<namespace>.pages.<zone>`** (Label über **`gitlab_docker_pages_dns_label`**, Standard `pages`).
 
-Details, DNS, CI-Beispiel und Troubleshooting: [pages.md](pages.md). Diagramm: [`docs/diagrams/pages-architecture.mmd`](diagrams/pages-architecture.mmd).
+Details, DNS, CI-Beispiel und Troubleshooting: [pages.md](pages.md). Fehler „Support for domains and certificates is disabled“: [terraform/README.md](../terraform/README.md). Diagramm: [`docs/diagrams/pages-architecture.mmd`](diagrams/pages-architecture.mmd).
 
 ### Renovate CE (`docker_compose`)
 

@@ -40,7 +40,7 @@ Source: [`docs/diagrams/pages-architecture.mmd`](diagrams/pages-architecture.mmd
 | Component | Details |
 |-----------|---------|
 | DNS | A record `pages` and A record `*.pages` → GitLab host IPv4 (when Hetzner DNS is managed) |
-| `gitlab.rb` | `pages_external_url`, `gitlab_pages['enable']`, `listen_proxy` on `8090`, `pages_nginx['enable'] = false` |
+| `gitlab.rb` | `pages_external_url`, `gitlab_pages['enable']`, `listen_proxy` on `8090`, `gitlab_pages['custom_domain_mode'] = 'http'`, `pages_nginx['enable'] = false` |
 | Traefik | Router `pages`: `Host(pages.<zone>)` or `HostRegexp(^.<namespace>.pages.<zone>$)` → port **8090** |
 | TLS | `certresolver=hetzner` with `main` + `sans=*.pages.<zone>` (DNS-01 wildcard) |
 | Storage | Under existing bind-mount `./data/gitlab` → `/var/opt/gitlab/.../shared/pages` |
@@ -94,6 +94,7 @@ After a successful job, GitLab shows the Pages URL (typically `https://<namespac
 
 | Symptom | Action |
 |---------|--------|
+| **„Support for domains and certificates is disabled“** (deploy / Admin → Pages) | Set `gitlab_pages['custom_domain_mode'] = 'http'` in `gitlab.rb` (Terraform does this when Pages is enabled), then `gitlab-ctl reconfigure`. See [terraform/README.md](../terraform/README.md). |
 | 404 or TLS only on apex | Check wildcard DNS `*.pages` and Traefik `tls.domains[0].sans=*.pages.<zone>` |
 | Pages job OK, URL unreachable | `docker compose exec gitlab gitlab-ctl status`; confirm Pages listens on 8090; `pages_external_url` matches DNS |
 | No DNS answers | `manage_hetzner_dns` false → add records manually; wait for propagation |

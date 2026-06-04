@@ -381,6 +381,7 @@ write_files:
       pages_external_url '${external_url_scheme}://${pages_fqdn}'
       gitlab_pages['enable'] = true
       gitlab_pages['listen_proxy'] = '0.0.0.0:8090'
+      gitlab_pages['custom_domain_mode'] = 'http'
       pages_nginx['enable'] = false
 %{ if acme_enabled ~}
       pages_nginx['real_ip_header'] = 'X-Forwarded-For'

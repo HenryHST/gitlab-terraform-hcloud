@@ -95,7 +95,6 @@ Alle Befehle `terraform` / `tofu` und `terraform.tfvars` gehören in den Ordner 
   </tr>
 </table>
 
-Orientierung am Aufbau von <a href="https://github.com/phsaurav/Home-Lab/blob/main/README.md">PH's HomeLab — Tech Stack</a>.
 
 ## Inhaltsverzeichnis
 

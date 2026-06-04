@@ -66,7 +66,7 @@ gitlab-terraform-hcloud/
         └── proxmox/                       # proxmox_vm_qemu, Cloud-Init-Snippet
 ```
 
-Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per **`make`** vom Repo-Root). Details zu Installationsmodi und Proxmox: [gitlab-install-modes.md](gitlab-install-modes.md), [proxmox.md](proxmox.md).
+Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per **`make`** vom Repo-Root). Kurzreferenz im Arbeitsverzeichnis: [terraform/README.md](../terraform/README.md) (u. a. Pages-Fehler „domains and certificates disabled“). Details zu Installationsmodi und Proxmox: [gitlab-install-modes.md](gitlab-install-modes.md), [proxmox.md](proxmox.md).
 
 ## Inhaltsverzeichnis
 
