@@ -7,6 +7,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+### Changed
+
+- **Dokumentation:** README auf Einstieg, Architektur und Schnellstart reduziert; Tiefgang nach [`docs/`](docs/) mit zentralem [Inhaltsverzeichnis](docs/README.md) (`reference.md`, `gitlab-install-modes.md`, `proxmox.md`, `operations.md`).
+
 ## [0.1.2] - 2026-06-04
 
 Patch-Release: dedizierter Proxmox-Installationsmodus mit VM-ID-Plan-Check, Provider-Timeouts, Compose-Image-Checks und GitLab/PostgreSQL-Versionsvalidierung.
@@ -82,7 +86,7 @@ Patch-Release: Proxmox-Schienen mit Docker-Compose-Cloud-Init, Container Registr
 
 ### Added
 
-- **Proxmox (`enable_proxmox_resources`):** [`proxmox.tf`](terraform/proxmox.tf), [`proxmox_cloud_init.tf`](terraform/proxmox_cloud_init.tf) — Upload von `gitlab-docker-cloud-init.yaml.tpl` als Snippet, `cicustom` an `proxmox_vm_qemu.gitlab`; Variablen u. a. `proxmox_gitlab_docker_compose_enabled`, `proxmox_gitlab_ipconfig0`, `proxmox_api_token_id`, `proxmox_enable_clone` / `proxmox_enable_runner`; Provider `telmate/proxmox`, `hashicorp/null`, `hashicorp/local`; README-Abschnitt [GitLab auf Proxmox](README.md#gitlab-auf-proxmox).
+- **Proxmox (`enable_proxmox_resources`):** [`proxmox.tf`](terraform/proxmox.tf), [`proxmox_cloud_init.tf`](terraform/proxmox_cloud_init.tf) — Upload von `gitlab-docker-cloud-init.yaml.tpl` als Snippet, `cicustom` an `proxmox_vm_qemu.gitlab`; Variablen u. a. `proxmox_gitlab_docker_compose_enabled`, `proxmox_gitlab_ipconfig0`, `proxmox_api_token_id`, `proxmox_enable_clone` / `proxmox_enable_runner`; Provider `telmate/proxmox`, `hashicorp/null`, `hashicorp/local`; Doku [GitLab auf Proxmox](docs/proxmox.md).
 - **Container Registry (`docker_compose`):** Variablen `gitlab_docker_registry_enabled` (Standard `true`) und `gitlab_docker_registry_dns_label`; DNS A-Record; Traefik-Router Port 5050; Registry-Volumes und `registry_external_url` in `gitlab.rb`; Outputs `registry_fqdn` / `registry_url`; Diagramme unter [`docs/diagrams/`](docs/diagrams/).
 - **GitLab-Provider (`enable_gitlab_resources`):** Admin-Benutzer, Gruppen und Projekte in [`gitlab.tf`](terraform/gitlab.tf); Output `gitlab_admin_password`.
 

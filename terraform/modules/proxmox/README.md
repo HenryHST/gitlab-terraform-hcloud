@@ -23,7 +23,7 @@ module "proxmox" {
 }
 ```
 
-The root module enables this with `enable_proxmox_resources = true` (see repository README, section GitLab auf Proxmox).
+The root module enables this with `enable_proxmox_resources = true` (see [docs/proxmox.md](../../docs/proxmox.md)).
 
 Module inputs are validated in `variables.tf` (format, bounds, Proxmox naming). Cross-field rules live in `checks.tf` (e.g. distinct VM names, IP configs, and VM IDs when the runner VM is enabled, non-empty cloud-init when `gitlab_docker_enabled` is true).
 

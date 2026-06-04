@@ -1,5 +1,5 @@
 terraform {
-  # Terraform >= 1.14.4 (CI) and OpenTofu >= 1.9.0 (e.g. 1.12.x) share this HCL; see README “Terraform und OpenTofu”.
+  # Terraform >= 1.14.4 (CI) and OpenTofu >= 1.9.0 (e.g. 1.12.x) share this HCL; see docs/operations.md “Terraform und OpenTofu”.
   required_version = ">= 1.9.0"
 
   required_providers {
