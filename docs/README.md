@@ -27,8 +27,10 @@ gitlab-terraform-hcloud/
 │   ├── operations.md                      # Module, Sicherheit, Cloud-Init, CI
 │   ├── backup.md                          # Backups: Variablen, Cron, CI, Restore
 │   ├── pages.md                           # GitLab Pages: Wildcard-DNS, Traefik, CI
+│   ├── runner-buildah.md                # Buildah-Runner: rootless, multi-arch, privileged
 │   ├── examples/
-│   │   └── gitlab-backup-ci.yml.example   # GitLab CI: manuelles/scheduled Backup
+│   │   ├── gitlab-backup-ci.yml.example   # GitLab CI: manuelles/scheduled Backup
+│   │   └── gitlab-ci-buildah.yml.example  # Buildah CI jobs per runner tag
 │   └── diagrams/
 │       ├── registry-architecture.mmd      # Registry-Topologie (Mermaid-Quelle)
 │       ├── registry-request-flow.mmd      # Registry-Request-Flow (Mermaid-Quelle)
@@ -92,6 +94,7 @@ Terraform- und OpenTofu-Befehle werden in **`terraform/`** ausgeführt (oder per
 
 - [Backups](backup.md) — Variablen, Auto-Cron, manuell, GitLab CI
 - [GitLab Pages](pages.md) — Wildcard-DNS, Traefik, CI
+- [Runner Buildah](runner-buildah.md) — drei Profile (rootless, multi-arch, privileged)
 - [Installationsmodi](gitlab-install-modes.md)
   - [`hetzner_app`](gitlab-install-modes.md#hetzner_app-hetzner-app-image)
   - [`docker_compose`](gitlab-install-modes.md#docker_compose-gitlab-ce--traefik)

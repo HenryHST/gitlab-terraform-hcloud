@@ -255,7 +255,7 @@ write_files:
     permissions: "0750"
     content: |
       #!/usr/bin/env bash
-      # Create instance runner via POST /api/v4/user/runners and write config.toml (https://docs.gitlab.com/tutorials/automate_runner_creation/)
+      # Create instance runner(s) via POST /api/v4/user/runners (https://docs.gitlab.com/tutorials/automate_runner_creation/)
       set -euo pipefail
       COMPOSE_DIR=/opt/gitlab
       LOG=/var/log/gitlab-runner-autoregister.log
@@ -263,6 +263,108 @@ write_files:
       echo "=== gitlab-runner-autoregister $(date -Is) ==="
       cd "$COMPOSE_DIR"
 
+      create_bootstrap_pat() {
+        docker compose exec -T gitlab gitlab-rails runner "
+          u = User.find_by_username('root')
+          raise 'root user missing' unless u
+          pat = u.personal_access_tokens.create!(
+            name: 'runner-bootstrap-terraform',
+            scopes: [:api],
+            expires_at: 1.day.from_now
+          )
+          puts pat.token
+        " 2>/dev/null | tail -1 | tr -d '\r'
+      }
+
+      revoke_bootstrap_pat() {
+        docker compose exec -T gitlab gitlab-rails runner "
+          u = User.find_by_username('root')
+          u.personal_access_tokens.find_by(name: 'runner-bootstrap-terraform')&.revoke!
+        " 2>/dev/null || true
+      }
+
+      register_runner() {
+        local pat="$1" description="$2" tag_list="$3"
+        docker compose exec -T gitlab curl -sf \
+          --request POST "http://localhost/api/v4/user/runners" \
+          --header "PRIVATE-TOKEN: $pat" \
+          --form "runner_type=instance_type" \
+          --form "description=$description" \
+          --form "tag_list=$tag_list" \
+          2>/dev/null || true
+      }
+
+%{ if runner_buildah_enabled ~}
+      write_config_buildah() {
+        {
+          echo "concurrent = ${runner_concurrent}"
+          echo "check_interval = 0"
+          echo "shutdown_timeout = 0"
+          echo ""
+          echo "[session_server]"
+          echo "  session_timeout = 1800"
+          echo ""
+%{ for idx, p in runner_buildah_profiles ~}
+          echo "[[runners]]"
+          echo "  name = \"${p.name}\""
+          echo "  url = \"${gitlab_url}/\""
+          echo "  token = \"$${GLRT_TOKENS[${idx}]}\""
+          echo "  executor = \"docker\""
+          echo "  tag_list = [${p.tag_list}]"
+          echo ""
+          echo "  [runners.docker]"
+          echo "    tls_verify = false"
+          echo "    image = \"${runner_buildah_default_image}\""
+          echo "    privileged = ${p.privileged}"
+          echo "    disable_entrypoint_overwrite = false"
+          echo "    oom_kill_disable = false"
+          echo "    disable_cache = false"
+          echo "    volumes = [\"/cache\"]"
+          echo "    shm_size = 0"
+          echo "    network_mode = \"bridge\""
+%{ if p.security_opt ~}
+          echo "    security_opt = [\"seccomp=unconfined\", \"apparmor=unconfined\"]"
+%{ endif ~}
+          echo ""
+%{ endfor ~}
+        } >"$COMPOSE_DIR/gitlab-runner/config.toml"
+        chmod 0600 "$COMPOSE_DIR/gitlab-runner/config.toml"
+      }
+
+      for attempt in $(seq 1 40); do
+        if [ "$(docker compose ps gitlab --format '{{.State}}' 2>/dev/null | head -1)" != "running" ]; then
+          echo "attempt $attempt: gitlab not running yet"
+          sleep 30
+          continue
+        fi
+        PAT="$(create_bootstrap_pat)"
+        if [ -z "$PAT" ]; then
+          echo "attempt $attempt: could not create bootstrap PAT"
+          sleep 30
+          continue
+        fi
+        GLRT_TOKENS=()
+        buildah_ok=true
+%{ for p in runner_buildah_profiles ~}
+        RESP="$(register_runner "$PAT" "${p.name}" "${p.tags_api}")"
+        GLRT="$(printf '%s' "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || true)"
+        if [ -z "$GLRT" ]; then
+          echo "attempt $attempt: user/runners API failed for ${p.name}: $RESP"
+          buildah_ok=false
+        else
+          GLRT_TOKENS+=("$GLRT")
+        fi
+%{ endfor ~}
+        revoke_bootstrap_pat
+        if [ "$buildah_ok" = true ] && [ "$${#GLRT_TOKENS[@]}" -eq ${length(runner_buildah_profiles)} ]; then
+          write_config_buildah
+          docker compose --profile runner up -d gitlab-runner
+          echo "=== runner autoregister ok (buildah x${length(runner_buildah_profiles)}) $(date -Is) ==="
+          exit 0
+        fi
+        sleep 30
+      done
+%{ else ~}
       write_config() {
         local glrt_token="$1"
         {
@@ -302,32 +404,14 @@ write_files:
           sleep 30
           continue
         fi
-        PAT="$(docker compose exec -T gitlab gitlab-rails runner "
-          u = User.find_by_username('root')
-          raise 'root user missing' unless u
-          pat = u.personal_access_tokens.create!(
-            name: 'runner-bootstrap-terraform',
-            scopes: [:api],
-            expires_at: 1.day.from_now
-          )
-          puts pat.token
-        " 2>/dev/null | tail -1 | tr -d '\r')"
+        PAT="$(create_bootstrap_pat)"
         if [ -z "$PAT" ]; then
           echo "attempt $attempt: could not create bootstrap PAT"
           sleep 30
           continue
         fi
-        RESP="$(docker compose exec -T gitlab curl -sf \
-          --request POST "http://localhost/api/v4/user/runners" \
-          --header "PRIVATE-TOKEN: $PAT" \
-          --form "runner_type=instance_type" \
-          --form "description=${runner_description}" \
-          --form "tag_list=${runner_tag_list_api}" \
-          2>/dev/null || true)"
-        docker compose exec -T gitlab gitlab-rails runner "
-          u = User.find_by_username('root')
-          u.personal_access_tokens.find_by(name: 'runner-bootstrap-terraform')&.revoke!
-        " 2>/dev/null || true
+        RESP="$(register_runner "$PAT" "${runner_description}" "${runner_tag_list_api}")"
+        revoke_bootstrap_pat
         GLRT="$(printf '%s' "$RESP" | python3 -c "import json,sys; print(json.load(sys.stdin).get('token',''))" 2>/dev/null || true)"
         if [ -n "$GLRT" ]; then
           write_config "$GLRT"
@@ -338,6 +422,7 @@ write_files:
         echo "attempt $attempt: user/runners API failed: $RESP"
         sleep 30
       done
+%{ endif ~}
       echo "=== runner autoregister timed out $(date -Is) ===" >&2
       exit 1
 %{ endif ~}
@@ -960,4 +1045,8 @@ runcmd:
     cd /opt/gitlab
     docker compose pull
     docker compose up -d
+%{ if runner_buildah_enabled ~}
+    docker run --privileged --rm tonistiigi/binfmt --install all
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq qemu-user-static binfmt-support || true
+%{ endif ~}
     echo "=== finished $(date -Is) ==="

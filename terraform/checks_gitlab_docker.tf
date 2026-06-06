@@ -49,6 +49,17 @@ check "gitlab_docker_pages_requires_acme" {
   }
 }
 
+check "gitlab_docker_user_data_hcloud_size" {
+  assert {
+    condition = (
+      var.gitlab_install_mode != "docker_compose" ||
+      local.gitlab_docker_user_data == "" ||
+      length(local.gitlab_docker_user_data_hcloud) <= 32768
+    )
+    error_message = "docker_compose cloud-init exceeds Hetzner user_data limit (32 KiB) even after gzip+base64. Shorten the template or split bootstrap scripts."
+  }
+}
+
 check "gitlab_docker_postgres_version" {
   assert {
     condition = (

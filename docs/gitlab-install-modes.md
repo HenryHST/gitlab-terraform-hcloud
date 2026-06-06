@@ -222,6 +222,9 @@ Optionaler **`gitlab/gitlab-runner`** im **gleichen** Compose-Stack wie GitLab (
 | `gitlab_docker_traefik_proxy_ipv4` | `172.31.191.247` | Traefik-IP für Runner-`extra_hosts` (Coordinator-HTTPS vom Runner-Container) |
 | `gitlab_docker_runner_executor` | `docker` | `docker` oder `shell` |
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
+| `gitlab_docker_runner_buildah_enabled` | `false` | Drei Buildah-Runner statt einem; siehe [runner-buildah.md](runner-buildah.md) |
+
+**Buildah-Profile:** Mit **`gitlab_docker_runner_buildah_enabled = true`** registriert das Autoregister-Skript **drei** Instance-Runner (Tags `buildah-rootless`, `buildah-multiarch`, `buildah-privileged`) in einer `config.toml`. Host: QEMU/binfmt für Multi-Arch. Details: [runner-buildah.md](runner-buildah.md).
 
 **Zwei Betriebsarten:**
 

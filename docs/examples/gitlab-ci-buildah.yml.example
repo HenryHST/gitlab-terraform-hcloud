@@ -1,0 +1,40 @@
+# Example: Buildah image builds with three Compose-stack runner profiles.
+# Requires gitlab_docker_runner_buildah_enabled = true in Terraform.
+
+stages:
+  - build
+
+.buildah-rootless-vars:
+  variables:
+    STORAGE_DRIVER: vfs
+    BUILDAH_ISOLATION: chroot
+
+buildah-rootless-amd64:
+  stage: build
+  tags:
+    - buildah-rootless
+  extends: .buildah-rootless-vars
+  script:
+    - buildah bud -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - buildah push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+
+buildah-multiarch:
+  stage: build
+  tags:
+    - buildah-multiarch
+  extends: .buildah-rootless-vars
+  script:
+    - buildah bud --platform linux/amd64,linux/arm64 -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - buildah push --all "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+
+buildah-privileged:
+  stage: build
+  tags:
+    - buildah-privileged
+  variables:
+    STORAGE_DRIVER: overlay
+  script:
+    - buildah bud -t "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA" .
+    - buildah push "$CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA"
+
+# Registry 401 on push: add before_script with buildah login / docker login to registry.<zone>

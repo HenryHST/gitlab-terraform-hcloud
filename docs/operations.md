@@ -17,6 +17,8 @@
 
 ## Cloud-Init und user_data
 
+Hetzner **`hcloud_server.user_data`** ist auf **32 KiB** begrenzt. Für `gitlab_install_mode = docker_compose` liefert Terraform **`base64gzip(...)`** der gerenderten Cloud-Init-Vorlage; cloud-init auf Debian dekodiert Base64 und entpackt Gzip beim ersten Boot. Proxmox nutzt weiterhin unkomprimiertes `local.gitlab_docker_user_data` als Snippet (kein Hetzner-Limit).
+
 Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an den Cloud-Init-Templates wirken auf **bestehende** VMs oft **erst** nach **Server-Replace** — Ausnahme: Dateien unter **`/opt/gitlab`** (z. B. `gitlab.rb`, `docker-compose.yml`, Traefik-Configs, Backup-Skript/Cron) können manuell angepasst und per `docker compose up -d` / `gitlab-ctl reconfigure` aktiviert werden, sofern die Verzeichnisstruktur bereits existiert.
 
 Vorgehen (Beispiel Runner):

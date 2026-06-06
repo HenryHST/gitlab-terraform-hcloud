@@ -31,6 +31,38 @@ locals {
   gitlab_api_v4_endpoint            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/api/v4/"
   gitlab_smtp_domain_effective      = var.gitlab_smtp_domain != "" ? var.gitlab_smtp_domain : var.dns_domain
 
+  runner_buildah_profiles = var.gitlab_docker_runner_buildah_enabled ? [
+    {
+      key          = "rootless"
+      name         = "buildah-rootless"
+      tags_api     = "buildah-rootless"
+      tag_list     = "\"buildah-rootless\""
+      privileged   = false
+      security_opt = true
+    },
+    {
+      key          = "multiarch"
+      name         = "buildah-multiarch"
+      tags_api     = "buildah-multiarch"
+      tag_list     = "\"buildah-multiarch\""
+      privileged   = false
+      security_opt = true
+    },
+    {
+      key          = "privileged"
+      name         = "buildah-privileged"
+      tags_api     = "buildah-privileged"
+      tag_list     = "\"buildah-privileged\""
+      privileged   = true
+      security_opt = false
+    },
+  ] : []
+
+  runner_concurrent_effective = var.gitlab_docker_runner_buildah_enabled ? max(
+    var.gitlab_docker_runner_concurrent,
+    length(local.runner_buildah_profiles) * 4,
+  ) : var.gitlab_docker_runner_concurrent
+
   gitlab_docker_cloud_init_vars = {
     gitlab_fqdn          = local.gitlab_fqdn
     hetzner_api_token    = var.hetzner_api_key
@@ -85,15 +117,18 @@ locals {
     backup_keep_time                     = var.gitlab_docker_backup_keep_time
     backup_cron_effective                = local.gitlab_docker_backup_cron_effective
     runner_enabled                       = var.gitlab_docker_runner_enabled
-    runner_static_config                 = var.gitlab_docker_runner_enabled && length(trimspace(var.gitlab_docker_runner_token)) >= 20
+    runner_static_config                 = var.gitlab_docker_runner_enabled && !var.gitlab_docker_runner_buildah_enabled && length(trimspace(var.gitlab_docker_runner_token)) >= 20
     runner_autoregister                  = var.gitlab_docker_runner_enabled && var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) < 20
+    runner_buildah_enabled               = var.gitlab_docker_runner_buildah_enabled
+    runner_buildah_profiles              = local.runner_buildah_profiles
+    runner_buildah_default_image         = var.gitlab_docker_runner_buildah_default_image
     runner_image                         = var.gitlab_docker_runner_image
     runner_token                         = var.gitlab_docker_runner_token
     runner_tag_list_api                  = join(",", var.gitlab_docker_runner_tags)
     runner_description                   = var.gitlab_docker_runner_description
     runner_executor                      = var.gitlab_docker_runner_executor
     runner_default_image                 = var.gitlab_docker_runner_default_image
-    runner_concurrent                    = var.gitlab_docker_runner_concurrent
+    runner_concurrent                    = local.runner_concurrent_effective
     runner_privileged                    = var.gitlab_docker_runner_privileged
     runner_tag_list                      = join(", ", [for t in var.gitlab_docker_runner_tags : "\"${t}\""])
     traefik_proxy_ipv4                   = var.gitlab_docker_traefik_proxy_ipv4
@@ -109,6 +144,11 @@ locals {
     "${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl",
     local.gitlab_docker_cloud_init_vars,
   ) : ""
+
+  # Hetzner API: user_data max 32 KiB. cloud-init on Debian decodes base64 and decompresses gzip.
+  gitlab_docker_user_data_hcloud = (
+    local.gitlab_docker_user_data != "" ? base64gzip(local.gitlab_docker_user_data) : ""
+  )
 
   # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
   server_image_effective = (
@@ -128,7 +168,7 @@ locals {
       backup_keep_time           = var.gitlab_docker_backup_keep_time
       backup_cron_effective      = local.gitlab_docker_backup_cron_effective
     }) :
-    var.gitlab_install_mode == "docker_compose" ? local.gitlab_docker_user_data : ""
+    var.gitlab_install_mode == "docker_compose" ? local.gitlab_docker_user_data_hcloud : ""
   )
 
   rdns_fqdn     = local.gitlab_enabled ? local.gitlab_fqdn : var.dns_domain

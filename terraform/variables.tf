@@ -274,7 +274,7 @@ variable "gitlab_docker_runner_enabled" {
 variable "gitlab_docker_runner_image" {
   description = "GitLab Runner image (pin version; see https://gitlab.com/gitlab-org/gitlab-runner/container_registry)"
   type        = string
-  default     = "gitlab/gitlab-runner:alpine-v17.11.0"
+  default     = "gitlab/gitlab-runner:alpine-v18.11.3"
 
   validation {
     condition = can(regex(
@@ -355,6 +355,35 @@ variable "gitlab_docker_runner_privileged" {
   description = "Privileged mode for Docker executor job containers (e.g. Docker-in-Docker)"
   type        = bool
   default     = false
+}
+
+variable "gitlab_docker_runner_buildah_enabled" {
+  description = "When gitlab_docker_runner_enabled, register three instance runners (buildah-rootless, buildah-multiarch, buildah-privileged) instead of a single generic runner. Requires autoregister with empty token."
+  type        = bool
+  default     = false
+
+  validation {
+    condition     = !var.gitlab_docker_runner_buildah_enabled || var.gitlab_docker_runner_enabled
+    error_message = "gitlab_docker_runner_buildah_enabled requires gitlab_docker_runner_enabled = true."
+  }
+
+  validation {
+    condition = !var.gitlab_docker_runner_buildah_enabled || (
+      var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) == 0
+    )
+    error_message = "gitlab_docker_runner_buildah_enabled requires gitlab_docker_runner_autoregister = true and an empty gitlab_docker_runner_token."
+  }
+
+  validation {
+    condition     = !var.gitlab_docker_runner_buildah_enabled || var.gitlab_docker_runner_executor == "docker"
+    error_message = "gitlab_docker_runner_buildah_enabled requires gitlab_docker_runner_executor = docker."
+  }
+}
+
+variable "gitlab_docker_runner_buildah_default_image" {
+  description = "Default Docker image for Buildah profile job containers when gitlab_docker_runner_buildah_enabled"
+  type        = string
+  default     = "quay.io/buildah/stable"
 }
 
 variable "gitlab_docker_runner_tags" {

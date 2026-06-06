@@ -72,6 +72,9 @@ enable_gitlab_resources = false
 # gitlab_docker_runner_token          = ""     # or glrt-… from UI when autoregister = false
 # gitlab_docker_runner_description    = "docker-compose"
 # gitlab_docker_runner_tags           = ["docker"]
+# Buildah: three runners instead of one generic — docs/runner-buildah.md
+# gitlab_docker_runner_buildah_enabled       = true
+# gitlab_docker_runner_buildah_default_image = "quay.io/buildah/stable"
 
 # PlantUML in Compose (https://docs.gitlab.com/administration/integration/plantuml/)
 # gitlab_docker_plantuml_enabled = true
