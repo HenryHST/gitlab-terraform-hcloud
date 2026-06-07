@@ -56,6 +56,10 @@ enable_gitlab_resources = false
 # gitlab_letsencrypt_email  = "info@example.com"
 # gitlab_root_email         = ""   # docker_compose / Proxmox: root email (GITLAB_ROOT_EMAIL); empty = gitlab_letsencrypt_email or gitlab-root@<zone>
 
+# Docker host admin (docker_compose / Proxmox-Docker; SSH with same key as root)
+# gitlab_admin = { enabled = true }
+# gitlab_admin = { enabled = true, username = "gadmin" }
+
 # Backups (docker_compose, hetzner_app, proxmox) — see docs/backup.md
 # gitlab_docker_backup_enabled       = true
 # gitlab_docker_backup_auto_enabled  = true   # false = scripts only, no /etc/cron.d/gitlab-backup

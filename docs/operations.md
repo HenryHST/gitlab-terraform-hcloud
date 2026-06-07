@@ -21,6 +21,8 @@ Hetzner **`hcloud_server.user_data`** ist auf **32 KiB** begrenzt. Für `gitlab_
 
 Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** einer neuen Server-Instanz an. Änderungen an den Cloud-Init-Templates wirken auf **bestehende** VMs oft **erst** nach **Server-Replace** — Ausnahme: Dateien unter **`/opt/gitlab`** (z. B. `gitlab.rb`, `docker-compose.yml`, Traefik-Configs, Backup-Skript/Cron) können manuell angepasst und per `docker compose up -d` / `gitlab-ctl reconfigure` aktiviert werden, sofern die Verzeichnisstruktur bereits existiert.
 
+Mit **`gitlab_admin = { enabled = true }`** legt Cloud-Init beim Erst-Boot einen Linux-Benutzer (Standard **`gadmin`**) mit Home-Verzeichnis, **`sudo`** (NOPASSWD) und **`docker`** an — SSH mit dem gleichen Key wie root (`ssh_public_key_file` / `ssh_public_key`). Auf bereits laufenden Servern: manuell `useradd`/`usermod` oder Server-Replace. Output: `gitlab_docker_host_admin_username`.
+
 Vorgehen (Beispiel Runner):
 
 ```bash

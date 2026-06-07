@@ -301,30 +301,20 @@ write_files:
           echo "check_interval = 0"
           echo "shutdown_timeout = 0"
           echo ""
-          echo "[session_server]"
-          echo "  session_timeout = 1800"
-          echo ""
 %{ for idx, p in runner_buildah_profiles ~}
           echo "[[runners]]"
           echo "  name = \"${p.name}\""
-          echo "  url = \"${gitlab_url}/\""
+          echo "  url = \"${gitlab_url}\""
           echo "  token = \"$${GLRT_TOKENS[${idx}]}\""
           echo "  executor = \"docker\""
-          echo "  tag_list = [${p.tag_list}]"
-          echo ""
+          echo "  run_untagged = ${p.run_untagged}"
           echo "  [runners.docker]"
           echo "    tls_verify = false"
-          echo "    image = \"${runner_buildah_default_image}\""
           echo "    privileged = ${p.privileged}"
-          echo "    disable_entrypoint_overwrite = false"
-          echo "    oom_kill_disable = false"
-          echo "    disable_cache = false"
-          echo "    volumes = [\"/cache\"]"
-          echo "    shm_size = 0"
-          echo "    network_mode = \"bridge\""
 %{ if p.security_opt ~}
           echo "    security_opt = [\"seccomp=unconfined\", \"apparmor=unconfined\"]"
 %{ endif ~}
+          echo "    volumes = [\"/cache\"]"
           echo ""
 %{ endfor ~}
         } >"$COMPOSE_DIR/gitlab-runner/config.toml"
@@ -995,6 +985,18 @@ write_files:
         renovate_logs:
         renovate_db:
 
+%{ if gitlab_admin_enabled ~}
+users:
+  - name: ${gitlab_admin_username}
+    gecos: GitLab Docker Host Administrator
+    shell: /bin/bash
+    groups: [sudo]
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${gitlab_admin_ssh_public_key}
+%{ endif ~}
+
 runcmd:
   - |
     set -eux
@@ -1009,6 +1011,10 @@ runcmd:
     apt-get update -qq
     DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
     systemctl enable --now docker
+%{ if gitlab_admin_enabled ~}
+    usermod -aG docker ${gitlab_admin_username}
+    install -d -m 700 -o ${gitlab_admin_username} -g ${gitlab_admin_username} /home/${gitlab_admin_username}/.ssh
+%{ endif ~}
     install -m 0700 -d /opt/gitlab/traefik/certs
     install -m 0700 -d /opt/gitlab/postgres/data
     chown 999:999 /opt/gitlab/postgres/data

@@ -12,9 +12,11 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Backups (Docker Compose / Omnibus):** `gitlab_docker_backup_auto_enabled`, `gitlab_docker_backup_time` (HH:MM), optionaler `gitlab_docker_backup_cron`-Override; Cron nur bei Auto aktiv; erweiterte Host-Skripte (`GITLAB_BACKUP_SOURCE`, Lockfile); [`docs/backup.md`](docs/backup.md) und [`docs/examples/gitlab-backup-ci.yml.example`](docs/examples/gitlab-backup-ci.yml.example).
 - **GitLab Pages (Docker Compose / Proxmox-Docker):** `gitlab_docker_pages_enabled`, `gitlab_docker_pages_dns_label`; Wildcard-DNS (`pages`, `*.pages`), Traefik-Router auf Port 8090 mit DNS-01-Wildcard-Zertifikat; `gitlab_pages['custom_domain_mode'] = 'http'` (Traefik-TLS); Outputs `pages_fqdn`, `pages_wildcard_fqdn`, `pages_url`; [`docs/pages.md`](docs/pages.md), [`terraform/README.md`](terraform/README.md).
 - **GitLab Runner (Buildah):** `gitlab_docker_runner_buildah_enabled` — drei Instance-Runner mit Tags `buildah-rootless`, `buildah-multiarch`, `buildah-privileged`; Host-QEMU/binfmt; [`docs/runner-buildah.md`](docs/runner-buildah.md), [`docs/examples/gitlab-ci-buildah.yml.example`](docs/examples/gitlab-ci-buildah.yml.example).
+- **Docker-Host-Admin:** `gitlab_admin` — optionaler Linux-Benutzer (`gadmin`) auf dem Compose-Host via Cloud-Init (Home, `sudo`, `docker`, SSH mit Root-Key); Output `gitlab_docker_host_admin_username`.
 
 ### Changed
 
+- **Buildah Runner `config.toml`:** Autoregister schreibt minimale Config (Reihenfolge rootless → privileged → multiarch, `run_untagged`, kein `tag_list`/Default-Image/`session_server` in der Datei; Tags weiterhin per API).
 - **`docker_compose` Cloud-Init:** `user_data` für Hetzner-Server wird als **gzip+base64** übergeben (32-KiB-API-Limit); Proxmox-Snippets unverändert plain.
 - **Dokumentation:** README auf Einstieg, Architektur und Schnellstart reduziert; Tiefgang nach [`docs/`](docs/) mit zentralem [Inhaltsverzeichnis](docs/README.md) (`reference.md`, `gitlab-install-modes.md`, `proxmox.md`, `operations.md`).
 - **`gitlab_docker_backup_enabled`:** auch bei `gitlab_install_mode = "proxmox"` (und Legacy Proxmox-Docker-Stack); `gitlab_docker_backup_cron` Default leer (Zeit aus `gitlab_docker_backup_time`).

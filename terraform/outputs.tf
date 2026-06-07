@@ -163,6 +163,11 @@ output "gitlab_admin_password" {
   sensitive   = true
 }
 
+output "gitlab_docker_host_admin_username" {
+  description = "Linux username on the Docker host when gitlab_admin.enabled (SSH with same key as root)"
+  value       = local.gitlab_admin_host_enabled ? local.gitlab_admin_username_effective : null
+}
+
 output "gitlab_devops_project_id" {
   description = "GitLab devops project ID from gitlab.tf when enable_gitlab_resources is true"
   value       = var.enable_gitlab_resources ? module.gitlab_api[0].devops_project_id : null

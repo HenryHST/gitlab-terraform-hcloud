@@ -47,7 +47,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (`tag_list` in `config.toml`); ignoriert wenn `gitlab_docker_runner_buildah_enabled` |
 | `gitlab_docker_runner_buildah_enabled` | `false` | Drei Buildah-Instance-Runner (`buildah-rootless`, `buildah-multiarch`, `buildah-privileged`); erfordert Autoregister + leeren Token; siehe [runner-buildah.md](runner-buildah.md) |
-| `gitlab_docker_runner_buildah_default_image` | `quay.io/buildah/stable` | Default-Job-Image für Buildah-Profile |
+| `gitlab_docker_runner_buildah_default_image` | `quay.io/buildah/stable` | Empfohlenes Job-Image in CI; nicht in `config.toml` |
+| `gitlab_admin` | `{ enabled = false, username = "gadmin" }` | Docker-Host-Admin (Cloud-Init): Home unter `/home/<username>`, Gruppen `sudo` + `docker`, SSH mit gleichem Key wie root; unabhängig vom GitLab-App-User `gadmin` in `gitlab.tf` |
 | `gitlab_docker_traefik_proxy_ipv4` | `172.31.191.247` | Traefik-IP für `extra_hosts` am Runner-Container (FQDN → Traefik, damit Coordinator-API per HTTPS erreichbar ist) |
 | `gitlab_docker_plantuml_enabled` | `true` | **`docker_compose`** / Proxmox-Docker: `plantuml/plantuml-server` im Stack, NGINX-Proxy `/-/plantuml/` ([PlantUML-Doku](https://docs.gitlab.com/administration/integration/plantuml/)) |
 | `gitlab_docker_plantuml_image` | `plantuml/plantuml-server:tomcat` | PlantUML-Container-Image |

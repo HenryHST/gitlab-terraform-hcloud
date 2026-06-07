@@ -8,7 +8,7 @@ Three instance runners in the same Compose stack for container image builds with
 |----------|---------|------|
 | `gitlab_docker_runner_enabled` | `false` | Must be `true` |
 | `gitlab_docker_runner_buildah_enabled` | `false` | Opt-in: three Buildah runners instead of one generic runner |
-| `gitlab_docker_runner_buildah_default_image` | `quay.io/buildah/stable` | Job container image for all three profiles |
+| `gitlab_docker_runner_buildah_default_image` | `quay.io/buildah/stable` | Empfohlenes Job-Image in CI (`.gitlab-ci.yml`); **nicht** in `config.toml` |
 | `gitlab_docker_runner_autoregister` | `true` | **Required** with empty `gitlab_docker_runner_token` (three `glrt-…` tokens) |
 
 Example:
@@ -27,9 +27,54 @@ When `gitlab_docker_runner_buildah_enabled = true`, the generic single runner (`
 
 | Modus | Runner tag | `config.toml` | Buildah CI variables |
 |-------|------------|---------------|----------------------|
-| Rootless single-arch | `buildah-rootless` | `privileged = false`, `security_opt` | `STORAGE_DRIVER=vfs`, `BUILDAH_ISOLATION=chroot` |
-| Rootless multi-arch | `buildah-multiarch` | same + host QEMU/binfmt | same as rootless |
-| Privileged | `buildah-privileged` | `privileged = true` | `STORAGE_DRIVER=overlay` (optional) |
+| Rootless single-arch | `buildah-rootless` | `run_untagged = true`, `privileged = false`, `security_opt` | `STORAGE_DRIVER=vfs`, `BUILDAH_ISOLATION=chroot` |
+| Privileged | `buildah-privileged` | `run_untagged = false`, `privileged = true` | `STORAGE_DRIVER=overlay` (optional) |
+| Rootless multi-arch | `buildah-multiarch` | `run_untagged = false`, `privileged = false`, `security_opt` | same as rootless + host QEMU/binfmt |
+
+Tags werden bei der API-Registrierung (`POST /api/v4/user/runners`, Form-Feld `tag_list`) gesetzt — **nicht** in `config.toml`. Job-Images kommen aus der CI-Pipeline, nicht aus dem Runner-Default.
+
+Beispiel `config.toml` (Tokens und URL aus Autoregister):
+
+```toml
+concurrent = 12
+check_interval = 0
+shutdown_timeout = 0
+
+[[runners]]
+  name = "buildah-rootless"
+  url = "https://gitlab.example.com"
+  token = "glrt-…"
+  executor = "docker"
+  run_untagged = true
+  [runners.docker]
+    tls_verify = false
+    privileged = false
+    security_opt = ["seccomp=unconfined", "apparmor=unconfined"]
+    volumes = ["/cache"]
+
+[[runners]]
+  name = "buildah-privileged"
+  url = "https://gitlab.example.com"
+  token = "glrt-…"
+  executor = "docker"
+  run_untagged = false
+  [runners.docker]
+    tls_verify = false
+    privileged = true
+    volumes = ["/cache"]
+
+[[runners]]
+  name = "buildah-multiarch"
+  url = "https://gitlab.example.com"
+  token = "glrt-…"
+  executor = "docker"
+  run_untagged = false
+  [runners.docker]
+    tls_verify = false
+    privileged = false
+    security_opt = ["seccomp=unconfined", "apparmor=unconfined"]
+    volumes = ["/cache"]
+```
 
 Host bootstrap (when Buildah enabled): `tonistiigi/binfmt --install all` and `qemu-user-static` for cross-arch builds.
 

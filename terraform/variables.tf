@@ -114,6 +114,25 @@ variable "gitlab_install_mode" {
   }
 }
 
+variable "gitlab_admin" {
+  description = "Docker host admin user for gitlab_compose cloud-init (SSH with same key as root, docker + sudo groups)"
+  type = object({
+    enabled  = optional(bool, false)
+    username = optional(string, "gadmin")
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition = can(regex(
+      "^[a-z_][a-z0-9_-]*[$]?$",
+      coalesce(var.gitlab_admin.username, "gadmin"),
+    )) && length(coalesce(var.gitlab_admin.username, "gadmin")) <= 32
+    error_message = "gitlab_admin.username must be a valid Linux username (lowercase, max 32 characters)."
+  }
+}
+
 variable "gitlab_docker_host_image" {
   description = "hcloud image slug for the main server when gitlab_install_mode is docker_compose (default debian-13)"
   type        = string
@@ -381,7 +400,7 @@ variable "gitlab_docker_runner_buildah_enabled" {
 }
 
 variable "gitlab_docker_runner_buildah_default_image" {
-  description = "Default Docker image for Buildah profile job containers when gitlab_docker_runner_buildah_enabled"
+  description = "Recommended job image for Buildah CI pipelines (not written to config.toml; set image in .gitlab-ci.yml)"
   type        = string
   default     = "quay.io/buildah/stable"
 }

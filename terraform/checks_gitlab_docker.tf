@@ -49,6 +49,13 @@ check "gitlab_docker_pages_requires_acme" {
   }
 }
 
+check "gitlab_admin_requires_docker_stack" {
+  assert {
+    condition     = !var.gitlab_admin.enabled || local.gitlab_docker_stack_enabled
+    error_message = "gitlab_admin.enabled requires gitlab_install_mode = docker_compose or Proxmox GitLab Docker stack (proxmox_gitlab_docker_compose_enabled)."
+  }
+}
+
 check "gitlab_docker_user_data_hcloud_size" {
   assert {
     condition = (

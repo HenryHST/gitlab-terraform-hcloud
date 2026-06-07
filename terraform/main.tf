@@ -21,6 +21,9 @@ locals {
   manage_hetzner_dns          = var.enable_hetzner_dns != null ? var.enable_hetzner_dns : !local.proxmox_gitlab_primary
   gitlab_docker_stack_enabled = var.gitlab_install_mode == "docker_compose" || local.proxmox_gitlab_docker
 
+  gitlab_admin_host_enabled       = var.gitlab_admin.enabled && local.gitlab_docker_stack_enabled
+  gitlab_admin_username_effective = coalesce(var.gitlab_admin.username, "gadmin")
+
   gitlab_docker_backup_time_parts = split(":", var.gitlab_docker_backup_time)
   gitlab_docker_backup_cron_effective = (
     trimspace(var.gitlab_docker_backup_cron) != "" ? trimspace(var.gitlab_docker_backup_cron) :
@@ -36,15 +39,7 @@ locals {
       key          = "rootless"
       name         = "buildah-rootless"
       tags_api     = "buildah-rootless"
-      tag_list     = "\"buildah-rootless\""
-      privileged   = false
-      security_opt = true
-    },
-    {
-      key          = "multiarch"
-      name         = "buildah-multiarch"
-      tags_api     = "buildah-multiarch"
-      tag_list     = "\"buildah-multiarch\""
+      run_untagged = true
       privileged   = false
       security_opt = true
     },
@@ -52,9 +47,17 @@ locals {
       key          = "privileged"
       name         = "buildah-privileged"
       tags_api     = "buildah-privileged"
-      tag_list     = "\"buildah-privileged\""
+      run_untagged = false
       privileged   = true
       security_opt = false
+    },
+    {
+      key          = "multiarch"
+      name         = "buildah-multiarch"
+      tags_api     = "buildah-multiarch"
+      run_untagged = false
+      privileged   = false
+      security_opt = true
     },
   ] : []
 
@@ -138,6 +141,9 @@ locals {
     plantuml_url                         = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/-/plantuml/"
     artifacts_enabled                    = var.artifacts_enabled
     artifacts_path                       = var.artifacts_path
+    gitlab_admin_enabled                 = local.gitlab_admin_host_enabled
+    gitlab_admin_username                = local.gitlab_admin_username_effective
+    gitlab_admin_ssh_public_key          = local.ssh_public_key_effective
   }
 
   gitlab_docker_user_data = local.gitlab_docker_stack_enabled ? templatefile(
