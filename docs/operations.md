@@ -23,6 +23,8 @@ Hetzner wendet **`user_data` (Cloud-Init) in der Regel nur beim ersten Boot** ei
 
 Mit **`gitlab_admin = { enabled = true }`** legt Cloud-Init beim Erst-Boot einen Linux-Benutzer (Standard **`gadmin`**) mit Home-Verzeichnis, **`sudo`** (NOPASSWD) und **`docker`** an — SSH mit dem gleichen Key wie root (`ssh_public_key_file` / `ssh_public_key`). Auf bereits laufenden Servern: manuell `useradd`/`usermod` oder Server-Replace. Output: `gitlab_docker_host_admin_username`.
 
+Mit **`gitlab_docker_host_hardening = { enabled = true }`** installiert Cloud-Init **`jq`**, **`ufw`**, **`fail2ban`**, konfiguriert **sshd** (kein Passwort-Login, `AllowUsers root` plus optional `gadmin`), **sysctl** (rp_filter, syncookies, …; `ip_forward=1` für Docker), optional **`unattended-upgrades`** (nur Security-Origins). UFW-Inbound: TCP **22**, **2424**, **80**, **443**; optional **53**, **9100**, **ICMP**. Mit **`ufw_ssh_source_ips`** nur SSH/2424 aus definierten CIDRs (80/443 bleiben öffentlich). fail2ban: Jails **`sshd`** und **`recidive`**. Die Hetzner-FW bleibt primäre Absicherung; veröffentlichte Docker-Ports nutzen iptables-DNAT. Traefik-fail2ban (HTTP-Plugin) ist getrennt vom Host-fail2ban. Auf bestehenden Servern: manuell oder Server-Replace.
+
 Vorgehen (Beispiel Runner):
 
 ```bash

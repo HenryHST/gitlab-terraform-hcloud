@@ -133,6 +133,29 @@ variable "gitlab_admin" {
   }
 }
 
+variable "gitlab_docker_host_hardening" {
+  description = "Opt-in Docker host hardening via cloud-init: jq, ufw, fail2ban, sshd, sysctl, unattended-upgrades"
+  type = object({
+    enabled                  = optional(bool, false)
+    ufw_enable_dns           = optional(bool, true)
+    ufw_enable_node_exporter = optional(bool, true)
+    ufw_enable_icmp          = optional(bool, true)
+    ufw_ssh_source_ips       = optional(list(string), [])
+    unattended_upgrades      = optional(bool, true)
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition = alltrue([
+      for ip in coalesce(var.gitlab_docker_host_hardening.ufw_ssh_source_ips, []) :
+      can(cidrhost(ip, 0))
+    ])
+    error_message = "gitlab_docker_host_hardening.ufw_ssh_source_ips must contain valid CIDR blocks (e.g. 203.0.113.4/32)."
+  }
+}
+
 variable "gitlab_docker_host_image" {
   description = "hcloud image slug for the main server when gitlab_install_mode is docker_compose (default debian-13)"
   type        = string

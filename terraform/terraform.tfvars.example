@@ -60,6 +60,16 @@ enable_gitlab_resources = false
 # gitlab_admin = { enabled = true }
 # gitlab_admin = { enabled = true, username = "gadmin" }
 
+# Host hardening (docker_compose / Proxmox-Docker): jq, ufw, fail2ban, sshd, sysctl, unattended-upgrades
+# gitlab_docker_host_hardening = { enabled = true }
+# gitlab_docker_host_hardening = {
+#   enabled             = true
+#   ufw_enable_dns      = false
+#   ufw_enable_icmp     = true
+#   ufw_ssh_source_ips  = ["203.0.113.4/32"]
+#   unattended_upgrades = true
+# }
+
 # Backups (docker_compose, hetzner_app, proxmox) — see docs/backup.md
 # gitlab_docker_backup_enabled       = true
 # gitlab_docker_backup_auto_enabled  = true   # false = scripts only, no /etc/cron.d/gitlab-backup

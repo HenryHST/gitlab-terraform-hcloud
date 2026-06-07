@@ -416,6 +416,79 @@ write_files:
       echo "=== runner autoregister timed out $(date -Is) ===" >&2
       exit 1
 %{ endif ~}
+%{ if host_hardening_enabled ~}
+
+  - path: /etc/ssh/sshd_config.d/99-gitlab-terraform.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitEmptyPasswords no
+      PermitRootLogin prohibit-password
+      AllowUsers ${join(" ", host_hardening_ssh_allow_users)}
+
+  - path: /etc/sysctl.d/99-gitlab-docker-host.conf
+    owner: root:root
+    permissions: "0644"
+    content: |
+      net.ipv4.ip_forward = 1
+      net.ipv4.conf.all.rp_filter = 1
+      net.ipv4.conf.default.rp_filter = 1
+      net.ipv4.tcp_syncookies = 1
+      net.ipv4.conf.all.accept_redirects = 0
+      net.ipv6.conf.all.accept_redirects = 0
+      net.ipv4.conf.all.send_redirects = 0
+      net.ipv4.conf.all.accept_source_route = 0
+      net.ipv6.conf.all.accept_source_route = 0
+      kernel.kptr_restrict = 1
+      kernel.dmesg_restrict = 1
+
+  - path: /etc/fail2ban/jail.local
+    owner: root:root
+    permissions: "0644"
+    content: |
+      [DEFAULT]
+      bantime  = 1h
+      findtime = 10m
+      maxretry = 5
+      banaction = ufw
+
+      [sshd]
+      enabled = true
+      port    = ssh
+      backend = systemd
+
+      [recidive]
+      enabled  = true
+      logpath  = /var/log/fail2ban.log
+      banaction = ufw
+      bantime  = 1w
+      findtime = 1d
+      maxretry = 5
+%{ if host_hardening_unattended_upgrades ~}
+
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root:root
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+
+  - path: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root:root
+    permissions: "0644"
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+          "$${distro_id}:$${distro_codename}-security";
+          "$${distro_id}ESMApps:$${distro_codename}-apps-security";
+          "$${distro_id}ESM:$${distro_codename}-infra-security";
+      };
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Automatic-Reboot "false";
+%{ endif ~}
+%{ endif ~}
 
   # https://docs.gitlab.com/install/docker/configuration/ — /etc/gitlab/gitlab.rb via ./data/config
   - path: /opt/gitlab/data/config/gitlab.rb
@@ -1009,11 +1082,45 @@ runcmd:
     . /etc/os-release
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin%{ if host_hardening_enabled ~} jq ufw fail2ban%{ if host_hardening_unattended_upgrades ~} unattended-upgrades%{ endif ~}%{ endif ~}
     systemctl enable --now docker
 %{ if gitlab_admin_enabled ~}
     usermod -aG docker ${gitlab_admin_username}
     install -d -m 700 -o ${gitlab_admin_username} -g ${gitlab_admin_username} /home/${gitlab_admin_username}/.ssh
+%{ endif ~}
+%{ if host_hardening_enabled ~}
+    sysctl --system
+    sshd -t
+    systemctl reload ssh
+    sed -i 's/^DEFAULT_FORWARD_POLICY=.*/DEFAULT_FORWARD_POLICY="ACCEPT"/' /etc/default/ufw
+    ufw default deny incoming
+    ufw default allow outgoing
+%{ if length(host_hardening_ufw_ssh_source_ips) > 0 ~}
+%{ for ip in host_hardening_ufw_ssh_source_ips ~}
+    ufw allow from ${ip} to any port 22 proto tcp
+    ufw allow from ${ip} to any port 2424 proto tcp
+%{ endfor ~}
+%{ else ~}
+    ufw allow 22/tcp
+    ufw allow 2424/tcp
+%{ endif ~}
+    ufw allow 80/tcp
+    ufw allow 443/tcp
+%{ if host_hardening_ufw_enable_dns ~}
+    ufw allow 53/tcp
+    ufw allow 53/udp
+%{ endif ~}
+%{ if host_hardening_ufw_enable_node_exporter ~}
+    ufw allow 9100/tcp
+%{ endif ~}
+%{ if host_hardening_ufw_enable_icmp ~}
+    ufw allow in proto icmp
+%{ endif ~}
+    ufw --force enable
+    systemctl enable --now fail2ban
+%{ if host_hardening_unattended_upgrades ~}
+    systemctl enable --now unattended-upgrades
+%{ endif ~}
 %{ endif ~}
     install -m 0700 -d /opt/gitlab/traefik/certs
     install -m 0700 -d /opt/gitlab/postgres/data

@@ -56,6 +56,13 @@ check "gitlab_admin_requires_docker_stack" {
   }
 }
 
+check "gitlab_docker_host_hardening_requires_docker_stack" {
+  assert {
+    condition     = !var.gitlab_docker_host_hardening.enabled || local.gitlab_docker_stack_enabled
+    error_message = "gitlab_docker_host_hardening.enabled requires gitlab_install_mode = docker_compose or Proxmox GitLab Docker stack (proxmox_gitlab_docker_compose_enabled)."
+  }
+}
+
 check "gitlab_docker_user_data_hcloud_size" {
   assert {
     condition = (

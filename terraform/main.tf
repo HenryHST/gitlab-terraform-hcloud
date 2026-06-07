@@ -24,6 +24,13 @@ locals {
   gitlab_admin_host_enabled       = var.gitlab_admin.enabled && local.gitlab_docker_stack_enabled
   gitlab_admin_username_effective = coalesce(var.gitlab_admin.username, "gadmin")
 
+  gitlab_docker_host_hardening_enabled = var.gitlab_docker_host_hardening.enabled && local.gitlab_docker_stack_enabled
+
+  host_hardening_ssh_allow_users = local.gitlab_docker_host_hardening_enabled ? concat(
+    ["root"],
+    local.gitlab_admin_host_enabled ? [local.gitlab_admin_username_effective] : [],
+  ) : []
+
   gitlab_docker_backup_time_parts = split(":", var.gitlab_docker_backup_time)
   gitlab_docker_backup_cron_effective = (
     trimspace(var.gitlab_docker_backup_cron) != "" ? trimspace(var.gitlab_docker_backup_cron) :
@@ -89,61 +96,68 @@ locals {
     renovate_server_api_secret = (
       var.gitlab_docker_renovate_enabled && local.gitlab_docker_stack_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
     )
-    registry_enabled                     = var.gitlab_docker_registry_enabled
-    registry_fqdn                        = local.registry_fqdn
-    pages_enabled                        = var.gitlab_docker_pages_enabled
-    pages_fqdn                           = local.pages_fqdn
-    pages_fqdn_host_regex                = local.pages_fqdn_host_regex
-    gitlab_api_v4_endpoint               = local.gitlab_api_v4_endpoint
-    smtp_enabled                         = var.gitlab_smtp_enabled
-    smtp_address                         = var.gitlab_smtp_address
-    smtp_port                            = var.gitlab_smtp_port
-    smtp_user_name                       = var.gitlab_smtp_user_name
-    smtp_password                        = var.gitlab_smtp_password
-    smtp_domain                          = local.gitlab_smtp_domain_effective
-    smtp_authentication                  = var.gitlab_smtp_authentication
-    smtp_enable_starttls_auto            = var.gitlab_smtp_enable_starttls_auto
-    smtp_tls                             = var.gitlab_smtp_tls
-    smtp_openssl_verify_mode             = var.gitlab_smtp_openssl_verify_mode
-    gitlab_email_from                    = var.gitlab_email_from
-    gitlab_email_reply_to                = var.gitlab_email_reply_to
-    gitlab_signup_enabled                = var.gitlab_signup_enabled
-    gitlab_theme_id                      = var.gitlab_theme_id
-    gitlab_color_mode                    = var.gitlab_color_mode
-    gitlab_time_zone                     = var.gitlab_time_zone
-    gitlab_display_initial_root_password = var.gitlab_display_initial_root_password
-    terraform_enabled                    = var.gitlab_terraform_enabled
-    gitlab_terraform_state_path          = var.gitlab_terraform_state_path
-    gitlab_terraform_state_file          = var.gitlab_terraform_state_file
-    backup_enabled                       = var.gitlab_docker_backup_enabled
-    backup_auto_enabled                  = var.gitlab_docker_backup_auto_enabled
-    backup_keep_time                     = var.gitlab_docker_backup_keep_time
-    backup_cron_effective                = local.gitlab_docker_backup_cron_effective
-    runner_enabled                       = var.gitlab_docker_runner_enabled
-    runner_static_config                 = var.gitlab_docker_runner_enabled && !var.gitlab_docker_runner_buildah_enabled && length(trimspace(var.gitlab_docker_runner_token)) >= 20
-    runner_autoregister                  = var.gitlab_docker_runner_enabled && var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) < 20
-    runner_buildah_enabled               = var.gitlab_docker_runner_buildah_enabled
-    runner_buildah_profiles              = local.runner_buildah_profiles
-    runner_buildah_default_image         = var.gitlab_docker_runner_buildah_default_image
-    runner_image                         = var.gitlab_docker_runner_image
-    runner_token                         = var.gitlab_docker_runner_token
-    runner_tag_list_api                  = join(",", var.gitlab_docker_runner_tags)
-    runner_description                   = var.gitlab_docker_runner_description
-    runner_executor                      = var.gitlab_docker_runner_executor
-    runner_default_image                 = var.gitlab_docker_runner_default_image
-    runner_concurrent                    = local.runner_concurrent_effective
-    runner_privileged                    = var.gitlab_docker_runner_privileged
-    runner_tag_list                      = join(", ", [for t in var.gitlab_docker_runner_tags : "\"${t}\""])
-    traefik_proxy_ipv4                   = var.gitlab_docker_traefik_proxy_ipv4
-    gitlab_url                           = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}"
-    plantuml_enabled                     = var.gitlab_docker_plantuml_enabled
-    plantuml_image                       = var.gitlab_docker_plantuml_image
-    plantuml_url                         = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/-/plantuml/"
-    artifacts_enabled                    = var.artifacts_enabled
-    artifacts_path                       = var.artifacts_path
-    gitlab_admin_enabled                 = local.gitlab_admin_host_enabled
-    gitlab_admin_username                = local.gitlab_admin_username_effective
-    gitlab_admin_ssh_public_key          = local.ssh_public_key_effective
+    registry_enabled                        = var.gitlab_docker_registry_enabled
+    registry_fqdn                           = local.registry_fqdn
+    pages_enabled                           = var.gitlab_docker_pages_enabled
+    pages_fqdn                              = local.pages_fqdn
+    pages_fqdn_host_regex                   = local.pages_fqdn_host_regex
+    gitlab_api_v4_endpoint                  = local.gitlab_api_v4_endpoint
+    smtp_enabled                            = var.gitlab_smtp_enabled
+    smtp_address                            = var.gitlab_smtp_address
+    smtp_port                               = var.gitlab_smtp_port
+    smtp_user_name                          = var.gitlab_smtp_user_name
+    smtp_password                           = var.gitlab_smtp_password
+    smtp_domain                             = local.gitlab_smtp_domain_effective
+    smtp_authentication                     = var.gitlab_smtp_authentication
+    smtp_enable_starttls_auto               = var.gitlab_smtp_enable_starttls_auto
+    smtp_tls                                = var.gitlab_smtp_tls
+    smtp_openssl_verify_mode                = var.gitlab_smtp_openssl_verify_mode
+    gitlab_email_from                       = var.gitlab_email_from
+    gitlab_email_reply_to                   = var.gitlab_email_reply_to
+    gitlab_signup_enabled                   = var.gitlab_signup_enabled
+    gitlab_theme_id                         = var.gitlab_theme_id
+    gitlab_color_mode                       = var.gitlab_color_mode
+    gitlab_time_zone                        = var.gitlab_time_zone
+    gitlab_display_initial_root_password    = var.gitlab_display_initial_root_password
+    terraform_enabled                       = var.gitlab_terraform_enabled
+    gitlab_terraform_state_path             = var.gitlab_terraform_state_path
+    gitlab_terraform_state_file             = var.gitlab_terraform_state_file
+    backup_enabled                          = var.gitlab_docker_backup_enabled
+    backup_auto_enabled                     = var.gitlab_docker_backup_auto_enabled
+    backup_keep_time                        = var.gitlab_docker_backup_keep_time
+    backup_cron_effective                   = local.gitlab_docker_backup_cron_effective
+    runner_enabled                          = var.gitlab_docker_runner_enabled
+    runner_static_config                    = var.gitlab_docker_runner_enabled && !var.gitlab_docker_runner_buildah_enabled && length(trimspace(var.gitlab_docker_runner_token)) >= 20
+    runner_autoregister                     = var.gitlab_docker_runner_enabled && var.gitlab_docker_runner_autoregister && length(trimspace(var.gitlab_docker_runner_token)) < 20
+    runner_buildah_enabled                  = var.gitlab_docker_runner_buildah_enabled
+    runner_buildah_profiles                 = local.runner_buildah_profiles
+    runner_buildah_default_image            = var.gitlab_docker_runner_buildah_default_image
+    runner_image                            = var.gitlab_docker_runner_image
+    runner_token                            = var.gitlab_docker_runner_token
+    runner_tag_list_api                     = join(",", var.gitlab_docker_runner_tags)
+    runner_description                      = var.gitlab_docker_runner_description
+    runner_executor                         = var.gitlab_docker_runner_executor
+    runner_default_image                    = var.gitlab_docker_runner_default_image
+    runner_concurrent                       = local.runner_concurrent_effective
+    runner_privileged                       = var.gitlab_docker_runner_privileged
+    runner_tag_list                         = join(", ", [for t in var.gitlab_docker_runner_tags : "\"${t}\""])
+    traefik_proxy_ipv4                      = var.gitlab_docker_traefik_proxy_ipv4
+    gitlab_url                              = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}"
+    plantuml_enabled                        = var.gitlab_docker_plantuml_enabled
+    plantuml_image                          = var.gitlab_docker_plantuml_image
+    plantuml_url                            = "${local.gitlab_docker_external_url_scheme}://${local.gitlab_fqdn}/-/plantuml/"
+    artifacts_enabled                       = var.artifacts_enabled
+    artifacts_path                          = var.artifacts_path
+    gitlab_admin_enabled                    = local.gitlab_admin_host_enabled
+    gitlab_admin_username                   = local.gitlab_admin_username_effective
+    gitlab_admin_ssh_public_key             = local.ssh_public_key_effective
+    host_hardening_enabled                  = local.gitlab_docker_host_hardening_enabled
+    host_hardening_ufw_enable_dns           = var.gitlab_docker_host_hardening.ufw_enable_dns
+    host_hardening_ufw_enable_node_exporter = var.gitlab_docker_host_hardening.ufw_enable_node_exporter
+    host_hardening_ufw_enable_icmp          = var.gitlab_docker_host_hardening.ufw_enable_icmp
+    host_hardening_ufw_ssh_source_ips       = var.gitlab_docker_host_hardening.ufw_ssh_source_ips
+    host_hardening_unattended_upgrades      = var.gitlab_docker_host_hardening.unattended_upgrades
+    host_hardening_ssh_allow_users          = local.host_hardening_ssh_allow_users
   }
 
   gitlab_docker_user_data = local.gitlab_docker_stack_enabled ? templatefile(
