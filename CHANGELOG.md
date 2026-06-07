@@ -14,10 +14,12 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **GitLab Runner (Buildah):** `gitlab_docker_runner_buildah_enabled` — drei Instance-Runner mit Tags `buildah-rootless`, `buildah-multiarch`, `buildah-privileged`; Host-QEMU/binfmt; [`docs/runner-buildah.md`](docs/runner-buildah.md), [`docs/examples/gitlab-ci-buildah.yml.example`](docs/examples/gitlab-ci-buildah.yml.example).
 - **Docker-Host-Admin:** `gitlab_admin` — optionaler Linux-Benutzer (`gadmin`) auf dem Compose-Host via Cloud-Init (Home, `sudo`, `docker`, SSH mit Root-Key); Output `gitlab_docker_host_admin_username`.
 - **Docker-Host-Hardening:** `gitlab_docker_host_hardening` — opt-in Host-OS: `jq`, `ufw`, `fail2ban` (`sshd`, `recidive`), sshd-Key-only, sysctl, unattended-upgrades.
+- **Traefik HTTP-Hardening:** `gitlab_docker_traefik_hardening` — opt-in: Traefik-fail2ban-Plugin aktivieren, Log-Level `INFO`, JSON-Access-Logs, Rate-Limit in `default@file`, optional `VersionTLS13`.
+- **Docker/Compose-Hardening:** `gitlab_docker_compose_hardening` — opt-in: `/etc/docker/daemon.json` (`icc: false`, `live-restore`, Log-Rotation), `no-new-privileges` und Logging für Stack-Container.
 
 ### Changed
 
-- **Buildah Runner `config.toml`:** Autoregister schreibt minimale Config (Reihenfolge rootless → privileged → multiarch, `run_untagged`, kein `tag_list`/Default-Image/`session_server` in der Datei; Tags weiterhin per API).
+- **Cloud-Init Bootstrap:** `apt-get install` und `systemctl enable --now docker` getrennt; Host-Hardening-Pakete über Terraform-Local `host_hardening_apt_packages` (Fix: `~`-Trimming klebte `docker-compose-pluginjq` / `systemctl` an die apt-Zeile).
 - **Docker-Host-Hardening (Host-OS):** sshd Drop-in, sysctl, fail2ban `recidive`, optional `ufw_ssh_source_ips` / ICMP / unattended-upgrades.
 - **`docker_compose` Cloud-Init:** `user_data` für Hetzner-Server wird als **gzip+base64** übergeben (32-KiB-API-Limit); Proxmox-Snippets unverändert plain.
 - **Dokumentation:** README auf Einstieg, Architektur und Schnellstart reduziert; Tiefgang nach [`docs/`](docs/) mit zentralem [Inhaltsverzeichnis](docs/README.md) (`reference.md`, `gitlab-install-modes.md`, `proxmox.md`, `operations.md`).

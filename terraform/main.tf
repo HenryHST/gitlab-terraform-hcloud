@@ -26,10 +26,19 @@ locals {
 
   gitlab_docker_host_hardening_enabled = var.gitlab_docker_host_hardening.enabled && local.gitlab_docker_stack_enabled
 
+  gitlab_docker_traefik_hardening_enabled = var.gitlab_docker_traefik_hardening.enabled && local.gitlab_docker_stack_enabled
+
+  gitlab_docker_compose_hardening_enabled = var.gitlab_docker_compose_hardening.enabled && local.gitlab_docker_stack_enabled
+
   host_hardening_ssh_allow_users = local.gitlab_docker_host_hardening_enabled ? concat(
     ["root"],
     local.gitlab_admin_host_enabled ? [local.gitlab_admin_username_effective] : [],
   ) : []
+
+  host_hardening_apt_packages = trimspace(join(" ", compact([
+    local.gitlab_docker_host_hardening_enabled ? "jq ufw fail2ban" : "",
+    local.gitlab_docker_host_hardening_enabled && var.gitlab_docker_host_hardening.unattended_upgrades ? "unattended-upgrades" : "",
+  ])))
 
   gitlab_docker_backup_time_parts = split(":", var.gitlab_docker_backup_time)
   gitlab_docker_backup_cron_effective = (
@@ -158,6 +167,26 @@ locals {
     host_hardening_ufw_ssh_source_ips       = var.gitlab_docker_host_hardening.ufw_ssh_source_ips
     host_hardening_unattended_upgrades      = var.gitlab_docker_host_hardening.unattended_upgrades
     host_hardening_ssh_allow_users          = local.host_hardening_ssh_allow_users
+    host_hardening_apt_packages             = local.host_hardening_apt_packages
+    traefik_hardening_enabled               = local.gitlab_docker_traefik_hardening_enabled
+    traefik_fail2ban_enabled                = local.gitlab_docker_traefik_hardening_enabled && var.gitlab_docker_traefik_hardening.fail2ban_enabled
+    traefik_fail2ban_bantime                = var.gitlab_docker_traefik_hardening.fail2ban_bantime
+    traefik_fail2ban_findtime               = var.gitlab_docker_traefik_hardening.fail2ban_findtime
+    traefik_fail2ban_maxretry               = var.gitlab_docker_traefik_hardening.fail2ban_maxretry
+    traefik_log_level                       = upper(var.gitlab_docker_traefik_hardening.log_level)
+    traefik_access_log_format               = lower(var.gitlab_docker_traefik_hardening.access_log_format)
+    traefik_rate_limit_enabled              = local.gitlab_docker_traefik_hardening_enabled && var.gitlab_docker_traefik_hardening.rate_limit_enabled
+    traefik_rate_limit_average              = var.gitlab_docker_traefik_hardening.rate_limit_average
+    traefik_rate_limit_burst                = var.gitlab_docker_traefik_hardening.rate_limit_burst
+    traefik_tls_min_version                 = var.gitlab_docker_traefik_hardening.tls_min_version
+    compose_hardening_enabled               = local.gitlab_docker_compose_hardening_enabled
+    compose_daemon_icc_disabled             = var.gitlab_docker_compose_hardening.daemon_icc_disabled
+    compose_daemon_live_restore             = var.gitlab_docker_compose_hardening.daemon_live_restore
+    compose_daemon_userland_proxy           = var.gitlab_docker_compose_hardening.daemon_userland_proxy
+    compose_log_max_size                    = var.gitlab_docker_compose_hardening.log_max_size
+    compose_log_max_file                    = var.gitlab_docker_compose_hardening.log_max_file
+    compose_container_no_new_privileges     = local.gitlab_docker_compose_hardening_enabled && var.gitlab_docker_compose_hardening.container_no_new_privileges
+    compose_container_log_rotation          = local.gitlab_docker_compose_hardening_enabled && var.gitlab_docker_compose_hardening.container_log_rotation
   }
 
   gitlab_docker_user_data = local.gitlab_docker_stack_enabled ? templatefile(
@@ -169,6 +198,25 @@ locals {
   gitlab_docker_user_data_hcloud = (
     local.gitlab_docker_user_data != "" ? base64gzip(local.gitlab_docker_user_data) : ""
   )
+
+  # Plan-time size guard: random_password values are unknown until apply, so the live
+  # gitlab_docker_user_data_hcloud length cannot be checked during plan. Re-render with
+  # max-length placeholder passwords (same lengths as random_password resources).
+  gitlab_docker_password_placeholder_24 = join("", [for _ in range(24) : "Z"])
+  gitlab_docker_password_placeholder_32 = join("", [for _ in range(32) : "Y"])
+  gitlab_docker_cloud_init_vars_worst_case = merge(
+    local.gitlab_docker_cloud_init_vars,
+    {
+      gitlab_root_password       = local.gitlab_docker_password_placeholder_24
+      postgres_password          = local.gitlab_docker_password_placeholder_32
+      renovate_webhook_secret    = var.gitlab_docker_renovate_enabled ? local.gitlab_docker_password_placeholder_32 : ""
+      renovate_server_api_secret = var.gitlab_docker_renovate_enabled ? local.gitlab_docker_password_placeholder_32 : ""
+    },
+  )
+  gitlab_docker_user_data_hcloud_worst_case = local.gitlab_docker_stack_enabled ? base64gzip(templatefile(
+    "${path.module}/templates/gitlab-docker-cloud-init.yaml.tpl",
+    local.gitlab_docker_cloud_init_vars_worst_case,
+  )) : ""
 
   # Hetzner one-click GitLab image slug (see https://github.com/hetznercloud/apps/tree/main/apps/hetzner/gitlab)
   server_image_effective = (

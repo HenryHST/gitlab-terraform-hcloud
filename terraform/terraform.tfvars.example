@@ -70,6 +70,32 @@ enable_gitlab_resources = false
 #   unattended_upgrades = true
 # }
 
+# Traefik HTTP hardening (docker_compose / Proxmox-Docker): fail2ban plugin, log level, rate limit, TLS
+# gitlab_docker_traefik_hardening = { enabled = true }
+# gitlab_docker_traefik_hardening = {
+#   enabled            = true
+#   fail2ban_enabled   = true
+#   log_level          = "INFO"
+#   access_log_format  = "json"
+#   rate_limit_enabled = true
+#   rate_limit_average = 100
+#   rate_limit_burst   = 200
+#   tls_min_version    = "VersionTLS12" # or VersionTLS13
+# }
+
+# Docker Engine / Compose hardening: daemon.json, no-new-privileges, container log rotation
+# gitlab_docker_compose_hardening = { enabled = true }
+# gitlab_docker_compose_hardening = {
+#   enabled                     = true
+#   daemon_icc_disabled         = true
+#   daemon_live_restore         = true
+#   daemon_userland_proxy       = false
+#   log_max_size                = "10m"
+#   log_max_file                = 3
+#   container_no_new_privileges = true
+#   container_log_rotation      = true
+# }
+
 # Backups (docker_compose, hetzner_app, proxmox) — see docs/backup.md
 # gitlab_docker_backup_enabled       = true
 # gitlab_docker_backup_auto_enabled  = true   # false = scripts only, no /etc/cron.d/gitlab-backup

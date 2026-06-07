@@ -63,12 +63,26 @@ check "gitlab_docker_host_hardening_requires_docker_stack" {
   }
 }
 
+check "gitlab_docker_traefik_hardening_requires_docker_stack" {
+  assert {
+    condition     = !var.gitlab_docker_traefik_hardening.enabled || local.gitlab_docker_stack_enabled
+    error_message = "gitlab_docker_traefik_hardening.enabled requires gitlab_install_mode = docker_compose or Proxmox GitLab Docker stack (proxmox_gitlab_docker_compose_enabled)."
+  }
+}
+
+check "gitlab_docker_compose_hardening_requires_docker_stack" {
+  assert {
+    condition     = !var.gitlab_docker_compose_hardening.enabled || local.gitlab_docker_stack_enabled
+    error_message = "gitlab_docker_compose_hardening.enabled requires gitlab_install_mode = docker_compose or Proxmox GitLab Docker stack (proxmox_gitlab_docker_compose_enabled)."
+  }
+}
+
 check "gitlab_docker_user_data_hcloud_size" {
   assert {
     condition = (
       var.gitlab_install_mode != "docker_compose" ||
-      local.gitlab_docker_user_data == "" ||
-      length(local.gitlab_docker_user_data_hcloud) <= 32768
+      !local.gitlab_docker_stack_enabled ||
+      length(nonsensitive(local.gitlab_docker_user_data_hcloud_worst_case)) <= 32768
     )
     error_message = "docker_compose cloud-init exceeds Hetzner user_data limit (32 KiB) even after gzip+base64. Shorten the template or split bootstrap scripts."
   }

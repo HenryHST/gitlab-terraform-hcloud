@@ -156,6 +156,88 @@ variable "gitlab_docker_host_hardening" {
   }
 }
 
+variable "gitlab_docker_traefik_hardening" {
+  description = "Opt-in Traefik HTTP hardening via cloud-init: fail2ban plugin, log level, rate limit, TLS min version"
+  type = object({
+    enabled            = optional(bool, false)
+    fail2ban_enabled   = optional(bool, true)
+    fail2ban_bantime   = optional(string, "3h")
+    fail2ban_findtime  = optional(string, "10m")
+    fail2ban_maxretry  = optional(string, "4")
+    log_level          = optional(string, "INFO")
+    access_log_format  = optional(string, "json")
+    rate_limit_enabled = optional(bool, true)
+    rate_limit_average = optional(number, 100)
+    rate_limit_burst   = optional(number, 200)
+    tls_min_version    = optional(string, "VersionTLS12")
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition = contains(
+      ["DEBUG", "INFO", "WARN", "ERROR"],
+      upper(coalesce(var.gitlab_docker_traefik_hardening.log_level, "INFO")),
+    )
+    error_message = "gitlab_docker_traefik_hardening.log_level must be one of: DEBUG, INFO, WARN, ERROR."
+  }
+
+  validation {
+    condition = contains(
+      ["common", "json"],
+      lower(coalesce(var.gitlab_docker_traefik_hardening.access_log_format, "json")),
+    )
+    error_message = "gitlab_docker_traefik_hardening.access_log_format must be common or json."
+  }
+
+  validation {
+    condition = contains(
+      ["VersionTLS12", "VersionTLS13"],
+      coalesce(var.gitlab_docker_traefik_hardening.tls_min_version, "VersionTLS12"),
+    )
+    error_message = "gitlab_docker_traefik_hardening.tls_min_version must be VersionTLS12 or VersionTLS13."
+  }
+
+  validation {
+    condition = (
+      !coalesce(var.gitlab_docker_traefik_hardening.rate_limit_enabled, true) ||
+      (
+        coalesce(var.gitlab_docker_traefik_hardening.rate_limit_average, 100) > 0 &&
+        coalesce(var.gitlab_docker_traefik_hardening.rate_limit_burst, 200) > 0
+      )
+    )
+    error_message = "gitlab_docker_traefik_hardening.rate_limit_average and rate_limit_burst must be positive when rate limiting is enabled."
+  }
+}
+
+variable "gitlab_docker_compose_hardening" {
+  description = "Opt-in Docker Engine and Compose hardening via cloud-init: daemon.json, no-new-privileges, log rotation"
+  type = object({
+    enabled                     = optional(bool, false)
+    daemon_icc_disabled         = optional(bool, true)
+    daemon_live_restore         = optional(bool, true)
+    daemon_userland_proxy       = optional(bool, false)
+    log_max_size                = optional(string, "10m")
+    log_max_file                = optional(number, 3)
+    container_no_new_privileges = optional(bool, true)
+    container_log_rotation      = optional(bool, true)
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition = can(regex("^[0-9]+[kKmMgG]?$", coalesce(var.gitlab_docker_compose_hardening.log_max_size, "10m")))
+    error_message = "gitlab_docker_compose_hardening.log_max_size must be a Docker log size (e.g. 10m, 100m)."
+  }
+
+  validation {
+    condition = coalesce(var.gitlab_docker_compose_hardening.log_max_file, 3) >= 1
+    error_message = "gitlab_docker_compose_hardening.log_max_file must be at least 1."
+  }
+}
+
 variable "gitlab_docker_host_image" {
   description = "hcloud image slug for the main server when gitlab_install_mode is docker_compose (default debian-13)"
   type        = string

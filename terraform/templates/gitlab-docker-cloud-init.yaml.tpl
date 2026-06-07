@@ -78,7 +78,11 @@ write_files:
         prometheus:
           addRoutersLabels: true
       log:
+%{ if traefik_hardening_enabled ~}
+        level: ${traefik_log_level}
+%{ else ~}
         level: DEBUG
+%{ endif ~}
         filePath: "/var/log/traefik/traefik.log"
         format: json
         maxSize: 10
@@ -86,7 +90,11 @@ write_files:
         maxAge: 14
       accessLog:
         filePath: "/var/log/traefik/access.log"
+%{ if traefik_hardening_enabled ~}
+        format: ${traefik_access_log_format}
+%{ else ~}
         format: common
+%{ endif ~}
         bufferingSize: 50
         fields:
           defaultMode: keep
@@ -131,10 +139,14 @@ write_files:
                 denylist:
                   ip: 192.168.10.0/24
                 rules:
-                  bantime: 3h
+                  bantime: ${traefik_fail2ban_bantime}
+%{ if traefik_fail2ban_enabled ~}
+                  enabled: "true"
+%{ else ~}
                   enabled: "false"
-                  findtime: 10m
-                  maxretry: "4"
+%{ endif ~}
+                  findtime: ${traefik_fail2ban_findtime}
+                  maxretry: "${traefik_fail2ban_maxretry}"
                   statuscode: 400,401,403-499
 
   - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.default-security-headers.yml
@@ -158,6 +170,20 @@ write_files:
                 Content-Security-Policy: "frame-ancestors 'self';"
                 Permissions-Policy: "geolocation=(), microphone=(), camera=()"
 
+%{ if traefik_rate_limit_enabled ~}
+  - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.rate-limit.yml
+    owner: root:root
+    permissions: "0644"
+    content: |
+      http:
+        middlewares:
+          rate-limit:
+            rateLimit:
+              average: ${traefik_rate_limit_average}
+              burst: ${traefik_rate_limit_burst}
+              period: 1s
+
+%{ endif ~}
   - path: /opt/gitlab/traefik/dynamic_conf/http.middlewares.default.yml
     owner: root:root
     permissions: "0644"
@@ -169,6 +195,9 @@ write_files:
               middlewares:
                 - default-security-headers
                 - gzip
+%{ if traefik_rate_limit_enabled ~}
+                - rate-limit
+%{ endif ~}
                 - fail2ban
 
   - path: /opt/gitlab/traefik/dynamic_conf/tls.yml
@@ -179,7 +208,11 @@ write_files:
         options:
           # Name must not be "default" when referenced as name@file from Docker labels (Traefik v3).
           secure:
+%{ if traefik_hardening_enabled ~}
+            minVersion: ${traefik_tls_min_version}
+%{ else ~}
             minVersion: VersionTLS12
+%{ endif ~}
             cipherSuites:
               - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
               - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
@@ -803,6 +836,33 @@ write_files:
       exit 1
 %{ endif ~}
 
+%{ if compose_hardening_enabled ~}
+  - path: /etc/docker/daemon.json
+    owner: root:root
+    permissions: "0644"
+    content: |
+      {
+%{ if compose_daemon_icc_disabled ~}
+        "icc": false,
+%{ else ~}
+        "icc": true,
+%{ endif ~}
+%{ if compose_daemon_live_restore ~}
+        "live-restore": true,
+%{ endif ~}
+%{ if compose_daemon_userland_proxy ~}
+        "userland-proxy": true,
+%{ else ~}
+        "userland-proxy": false,
+%{ endif ~}
+        "log-driver": "json-file",
+        "log-opts": {
+          "max-size": "${compose_log_max_size}",
+          "max-file": "${compose_log_max_file}"
+        }
+      }
+
+%{ endif ~}
   - path: /opt/gitlab/docker-compose.yml
     owner: root:root
     permissions: "0644"
@@ -834,6 +894,13 @@ write_files:
           restart: unless-stopped
           security_opt:
             - no-new-privileges:true
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
           volumes:
             - /etc/localtime:/etc/localtime:ro
             - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -862,6 +929,17 @@ write_files:
             interval: 5s
             timeout: 5s
             retries: 20
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
 
         gitlab:
           image: ${gitlab_ce_image}
@@ -871,6 +949,17 @@ write_files:
           # Image HEALTHCHECK keeps container "starting" for several minutes; Traefik then drops the router (404).
           healthcheck:
             disable: true
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
           depends_on:
             postgres:
               condition: service_healthy
@@ -952,6 +1041,17 @@ write_files:
           container_name: plantuml
           image: ${plantuml_image}
           restart: unless-stopped
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
           networks:
             socket_proxy: {}
 %{ endif ~}
@@ -973,6 +1073,17 @@ write_files:
           volumes:
             - ./gitlab-runner:/etc/gitlab-runner
             - /var/run/docker.sock:/var/run/docker.sock
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
           networks:
             proxy:
               ipv4_address: $${SERVICES_GITLAB_RUNNER_NETWORKS_PROXY_IPV4:-172.31.129.250}
@@ -1000,6 +1111,17 @@ write_files:
             - renovate_logs:/logs
             - renovate_db:/db
             - /etc/localtime:/etc/localtime:ro
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
           networks:
             proxy:
               ipv4_address: $${SERVICES_RENOVATE_NETWORKS_PROXY_IPV4:-172.31.129.251}
@@ -1082,7 +1204,7 @@ runcmd:
     . /etc/os-release
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin%{ if host_hardening_enabled ~} jq ufw fail2ban%{ if host_hardening_unattended_upgrades ~} unattended-upgrades%{ endif ~}%{ endif ~}
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin ${host_hardening_apt_packages}
     systemctl enable --now docker
 %{ if gitlab_admin_enabled ~}
     usermod -aG docker ${gitlab_admin_username}
