@@ -41,6 +41,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_backup_cron` | `""` | Optional: fünf Cron-Felder; leer = aus `gitlab_docker_backup_time` |
 | `gitlab_docker_backup_keep_time` | `604800` | Aufbewahrung in Sekunden (Standard 7 Tage); `0` = alle Archive behalten ([Backup-Doku](https://docs.gitlab.com/omnibus/settings/backups.html)) |
 | `gitlab_signup_enabled` | `false` | Nur **`docker_compose`**: `gitlab_rails['gitlab_signup_enabled']` — Registrierung auf der Anmeldeseite |
+| `gitlab_display_initial_root_password` | `true` | Nur **`docker_compose`**: Hinweis auf der GitLab-Anmeldeseite + temporäre Datei `/etc/gitlab/initial_root_password` (`display` + `store` in `gitlab.rb`); nur bei Erst-DB-Seed; sonst Output **`gitlab_docker_initial_root_password`** |
 | `gitlab_docker_runner_enabled` | `false` | **`docker_compose`** / Proxmox-Docker: `gitlab/gitlab-runner` im gleichen Compose-Stack (Docker-Executor) |
 | `gitlab_docker_runner_autoregister` | `true` | Leeres `gitlab_docker_runner_token`: Bootstrap-Skript legt Instance-Runner per API an (`glrt-…`); Log: `/var/log/gitlab-runner-autoregister.log` |
 | `gitlab_docker_runner_token` | `""` | Optional `glrt-…` aus der UI; bei gesetztem Token wird Autoregister übersprungen |

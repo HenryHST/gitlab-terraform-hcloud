@@ -257,7 +257,7 @@ variable "gitlab_docker_host_image" {
 variable "gitlab_docker_traefik_image" {
   description = "Traefik container image (pin v3.7.x as required)"
   type        = string
-  default     = "traefik:v3.7.1"
+  default     = "traefik:v3.7.4"
 
   validation {
     condition = can(regex(
@@ -773,9 +773,9 @@ variable "gitlab_signup_enabled" {
   }
 }
 variable "gitlab_display_initial_root_password" {
-  description = "If true, display the initial root password in gitlab.rb (gitlab_rails['display_initial_root_password'])"
+  description = "When gitlab_install_mode is docker_compose, show the initial root password on the GitLab sign-in page and store it temporarily in /etc/gitlab/initial_root_password (gitlab_rails display + store). Effective only on first DB seed; use output gitlab_docker_initial_root_password on existing instances."
   type        = bool
-  default     = false
+  default     = true
 
   validation {
     condition     = !var.gitlab_display_initial_root_password || var.gitlab_install_mode == "docker_compose"

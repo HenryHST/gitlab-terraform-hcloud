@@ -544,8 +544,12 @@ write_files:
 
       # https://docs.gitlab.com/install/docker/configuration/#expose-gitlab-on-different-ports
       gitlab_rails['gitlab_shell_ssh_port'] = 2424
-      gitlab_rails['display_initial_root_password'] = ${gitlab_display_initial_root_password}
-      # gitlab_rails['store_initial_root_password'] = true
+%{ if gitlab_display_initial_root_password ~}
+      gitlab_rails['display_initial_root_password'] = true
+      gitlab_rails['store_initial_root_password'] = true
+%{ else ~}
+      gitlab_rails['display_initial_root_password'] = false
+%{ endif ~}
 
       # External PostgreSQL (docker service postgres on socket_proxy)
       postgresql['enable'] = false
@@ -1180,11 +1184,36 @@ write_files:
         renovate_logs:
         renovate_db:
 
+  - path: /etc/zsh/zshrc.d/99-gitlab-docker-host.zsh
+    owner: root:root
+    permissions: "0644"
+    content: |
+      # GitLab Docker host — system-wide zsh (all users)
+      HISTFILE=~/.zsh_history
+      HISTSIZE=10000
+      SAVEHIST=10000
+      setopt SHARE_HISTORY INC_APPEND_HISTORY HIST_IGNORE_DUPS
+
+      autoload -Uz compinit
+      compinit -C
+
+      [[ -f /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh ]] && \
+        source /usr/share/zsh-autosuggestions/zsh-autosuggestions.zsh
+
+      # Syntax highlighting must be sourced last
+      [[ -f /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh ]] && \
+        source /usr/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+
+      if command -v docker >/dev/null 2>&1; then
+        source <(docker completion zsh) 2>/dev/null
+        source <(docker compose completion zsh) 2>/dev/null
+      fi
+
 %{ if gitlab_admin_enabled ~}
 users:
   - name: ${gitlab_admin_username}
     gecos: GitLab Docker Host Administrator
-    shell: /bin/bash
+    shell: /bin/zsh
     groups: [sudo]
     sudo: ALL=(ALL) NOPASSWD:ALL
     lock_passwd: true
@@ -1204,7 +1233,13 @@ runcmd:
     . /etc/os-release
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $VERSION_CODENAME stable" > /etc/apt/sources.list.d/docker.list
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin ${host_hardening_apt_packages}
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin zsh zsh-autosuggestions zsh-syntax-highlighting ${host_hardening_apt_packages}
+    if grep -q '^SHELL=' /etc/default/useradd; then
+      sed -i 's|^SHELL=.*|SHELL=/usr/bin/zsh|' /etc/default/useradd
+    else
+      echo 'SHELL=/usr/bin/zsh' >> /etc/default/useradd
+    fi
+    usermod -s /usr/bin/zsh root
     systemctl enable --now docker
 %{ if gitlab_admin_enabled ~}
     usermod -aG docker ${gitlab_admin_username}

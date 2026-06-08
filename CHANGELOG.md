@@ -16,9 +16,11 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Docker-Host-Hardening:** `gitlab_docker_host_hardening` — opt-in Host-OS: `jq`, `ufw`, `fail2ban` (`sshd`, `recidive`), sshd-Key-only, sysctl, unattended-upgrades.
 - **Traefik HTTP-Hardening:** `gitlab_docker_traefik_hardening` — opt-in: Traefik-fail2ban-Plugin aktivieren, Log-Level `INFO`, JSON-Access-Logs, Rate-Limit in `default@file`, optional `VersionTLS13`.
 - **Docker/Compose-Hardening:** `gitlab_docker_compose_hardening` — opt-in: `/etc/docker/daemon.json` (`icc: false`, `live-restore`, Log-Rotation), `no-new-privileges` und Logging für Stack-Container.
+- **Docker-Host-Shell:** Cloud-Init installiert `zsh`, `zsh-autosuggestions`, `zsh-syntax-highlighting`; Login-Shell für `root`/`gadmin`, systemweites `/etc/zsh/zshrc.d/99-gitlab-docker-host.zsh` (Completion, Plugins).
 
 ### Changed
 
+- **`gitlab_display_initial_root_password`:** Default `true`; `gitlab.rb` setzt bei Aktivierung `display_initial_root_password` und `store_initial_root_password` (Sign-in-Hinweis + temporäre Datei im Container; nur Erst-DB-Seed).
 - **Cloud-Init Bootstrap:** `apt-get install` und `systemctl enable --now docker` getrennt; Host-Hardening-Pakete über Terraform-Local `host_hardening_apt_packages` (Fix: `~`-Trimming klebte `docker-compose-pluginjq` / `systemctl` an die apt-Zeile).
 - **Docker-Host-Hardening (Host-OS):** sshd Drop-in, sysctl, fail2ban `recidive`, optional `ufw_ssh_source_ips` / ICMP / unattended-upgrades.
 - **`docker_compose` Cloud-Init:** `user_data` für Hetzner-Server wird als **gzip+base64** übergeben (32-KiB-API-Limit); Proxmox-Snippets unverändert plain.

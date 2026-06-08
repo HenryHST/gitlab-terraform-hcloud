@@ -106,6 +106,10 @@ enable_gitlab_resources = false
 # Sign-up on login page (docker_compose only) — gitlab_rails['gitlab_signup_enabled'] in gitlab.rb
 # gitlab_signup_enabled = false
 
+# Initial root password on GitLab sign-in page (docker_compose only; first DB seed only)
+# gitlab_display_initial_root_password = true
+# gitlab_display_initial_root_password = false  # use terraform output gitlab_docker_initial_root_password only
+
 # GitLab Runner in same Compose stack (https://docs.gitlab.com/tutorials/automate_runner_creation/)
 # gitlab_docker_runner_enabled        = false
 # gitlab_docker_runner_autoregister   = true   # empty token → POST /api/v4/user/runners after bootstrap

@@ -22,7 +22,7 @@ Offizielle App-Doku: [Hetzner Cloud Apps – GitLab CE](https://docs.hetzner.com
 Wenn `gitlab_install_mode = "docker_compose"`:
 
 - Server-Image: **`gitlab_docker_host_image`** (Standard **`debian-13`**). Vor Produktion den Slug mit `hcloud image list` / Konsole prüfen.
-- Cloud-Init ([`templates/gitlab-docker-cloud-init.yaml.tpl`](../terraform/templates/gitlab-docker-cloud-init.yaml.tpl)): installiert Docker Engine + Compose-Plugin, legt den Stack unter **`/opt/gitlab`** an und startet **`docker compose up -d`**. Log: **`/var/log/gitlab-docker-bootstrap.log`**.
+- Cloud-Init ([`templates/gitlab-docker-cloud-init.yaml.tpl`](../terraform/templates/gitlab-docker-cloud-init.yaml.tpl)): installiert Docker Engine + Compose-Plugin, legt den Stack unter **`/opt/gitlab`** an und startet **`docker compose up -d`**. Login-Shell auf dem Host: **zsh** (Autosuggestions, Syntax-Highlighting, Docker/Compose-Completion via **`/etc/zsh/zshrc.d/99-gitlab-docker-host.zsh`**). Log: **`/var/log/gitlab-docker-bootstrap.log`**.
 
 **Persistenz auf dem Host** (Bind-Mounts statt anonymer Docker-Volumes):
 
@@ -52,7 +52,7 @@ editor /opt/gitlab/data/config/gitlab.rb
 docker compose exec gitlab gitlab-ctl reconfigure
 ```
 
-Initiales **`root`**: Umgebungsvariable **`GITLAB_ROOT_PASSWORD`** (Wert aus Terraform-`random_password`; Output **`gitlab_docker_initial_root_password`**, sensitiv, im **State**).
+Initiales **`root`**: Umgebungsvariable **`GITLAB_ROOT_PASSWORD`** (Wert aus Terraform-`random_password`; Output **`gitlab_docker_initial_root_password`**, sensitiv, im **State**). Mit **`gitlab_display_initial_root_password = true`** (Standard) setzt `gitlab.rb` zusätzlich **`display_initial_root_password`** und **`store_initial_root_password`**, sodass GitLab das Passwort auf der Anmeldeseite anzeigt und kurzzeitig in **`/etc/gitlab/initial_root_password`** ablegt ([Docker-Doku](https://docs.gitlab.com/install/docker/installation/)) — **nur beim ersten DB-Seed**. Auf bereits initialisierten Instanzen: `terraform output -raw gitlab_docker_initial_root_password` oder Passwort-Reset.
 
 **E-Mail (SMTP):** Mit **`gitlab_smtp_enabled = true`** schreibt Terraform die [Omnibus-SMTP-Einstellungen](https://docs.gitlab.com/omnibus/settings/smtp.html) in `gitlab.rb` (`smtp_enable`, Adresse, Port, Auth, `gitlab_email_from`, …) und öffnet in der **Hetzner-Firewall** ausgehend **TCP auf `gitlab_smtp_port`**. Bei `false` wird `gitlab_rails['smtp_enable'] = false` gesetzt (keine SMTP-Egress-Regel). Nach Änderung: `gitlab-ctl reconfigure`.
 
