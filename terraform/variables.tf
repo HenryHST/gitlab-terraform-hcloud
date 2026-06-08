@@ -228,12 +228,12 @@ variable "gitlab_docker_compose_hardening" {
   }
 
   validation {
-    condition = can(regex("^[0-9]+[kKmMgG]?$", coalesce(var.gitlab_docker_compose_hardening.log_max_size, "10m")))
+    condition     = can(regex("^[0-9]+[kKmMgG]?$", coalesce(var.gitlab_docker_compose_hardening.log_max_size, "10m")))
     error_message = "gitlab_docker_compose_hardening.log_max_size must be a Docker log size (e.g. 10m, 100m)."
   }
 
   validation {
-    condition = coalesce(var.gitlab_docker_compose_hardening.log_max_file, 3) >= 1
+    condition     = coalesce(var.gitlab_docker_compose_hardening.log_max_file, 3) >= 1
     error_message = "gitlab_docker_compose_hardening.log_max_file must be at least 1."
   }
 }
