@@ -120,3 +120,49 @@ DKIM TXT records exceeding 255 characters are automatically split into multiple 
 - SRV record values must follow the format: `priority weight port target` (target must end with a dot)
 - CAA records are optional and can be disabled by setting `enable_caa_records = false`
 - The module uses the `hcloud.dns` provider alias - ensure this is configured in your root module
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_hcloud"></a> [hcloud](#requirement\_hcloud) | ~> 1.60 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_hcloud.dns"></a> [hcloud.dns](#provider\_hcloud.dns) | ~> 1.60 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_contact_value"></a> [contact\_value](#input\_contact\_value) | CAA contact record value | `string` | `"mailto:info@example.com"` | no |
+| <a name="input_create_zone"></a> [create\_zone](#input\_create\_zone) | If false, look up an existing Hetzner DNS zone with domain\_name (no new zone is created) | `bool` | `true` | no |
+| <a name="input_dkim_value"></a> [dkim\_value](#input\_dkim\_value) | DKIM TXT record value (will be automatically chunked if >255 characters) | `string` | `""` | no |
+| <a name="input_dmarc_value"></a> [dmarc\_value](#input\_dmarc\_value) | DMARC TXT record value | `string` | `"v=DMARC1;p=quarantine;pct=100;rua=mailto:info@example.com"` | no |
+| <a name="input_domain_name"></a> [domain\_name](#input\_domain\_name) | Domain name for the DNS zone | `string` | n/a | yes |
+| <a name="input_enable_caa_records"></a> [enable\_caa\_records](#input\_enable\_caa\_records) | Whether to create CAA records (issue, issuewild, iodef, contact) | `bool` | `true` | no |
+| <a name="input_iodef_value"></a> [iodef\_value](#input\_iodef\_value) | CAA IODEF record value | `string` | `"mailto:info@example.com"` | no |
+| <a name="input_ipv4_a_record_name"></a> [ipv4\_a\_record\_name](#input\_ipv4\_a\_record\_name) | Relative hostname (zone suffix) for the A record pointing at server\_ipv4 | `string` | `"web1"` | no |
+| <a name="input_mail_cname_target"></a> [mail\_cname\_target](#input\_mail\_cname\_target) | CNAME target for autoconfig and autodiscover records | `string` | `"mail.example.com"` | no |
+| <a name="input_mail_ipv4"></a> [mail\_ipv4](#input\_mail\_ipv4) | Mail server IPv4 address for A record | `string` | `""` | no |
+| <a name="input_mail_ipv6"></a> [mail\_ipv6](#input\_mail\_ipv6) | Mail server IPv6 address for AAAA record | `string` | `""` | no |
+| <a name="input_mail_mx_value"></a> [mail\_mx\_value](#input\_mail\_mx\_value) | MX record value (priority and hostname) | `string` | `"10 mail.example.com"` | no |
+| <a name="input_server_ipv4"></a> [server\_ipv4](#input\_server\_ipv4) | IPv4 address for the application A record | `string` | n/a | yes |
+| <a name="input_spf_value"></a> [spf\_value](#input\_spf\_value) | SPF TXT record value | `string` | `"v=spf1 mx -all"` | no |
+| <a name="input_srv_name"></a> [srv\_name](#input\_srv\_name) | SRV record name | `string` | `"_autodiscover._tcp"` | no |
+| <a name="input_srv_value"></a> [srv\_value](#input\_srv\_value) | SRV record value: priority weight port target (target must end with a dot) | `string` | `"0 0 443 mail.example.com."` | no |
+| <a name="input_tlsa_name"></a> [tlsa\_name](#input\_tlsa\_name) | TLSA record name | `string` | `"_25._tcp.mail.example.com"` | no |
+| <a name="input_tlsa_value"></a> [tlsa\_value](#input\_tlsa\_value) | TLSA record value | `string` | `""` | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_zone_authoritative_nameservers"></a> [zone\_authoritative\_nameservers](#output\_zone\_authoritative\_nameservers) | Authoritative nameservers for the DNS zone |
+| <a name="output_zone_id"></a> [zone\_id](#output\_zone\_id) | ID of the DNS zone (created or existing) |
+| <a name="output_zone_name"></a> [zone\_name](#output\_zone\_name) | Name of the DNS zone |
+| <a name="output_zone_primary_nameservers"></a> [zone\_primary\_nameservers](#output\_zone\_primary\_nameservers) | Primary nameservers for the DNS zone |
+<!-- END_TF_DOCS -->

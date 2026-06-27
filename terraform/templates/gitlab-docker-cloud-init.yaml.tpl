@@ -555,11 +555,21 @@ write_files:
       postgresql['enable'] = false
       gitlab_rails['db_adapter'] = 'postgresql'
       gitlab_rails['db_encoding'] = 'unicode'
+%{ if pgbouncer_enabled ~}
+      gitlab_rails['db_host'] = 'pgbouncer'
+%{ else ~}
       gitlab_rails['db_host'] = 'postgres'
+%{ endif ~}
       gitlab_rails['db_port'] = 5432
       gitlab_rails['db_username'] = 'gitlab'
       gitlab_rails['db_password'] = '${postgres_password}'
       gitlab_rails['db_database'] = 'gitlabhq_production'
+%{ if db_tuning_enabled ~}
+
+      # DB connection tuning (Terraform gitlab_docker_db_tuning)
+      gitlab_rails['db_pool'] = ${db_pool}
+      sidekiq['concurrency'] = ${sidekiq_concurrency}
+%{ endif ~}
 %{ if pages_enabled ~}
 
       # GitLab Pages behind Traefik (https://docs.gitlab.com/administration/pages/)
@@ -661,6 +671,20 @@ write_files:
       LOG=/var/log/gitlab-backup.log
       LOCK=/var/run/gitlab-backup.lock
       SOURCE="$${GITLAB_BACKUP_SOURCE:-manual}"
+      GITLAB_RB="$COMPOSE_DIR/data/config/gitlab.rb"
+%{ if pgbouncer_enabled ~}
+      PGBOUNCER_ENABLED=1
+      restore_pgbouncer_db_host() {
+        if grep -q "gitlab_rails\['db_host'\] = 'postgres'" "$GITLAB_RB"; then
+          sed -i "s/gitlab_rails\['db_host'\] = 'postgres'/gitlab_rails['db_host'] = 'pgbouncer'/" "$GITLAB_RB"
+          docker compose exec -T gitlab gitlab-ctl reconfigure
+        fi
+      }
+      use_direct_postgres_db_host() {
+        sed -i "s/gitlab_rails\['db_host'\] = 'pgbouncer'/gitlab_rails['db_host'] = 'postgres'/" "$GITLAB_RB"
+        docker compose exec -T gitlab gitlab-ctl reconfigure
+      }
+%{ endif ~}
       exec 9>"$LOCK"
       flock -n 9 || { echo "gitlab-backup already running (lock $LOCK)"; exit 1; }
       exec >>"$LOG" 2>&1
@@ -674,7 +698,15 @@ write_files:
       if [[ "$SOURCE" == "cron" || "$${CRON:-}" == "1" ]]; then
         BACKUP_ARGS+=(CRON=1)
       fi
+%{ if pgbouncer_enabled ~}
+      trap restore_pgbouncer_db_host EXIT
+      use_direct_postgres_db_host
+%{ endif ~}
       docker compose exec -T gitlab "$${BACKUP_ARGS[@]}"
+%{ if pgbouncer_enabled ~}
+      restore_pgbouncer_db_host
+      trap - EXIT
+%{ endif ~}
       docker compose exec -T gitlab gitlab-ctl backup-etc --delete-old-backups
       echo "=== finished $(date -Is) source=$SOURCE ==="
 
@@ -690,6 +722,19 @@ write_files:
       BACKUP_DIR=/opt/gitlab/backups
       CONFIG_BACKUP_DIR=/opt/gitlab/data/config/config_backup
       LOG=/var/log/gitlab-restore.log
+      GITLAB_RB="$COMPOSE_DIR/data/config/gitlab.rb"
+%{ if pgbouncer_enabled ~}
+      restore_pgbouncer_db_host() {
+        if grep -q "gitlab_rails\['db_host'\] = 'postgres'" "$GITLAB_RB"; then
+          sed -i "s/gitlab_rails\['db_host'\] = 'postgres'/gitlab_rails['db_host'] = 'pgbouncer'/" "$GITLAB_RB"
+          docker compose exec -T gitlab gitlab-ctl reconfigure
+        fi
+      }
+      use_direct_postgres_db_host() {
+        sed -i "s/gitlab_rails\['db_host'\] = 'pgbouncer'/gitlab_rails['db_host'] = 'postgres'/" "$GITLAB_RB"
+        docker compose exec -T gitlab gitlab-ctl reconfigure
+      }
+%{ endif ~}
 
       usage() {
         cat <<'EOF'
@@ -752,7 +797,15 @@ write_files:
         exec >>"$LOG" 2>&1
         docker compose exec -T gitlab gitlab-ctl stop puma
         docker compose exec -T gitlab gitlab-ctl stop sidekiq
+%{ if pgbouncer_enabled ~}
+        trap restore_pgbouncer_db_host EXIT
+        use_direct_postgres_db_host
+%{ endif ~}
         docker compose exec -T gitlab gitlab-backup restore BACKUP="$id"
+%{ if pgbouncer_enabled ~}
+        restore_pgbouncer_db_host
+        trap - EXIT
+%{ endif ~}
         docker compose restart gitlab
         docker compose exec -T gitlab gitlab-rake gitlab:check SANITIZE=true || true
         echo "=== application restore finished $(date -Is) ==="
@@ -945,6 +998,45 @@ write_files:
               max-file: "${compose_log_max_file}"
 %{ endif ~}
 
+%{ if pgbouncer_enabled ~}
+        pgbouncer:
+          image: ${pgbouncer_image}
+          restart: unless-stopped
+          environment:
+            DB_USER: gitlab
+            DB_PASSWORD: "${postgres_password}"
+            DB_HOST: postgres
+            DB_PORT: 5432
+            DB_NAME: gitlabhq_production
+            POOL_MODE: ${pgbouncer_pool_mode}
+            AUTH_TYPE: scram-sha-256
+            MAX_CLIENT_CONN: ${pgbouncer_max_client_conn}
+            DEFAULT_POOL_SIZE: ${pgbouncer_default_pool_size}
+          networks:
+            socket_proxy:
+              ipv4_address: $${SERVICES_PGBOUNCER_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.251}
+              ipv6_address: $${SERVICES_PGBOUNCER_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffc}
+          depends_on:
+            postgres:
+              condition: service_healthy
+          healthcheck:
+            test: ["CMD-SHELL", "pg_isready -h localhost -p 5432 -U gitlab -d gitlabhq_production"]
+            interval: 5s
+            timeout: 5s
+            retries: 20
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
+
+%{ endif ~}
         gitlab:
           image: ${gitlab_ce_image}
           restart: unless-stopped
@@ -967,6 +1059,10 @@ write_files:
           depends_on:
             postgres:
               condition: service_healthy
+%{ if pgbouncer_enabled ~}
+            pgbouncer:
+              condition: service_healthy
+%{ endif ~}
 %{ if plantuml_enabled ~}
             plantuml:
               condition: service_started

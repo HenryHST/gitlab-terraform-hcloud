@@ -17,6 +17,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Traefik HTTP-Hardening:** `gitlab_docker_traefik_hardening` — opt-in: Traefik-fail2ban-Plugin aktivieren, Log-Level `INFO`, JSON-Access-Logs, Rate-Limit in `default@file`, optional `VersionTLS13`.
 - **Docker/Compose-Hardening:** `gitlab_docker_compose_hardening` — opt-in: `/etc/docker/daemon.json` (`icc: false`, `live-restore`, Log-Rotation), `no-new-privileges` und Logging für Stack-Container.
 - **Docker-Host-Shell:** Cloud-Init installiert `zsh`, `zsh-autosuggestions`, `zsh-syntax-highlighting`; Login-Shell für `root`/`gadmin`, systemweites `/etc/zsh/zshrc.d/99-gitlab-docker-host.zsh` (Completion, Plugins).
+- **GitLab DB-Tuning / PgBouncer:** `gitlab_docker_db_tuning` — opt-in `db_pool`, `sidekiq['concurrency']`, optional PgBouncer-Compose-Service; Backup/Restore-Skripte mit direktem `postgres`-Bypass.
+- **Pre-commit:** [`.pre-commit-config.yaml`](.pre-commit-config.yaml) — `terraform_fmt`, `terraform_docs` (inject in Modul-READMEs via [`terraform/.terraform-docs.yml`](terraform/.terraform-docs.yml)), `terraform_validate`, YAML/TOML-Checks, **gitleaks**, optional `docker-compose-check`.
 
 ### Changed
 

@@ -67,7 +67,8 @@ Initiales **`root`**: Umgebungsvariable **`GITLAB_ROOT_PASSWORD`** (Wert aus Ter
 | Service | Netze | Ports / Zugriff |
 |---------|--------|-----------------|
 | **traefik** | `proxy`, `socket_proxy` | Host **80/443**; statische IPs im `proxy`-Subnetz (`172.31.128.0/18`) |
-| **postgres** | `socket_proxy` | nur intern; DB-Host `postgres` für GitLab |
+| **postgres** | `socket_proxy` | nur intern; DB-Host `postgres` für GitLab (bzw. `pgbouncer` wenn **`gitlab_docker_db_tuning.pgbouncer_enabled`**) |
+| **pgbouncer** | `socket_proxy` | nur mit **`gitlab_docker_db_tuning`** + `pgbouncer_enabled`; Pool vor PostgreSQL |
 | **gitlab** | `proxy`, `socket_proxy` | HTTP **:80** hinter Traefik (`gitlab`); optional Registry **:5050** (`registry`-Router); Git/SSH **Host 2424** → Container 22 |
 | **gitlab-runner** | `proxy`, `socket_proxy` | Nur mit **`gitlab_docker_runner_enabled`**; bei Autoregister zunächst Compose-Profil **`runner`** (Start durch Skript) |
 | **plantuml** | `socket_proxy` | Nur mit **`gitlab_docker_plantuml_enabled`**; Proxy `/-/plantuml/` über GitLab-NGINX |

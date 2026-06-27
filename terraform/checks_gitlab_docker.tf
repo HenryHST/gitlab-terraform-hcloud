@@ -77,6 +77,13 @@ check "gitlab_docker_compose_hardening_requires_docker_stack" {
   }
 }
 
+check "gitlab_docker_db_tuning_requires_docker_stack" {
+  assert {
+    condition     = !var.gitlab_docker_db_tuning.enabled || local.gitlab_docker_stack_enabled
+    error_message = "gitlab_docker_db_tuning.enabled requires gitlab_install_mode = docker_compose or Proxmox GitLab Docker stack (proxmox_gitlab_docker_compose_enabled)."
+  }
+}
+
 check "gitlab_docker_user_data_hcloud_size" {
   assert {
     condition = (

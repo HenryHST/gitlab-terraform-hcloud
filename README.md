@@ -209,6 +209,18 @@ In [`provider.tf`](terraform/provider.tf):
 
 Nach erfolgreichem Apply zeigen [`outputs.tf`](terraform/outputs.tf) u. a. öffentliche IPs, SSH-Befehl und DNS-Zoneninformationen an.
 
+### Pre-commit (lokal)
+
+Vor Commits optional [pre-commit](https://pre-commit.com/) installieren (spiegelt u. a. `terraform fmt`, `validate`, Modul-`terraform-docs`, YAML-Checks und **gitleaks**):
+
+```bash
+pip install pre-commit   # oder: brew install pre-commit
+pre-commit install
+pre-commit run -a        # einmalig alle Dateien prüfen
+```
+
+Konfiguration: [`.pre-commit-config.yaml`](.pre-commit-config.yaml). Modul-READMEs: [`terraform/.terraform-docs.yml`](terraform/.terraform-docs.yml) (inject-Mode). Vollständige CI-Checks weiterhin: `make ci`.
+
 ### Plan: GitLab-DNS oder Proxmox-401
 
 | Fehler | Ursache | Maßnahme |

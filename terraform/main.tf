@@ -30,6 +30,11 @@ locals {
 
   gitlab_docker_compose_hardening_enabled = var.gitlab_docker_compose_hardening.enabled && local.gitlab_docker_stack_enabled
 
+  gitlab_docker_db_tuning_enabled   = var.gitlab_docker_db_tuning.enabled && local.gitlab_docker_stack_enabled
+  gitlab_docker_pgbouncer_enabled   = local.gitlab_docker_db_tuning_enabled && var.gitlab_docker_db_tuning.pgbouncer_enabled
+  gitlab_docker_db_pool_effective   = var.gitlab_docker_db_tuning.db_pool
+  gitlab_docker_sidekiq_concurrency = var.gitlab_docker_db_tuning.sidekiq_concurrency
+
   host_hardening_ssh_allow_users = local.gitlab_docker_host_hardening_enabled ? concat(
     ["root"],
     local.gitlab_admin_host_enabled ? [local.gitlab_admin_username_effective] : [],
@@ -187,6 +192,14 @@ locals {
     compose_log_max_file                    = var.gitlab_docker_compose_hardening.log_max_file
     compose_container_no_new_privileges     = local.gitlab_docker_compose_hardening_enabled && var.gitlab_docker_compose_hardening.container_no_new_privileges
     compose_container_log_rotation          = local.gitlab_docker_compose_hardening_enabled && var.gitlab_docker_compose_hardening.container_log_rotation
+    db_tuning_enabled                       = local.gitlab_docker_db_tuning_enabled
+    pgbouncer_enabled                       = local.gitlab_docker_pgbouncer_enabled
+    db_pool                                 = local.gitlab_docker_db_pool_effective
+    sidekiq_concurrency                     = local.gitlab_docker_sidekiq_concurrency
+    pgbouncer_image                         = var.gitlab_docker_db_tuning.pgbouncer_image
+    pgbouncer_pool_mode                     = lower(var.gitlab_docker_db_tuning.pgbouncer_pool_mode)
+    pgbouncer_default_pool_size             = var.gitlab_docker_db_tuning.pgbouncer_default_pool_size
+    pgbouncer_max_client_conn               = var.gitlab_docker_db_tuning.pgbouncer_max_client_conn
   }
 
   gitlab_docker_user_data = local.gitlab_docker_stack_enabled ? templatefile(

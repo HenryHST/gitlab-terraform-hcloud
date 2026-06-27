@@ -238,6 +238,59 @@ variable "gitlab_docker_compose_hardening" {
   }
 }
 
+variable "gitlab_docker_db_tuning" {
+  description = "Opt-in GitLab DB connection tuning (db_pool, sidekiq concurrency) and optional PgBouncer in docker_compose mode"
+  type = object({
+    enabled                     = optional(bool, false)
+    db_pool                     = optional(number, 32)
+    sidekiq_concurrency         = optional(number, 20)
+    pgbouncer_enabled           = optional(bool, true)
+    pgbouncer_image             = optional(string, "edoburu/pgbouncer:1.24.1")
+    pgbouncer_pool_mode         = optional(string, "transaction")
+    pgbouncer_default_pool_size = optional(number, 25)
+    pgbouncer_max_client_conn   = optional(number, 2048)
+  })
+  default = {
+    enabled = false
+  }
+
+  validation {
+    condition     = coalesce(var.gitlab_docker_db_tuning.db_pool, 32) >= 1
+    error_message = "gitlab_docker_db_tuning.db_pool must be at least 1."
+  }
+
+  validation {
+    condition     = coalesce(var.gitlab_docker_db_tuning.sidekiq_concurrency, 20) >= 1
+    error_message = "gitlab_docker_db_tuning.sidekiq_concurrency must be at least 1."
+  }
+
+  validation {
+    condition = contains(
+      ["transaction", "session"],
+      lower(coalesce(var.gitlab_docker_db_tuning.pgbouncer_pool_mode, "transaction")),
+    )
+    error_message = "gitlab_docker_db_tuning.pgbouncer_pool_mode must be transaction or session."
+  }
+
+  validation {
+    condition     = coalesce(var.gitlab_docker_db_tuning.pgbouncer_default_pool_size, 25) >= 1
+    error_message = "gitlab_docker_db_tuning.pgbouncer_default_pool_size must be at least 1."
+  }
+
+  validation {
+    condition     = coalesce(var.gitlab_docker_db_tuning.pgbouncer_max_client_conn, 2048) >= 1
+    error_message = "gitlab_docker_db_tuning.pgbouncer_max_client_conn must be at least 1."
+  }
+
+  validation {
+    condition = can(regex(
+      "^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      coalesce(var.gitlab_docker_db_tuning.pgbouncer_image, "edoburu/pgbouncer:1.24.1"),
+    ))
+    error_message = "gitlab_docker_db_tuning.pgbouncer_image must be a Docker image reference with a tag."
+  }
+}
+
 variable "gitlab_docker_host_image" {
   description = "hcloud image slug for the main server when gitlab_install_mode is docker_compose (default debian-13)"
   type        = string
@@ -1239,4 +1292,3 @@ variable "proxmox_runner_vmid" {
   }
 }
 # Proxmox VM/provider variables: copy proxmox_variables.tf.example → proxmox_variables.tf with proxmox.tf.
-

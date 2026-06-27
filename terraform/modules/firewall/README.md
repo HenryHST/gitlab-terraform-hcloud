@@ -160,3 +160,51 @@ module "firewall" {
   ]
 }
 ```
+
+<!-- BEGIN_TF_DOCS -->
+## Requirements
+
+| Name | Version |
+| ---- | ------- |
+| <a name="requirement_hcloud"></a> [hcloud](#requirement\_hcloud) | ~> 1.60 |
+
+## Providers
+
+| Name | Version |
+| ---- | ------- |
+| <a name="provider_hcloud"></a> [hcloud](#provider\_hcloud) | ~> 1.60 |
+
+## Inputs
+
+| Name | Description | Type | Default | Required |
+| ---- | ----------- | ---- | ------- | :------: |
+| <a name="input_custom_rules"></a> [custom\_rules](#input\_custom\_rules) | Additional custom firewall rules | <pre>list(object({<br/>    direction       = string<br/>    protocol        = string<br/>    port            = optional(string)<br/>    source_ips      = optional(list(string), [])<br/>    destination_ips = optional(list(string), [])<br/>  }))</pre> | `[]` | no |
+| <a name="input_dns_source_ips"></a> [dns\_source\_ips](#input\_dns\_source\_ips) | Source IPs allowed for DNS access | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+| <a name="input_egress_destination_ips"></a> [egress\_destination\_ips](#input\_egress\_destination\_ips) | Destination IPs for outbound DNS, HTTP, and HTTPS rules | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+| <a name="input_egress_smtp_port"></a> [egress\_smtp\_port](#input\_egress\_smtp\_port) | Outbound SMTP port when enable\_egress\_smtp is true | `number` | `587` | no |
+| <a name="input_enable_dns"></a> [enable\_dns](#input\_enable\_dns) | Enable DNS access on port 53 (TCP and UDP) | `bool` | `true` | no |
+| <a name="input_enable_egress_dns"></a> [enable\_egress\_dns](#input\_enable\_egress\_dns) | Allow outbound DNS (TCP and UDP port 53) | `bool` | `true` | no |
+| <a name="input_enable_egress_http"></a> [enable\_egress\_http](#input\_enable\_egress\_http) | Allow outbound HTTP (TCP port 80) | `bool` | `true` | no |
+| <a name="input_enable_egress_https"></a> [enable\_egress\_https](#input\_enable\_egress\_https) | Allow outbound HTTPS (TCP port 443) | `bool` | `true` | no |
+| <a name="input_enable_egress_smtp"></a> [enable\_egress\_smtp](#input\_enable\_egress\_smtp) | Allow outbound SMTP (TCP on egress\_smtp\_port, e.g. 587 or 465) | `bool` | `false` | no |
+| <a name="input_enable_http"></a> [enable\_http](#input\_enable\_http) | Enable HTTP access on port 80 | `bool` | `true` | no |
+| <a name="input_enable_https"></a> [enable\_https](#input\_enable\_https) | Enable HTTPS access on port 443 | `bool` | `true` | no |
+| <a name="input_enable_icmp"></a> [enable\_icmp](#input\_enable\_icmp) | Enable ICMP (ping) access | `bool` | `true` | no |
+| <a name="input_enable_node_exporter"></a> [enable\_node\_exporter](#input\_enable\_node\_exporter) | Enable Node Exporter metrics access | `bool` | `true` | no |
+| <a name="input_enable_ssh"></a> [enable\_ssh](#input\_enable\_ssh) | Enable SSH access on port 22 | `bool` | `true` | no |
+| <a name="input_enable_ssh_high"></a> [enable\_ssh\_high](#input\_enable\_ssh\_high) | Enable SSH access on port 2424 (e.g. GitLab git/SSH via Docker 2424:22) | `bool` | `true` | no |
+| <a name="input_firewall_name"></a> [firewall\_name](#input\_firewall\_name) | Name of the firewall | `string` | n/a | yes |
+| <a name="input_http_source_ips"></a> [http\_source\_ips](#input\_http\_source\_ips) | Source IPs allowed for HTTP access | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+| <a name="input_https_source_ips"></a> [https\_source\_ips](#input\_https\_source\_ips) | Source IPs allowed for HTTPS access | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+| <a name="input_icmp_source_ips"></a> [icmp\_source\_ips](#input\_icmp\_source\_ips) | Source IPs allowed for ICMP access | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+| <a name="input_node_exporter_port"></a> [node\_exporter\_port](#input\_node\_exporter\_port) | Port for Node Exporter metrics | `number` | `9100` | no |
+| <a name="input_node_exporter_source_ips"></a> [node\_exporter\_source\_ips](#input\_node\_exporter\_source\_ips) | Source IPs allowed for Node Exporter access | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+| <a name="input_ssh_source_ips"></a> [ssh\_source\_ips](#input\_ssh\_source\_ips) | Source IPs allowed for SSH access | `list(string)` | <pre>[<br/>  "0.0.0.0/0",<br/>  "::/0"<br/>]</pre> | no |
+
+## Outputs
+
+| Name | Description |
+| ---- | ----------- |
+| <a name="output_firewall_id"></a> [firewall\_id](#output\_firewall\_id) | ID of the created firewall |
+| <a name="output_firewall_name"></a> [firewall\_name](#output\_firewall\_name) | Name of the firewall |
+<!-- END_TF_DOCS -->

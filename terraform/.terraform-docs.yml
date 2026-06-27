@@ -1,0 +1,17 @@
+formatter: "markdown table"
+sections:
+  show:
+    - inputs
+    - outputs
+    - providers
+    - requirements
+output:
+  mode: inject
+  file: README.md
+
+terraform:
+  - path: modules/server
+  - path: modules/firewall
+  - path: modules/dns
+  - path: modules/gitlab-api
+  - path: modules/proxmox

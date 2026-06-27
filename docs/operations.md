@@ -33,6 +33,8 @@ Mit **`gitlab_docker_compose_hardening = { enabled = true }`** schreibt Cloud-In
 
 **Shell (Docker-Host):** Cloud-Init installiert **`zsh`**, **`zsh-autosuggestions`** und **`zsh-syntax-highlighting`**, setzt **`/usr/bin/zsh`** als Login-Shell für **`root`** und **`gadmin`** (falls aktiv) sowie **`SHELL=/usr/bin/zsh`** in **`/etc/default/useradd`**. Systemweite Konfiguration: **`/etc/zsh/zshrc.d/99-gitlab-docker-host.zsh`** (History, `compinit`, Plugins, Docker/Compose-Tab-Completion). Auf bestehenden Servern: Pakete + Snippet manuell nachziehen oder Server-Replace.
 
+Mit **`gitlab_docker_db_tuning = { enabled = true }`** setzt Cloud-Init in **`gitlab.rb`** **`db_pool`** und **`sidekiq['concurrency']`**. Mit **`pgbouncer_enabled = true`** (Standard innerhalb des Blocks): Compose-Service **`pgbouncer`** im Netz **`socket_proxy`**, GitLab verbindet sich über **`db_host = pgbouncer`**. **`gitlab-backup.sh`** / **`gitlab-restore.sh`** schalten für `pg_dump` temporär auf **`postgres`** um. DB-Migrationen/Reindex ebenfalls direkt an **`postgres`** ([GitLab Database settings](https://docs.gitlab.com/omnibus/settings/database/)). PostgreSQL-Image: **`gitlab_docker_postgres_image`** (z. B. `postgres:16-bookworm`). Auf bestehenden Servern: Compose + `gitlab.rb` manuell oder Server-Replace.
+
 Vorgehen (Beispiel Runner):
 
 ```bash
@@ -58,6 +60,7 @@ Entsprechend für den Hauptserver `module.server.hcloud_server.main`, falls dort
 
 ## Qualitätssicherung (lokal / CI)
 
+- **Pre-commit** ([`.pre-commit-config.yaml`](../.pre-commit-config.yaml)): `pre-commit install` (einmalig), dann bei jedem Commit automatisch u. a. `terraform fmt`, `terraform validate` (nur Root-`terraform/`, `-backend=false`), `terraform_docs` für Module ([`terraform/.terraform-docs.yml`](../terraform/.terraform-docs.yml), inject in `modules/*/README.md`), YAML/TOML-Checks, **gitleaks**. Manuell: `pre-commit run -a` oder `make pre-commit`.
 - **Makefile** (vom Repo-Root): `make fmt` / `make validate` führt Befehle in **`terraform/`** aus (vorher einmal `cd terraform && terraform init`).
 - **Docker-Image-Versionen:** `make check-images` vergleicht die gepinnten Tags **`gitlab_docker_gitlab_ce_image`** und **`gitlab_docker_traefik_image`** (Defaults in [`variables.tf`](../terraform/variables.tf), optional Override in `terraform.tfvars`) mit Docker Hub (`curl`, `jq` erforderlich). `make check-images-strict` beendet mit Exit-Code 1, wenn neuere Tags verfügbar sind. Nach einem Update: Variablen anpassen, `terraform plan`/`apply`, auf dem Host `docker compose pull` und betroffene Services neu starten. Nicht Teil von `make ci` (Netzwerk, Rate-Limits).
 - **GitLab CI:** [`.gitlab-ci.yml`](../.gitlab-ci.yml) – dieselben Checks wie GitHub Actions (`fmt`, `terraform validate`, `tofu validate`, `tflint`); keine Secrets/`apply` in der Pipeline.

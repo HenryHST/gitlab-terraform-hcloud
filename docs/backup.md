@@ -39,6 +39,8 @@ sudo GITLAB_BACKUP_SOURCE=manual /opt/gitlab/scripts/gitlab-backup.sh
 
 **Restore:** `gitlab-restore.sh --list` · `<BACKUP_ID>` · `--config-only` — siehe [Restore-Doku](https://docs.gitlab.com/administration/backup_restore/restore_gitlab/).
 
+**PgBouncer (`gitlab_docker_db_tuning.pgbouncer_enabled = true`):** GitLab nutzt im Normalbetrieb **`pgbouncer`**; **`gitlab-backup.sh`** und **`gitlab-restore.sh`** setzen **`db_host`** temporär auf **`postgres`** (Transaction-Pooling ist für lang laufende `pg_dump`-/Restore-Sessions ungeeignet). DB-Migrationen und **`gitlab:db:reindex`** manuell ebenfalls direkt an **`postgres:5432`**, danach **`db_host = pgbouncer`** wiederherstellen und **`gitlab-ctl reconfigure`**.
+
 ## Auslösen über GitLab (CI/CD)
 
 Es gibt **keine** GitLab-REST-API für Vollinstanz-Backups auf self-managed CE ([Forum](https://forum.gitlab.com/t/api-endpoint-for-backup-on-self-managed-gitlab-instance/103332)). Empfohlen:

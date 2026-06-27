@@ -96,6 +96,22 @@ enable_gitlab_resources = false
 #   container_log_rotation      = true
 # }
 
+# PostgreSQL image (docker_compose) — e.g. postgres:16-bookworm; GitLab 19.x → postgres:17 via effective image
+# gitlab_docker_postgres_image = "postgres:16-bookworm"
+
+# GitLab DB connection tuning + optional PgBouncer (docker_compose)
+# gitlab_docker_db_tuning = { enabled = true }
+# gitlab_docker_db_tuning = {
+#   enabled                     = true
+#   db_pool                     = 32
+#   sidekiq_concurrency         = 20
+#   pgbouncer_enabled           = true
+#   pgbouncer_image             = "edoburu/pgbouncer:1.24.1"
+#   pgbouncer_pool_mode         = "transaction"
+#   pgbouncer_default_pool_size = 25
+#   pgbouncer_max_client_conn   = 2048
+# }
+
 # Backups (docker_compose, hetzner_app, proxmox) — see docs/backup.md
 # gitlab_docker_backup_enabled       = true
 # gitlab_docker_backup_auto_enabled  = true   # false = scripts only, no /etc/cron.d/gitlab-backup

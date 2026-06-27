@@ -1,7 +1,7 @@
 # Run from repo root; Terraform lives in terraform/ (terraform init there first).
 TF_DIR := terraform
 
-.PHONY: fmt fmt-check validate check ci plan plan-no-refresh state-rm-stale-gitlab check-images check-images-strict
+.PHONY: fmt fmt-check validate check ci plan plan-no-refresh state-rm-stale-gitlab check-images check-images-strict pre-commit pre-commit-install
 
 fmt:
 	cd $(TF_DIR) && terraform fmt -recursive
@@ -36,3 +36,9 @@ plan:
 # Remove GitLab API resources from state when enable_gitlab_resources=false but refresh still fails (host gone).
 state-rm-stale-gitlab:
 	cd $(TF_DIR) && terraform state list | grep -E '^(gitlab_|module\.gitlab_api)' | while read -r addr; do terraform state rm "$$addr"; done || true
+
+pre-commit-install:
+	pre-commit install
+
+pre-commit:
+	pre-commit run --all-files
