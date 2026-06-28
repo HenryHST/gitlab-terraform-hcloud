@@ -215,11 +215,11 @@ Vor Commits optional [pre-commit](https://pre-commit.com/) installieren (spiegel
 
 ```bash
 pip install pre-commit   # oder: brew install pre-commit
-pre-commit install
+make pre-commit-install  # pre-commit + commit-msg (commitlint)
 pre-commit run -a        # einmalig alle Dateien prüfen
 ```
 
-Konfiguration: [`.pre-commit-config.yaml`](.pre-commit-config.yaml). Modul-READMEs: [`terraform/.terraform-docs.yml`](terraform/.terraform-docs.yml) (inject-Mode). Vollständige CI-Checks weiterhin: `make ci`.
+Konfiguration: [`.pre-commit-config.yaml`](.pre-commit-config.yaml), Commit-Messages: [`commitlint.config.js`](commitlint.config.js) (Conventional Commits). Modul-READMEs: [`terraform/.terraform-docs.yml`](terraform/.terraform-docs.yml) (inject-Mode). Vollständige CI-Checks weiterhin: `make ci`.
 
 ### Plan: GitLab-DNS oder Proxmox-401
 

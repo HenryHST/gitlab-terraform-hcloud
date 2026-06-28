@@ -39,6 +39,7 @@ state-rm-stale-gitlab:
 
 pre-commit-install:
 	pre-commit install
+	pre-commit install --hook-type commit-msg
 
 pre-commit:
 	pre-commit run --all-files
