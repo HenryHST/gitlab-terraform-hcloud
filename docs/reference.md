@@ -22,8 +22,8 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_install_mode` | `none` | `none`: kein GitLab; `hetzner_app`: Image `gitlab` + [`templates/gitlab-cloud-init.yaml.tpl`](../terraform/templates/gitlab-cloud-init.yaml.tpl); `docker_compose`: `gitlab_docker_host_image` (Standard `debian-13`) + [`templates/gitlab-docker-cloud-init.yaml.tpl`](../terraform/templates/gitlab-docker-cloud-init.yaml.tpl), Stack unter `/opt/gitlab`; `proxmox`: QEMU-VM(s) via [`module.proxmox`](../terraform/modules/proxmox) + gleiches Compose-Template (siehe [GitLab auf Proxmox](proxmox.md)) |
 | `proxmox_gitlab_vmid` / `proxmox_runner_vmid` | `0` | Nur bei `gitlab_install_mode = proxmox`: feste Proxmox-VM-ID (100–999999999); `0` = nächste freie ID (kein Plan-Check). Bei ID > 0: Verfügbarkeit per Proxmox-API bei `plan` ([`proxmox_data.tf`](../terraform/proxmox_data.tf.example)) |
 | `gitlab_docker_host_image` | `debian-13` | Nur `docker_compose`: Hetzner-Image-Slug für den Hauptserver (vor Apply mit `hcloud image list` prüfen; bei abweichendem Slug z. B. `debian-12` setzen) |
-| `gitlab_docker_traefik_image` | `traefik:v3.7.1` | Traefik-Container in `docker_compose` |
-| `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.11.4-ce.0` | GitLab-CE-Image-Tag (`MAJOR.MINOR.PATCH-ce.0`); Validierung ab GitLab 16+ |
+| `gitlab_docker_traefik_image` | `traefik:v3.7.5` | Traefik-Container in `docker_compose` |
+| `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.11.6-ce.0` | GitLab-CE-Image-Tag (`MAJOR.MINOR.PATCH-ce.0`); Validierung ab GitLab 16+; 19.x z. B. `19.1.1-ce.0` |
 | `gitlab_docker_postgres_image` | `postgres:16-alpine` | PostgreSQL-Image (Major 13–17); **18.x:** 16 oder 17; **19.x:** Terraform setzt automatisch **postgres:17** (Suffix aus dieser Variable, z. B. `-alpine`) — Output `gitlab_docker_postgres_image_effective` |
 | `gitlab_docker_renovate_enabled` | `false` | `true`: Mend **Renovate CE** im Compose-Stack; nur bei `docker_compose` |
 | `gitlab_docker_renovate_ce_image` | `ghcr.io/mend/renovate-ce:9.1.0` | Image-Tag pinnen ([Container-Pakete](https://github.com/mend/renovate-ce-ee/pkgs/container/renovate-ce)) |
@@ -45,7 +45,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_runner_enabled` | `false` | **`docker_compose`** / Proxmox-Docker: `gitlab/gitlab-runner` im gleichen Compose-Stack (Docker-Executor) |
 | `gitlab_docker_runner_autoregister` | `true` | Leeres `gitlab_docker_runner_token`: Bootstrap-Skript legt Instance-Runner per API an (`glrt-…`); Log: `/var/log/gitlab-runner-autoregister.log` |
 | `gitlab_docker_runner_token` | `""` | Optional `glrt-…` aus der UI; bei gesetztem Token wird Autoregister übersprungen |
-| `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v17.11.0` | Runner-Container-Image |
+| `gitlab_docker_runner_image` | `gitlab/gitlab-runner:alpine-v18.11.6` | Runner-Container-Image |
 | `gitlab_docker_runner_tags` | `["docker"]` | Runner-Tags (`tag_list` in `config.toml`); ignoriert wenn `gitlab_docker_runner_buildah_enabled` |
 | `gitlab_docker_runner_buildah_enabled` | `false` | Drei Buildah-Instance-Runner (`buildah-rootless`, `buildah-multiarch`, `buildah-privileged`); erfordert Autoregister + leeren Token; siehe [runner-buildah.md](runner-buildah.md) |
 | `gitlab_docker_runner_buildah_default_image` | `quay.io/buildah/stable` | Empfohlenes Job-Image in CI; nicht in `config.toml` |

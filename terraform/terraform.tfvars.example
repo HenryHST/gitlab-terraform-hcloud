@@ -98,6 +98,8 @@ enable_gitlab_resources = false
 
 # PostgreSQL image (docker_compose) — e.g. postgres:16-bookworm; GitLab 19.x → postgres:17 via effective image
 # gitlab_docker_postgres_image = "postgres:16-bookworm"
+# GitLab 19.x (requires postgres:17 — set gitlab_docker_postgres_image = "postgres:17-alpine"):
+# gitlab_docker_gitlab_ce_image = "gitlab/gitlab-ce:19.1.1-ce.0"
 
 # GitLab DB connection tuning + optional PgBouncer (docker_compose)
 # gitlab_docker_db_tuning = { enabled = true }

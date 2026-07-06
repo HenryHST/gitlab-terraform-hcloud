@@ -7,6 +7,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-06
+
+Minor-Release: PVE-LXC-Bash-Install, Docker-Compose-Erweiterungen, Pre-commit, Image-Pin-Updates.
+
 ### Added
 
 - **PVE LXC Bash-Install (ohne Terraform):** [`scripts/pve-secure-gitlab-lxc.sh`](scripts/pve-secure-gitlab-lxc.sh) v3.0.0 — Debian-LXC, Docker Compose unter `/opt/gitlab` (Traefik + GitLab CE + PostgreSQL); Config [`scripts/pve-gitlab.conf.example`](scripts/pve-gitlab.conf.example); Templates [`scripts/templates/gitlab-docker-core/`](scripts/templates/gitlab-docker-core/); Doku in [`docs/proxmox.md`](docs/proxmox.md).
@@ -23,6 +27,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- **Compose-Image-Pins:** Traefik `v3.7.5`; GitLab CE-Default `18.11.6-ce.0`; Runner `alpine-v18.11.6`; Doku/Beispiel für GitLab 19.x `19.1.1-ce.0` (mit `postgres:17`).
 - **`pve-secure-gitlab-lxc.sh`:** Breaking — kein Ubuntu/Omnibus mehr; Advanced Storage = ein LV für `/opt/gitlab` (statt drei Omnibus-Mounts).
 - **`gitlab_display_initial_root_password`:** Default `true`; `gitlab.rb` setzt bei Aktivierung `display_initial_root_password` und `store_initial_root_password` (Sign-in-Hinweis + temporäre Datei im Container; nur Erst-DB-Seed).
 - **Cloud-Init Bootstrap:** `apt-get install` und `systemctl enable --now docker` getrennt; Host-Hardening-Pakete über Terraform-Local `host_hardening_apt_packages` (Fix: `~`-Trimming klebte `docker-compose-pluginjq` / `systemctl` an die apt-Zeile).
@@ -30,6 +35,8 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **`docker_compose` Cloud-Init:** `user_data` für Hetzner-Server wird als **gzip+base64** übergeben (32-KiB-API-Limit); Proxmox-Snippets unverändert plain.
 - **Dokumentation:** README auf Einstieg, Architektur und Schnellstart reduziert; Tiefgang nach [`docs/`](docs/) mit zentralem [Inhaltsverzeichnis](docs/README.md) (`reference.md`, `gitlab-install-modes.md`, `proxmox.md`, `operations.md`).
 - **`gitlab_docker_backup_enabled`:** auch bei `gitlab_install_mode = "proxmox"` (und Legacy Proxmox-Docker-Stack); `gitlab_docker_backup_cron` Default leer (Zeit aus `gitlab_docker_backup_time`).
+
+[0.2.0]: https://github.com/HenryHST/gitlab-terraform-hcloud/releases/tag/v0.2.0
 
 ## [0.1.2] - 2026-06-04
 

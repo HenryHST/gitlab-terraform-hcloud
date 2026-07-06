@@ -310,14 +310,14 @@ variable "gitlab_docker_host_image" {
 variable "gitlab_docker_traefik_image" {
   description = "Traefik container image (pin v3.7.x as required)"
   type        = string
-  default     = "traefik:v3.7.4"
+  default     = "traefik:v3.7.5"
 
   validation {
     condition = can(regex(
       "^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
       var.gitlab_docker_traefik_image,
     ))
-    error_message = "gitlab_docker_traefik_image must be a Docker image reference with a tag (e.g. traefik:v3.7.1)."
+    error_message = "gitlab_docker_traefik_image must be a Docker image reference with a tag (e.g. traefik:v3.7.5)."
   }
 
   validation {
@@ -332,14 +332,14 @@ variable "gitlab_docker_traefik_image" {
 variable "gitlab_docker_gitlab_ce_image" {
   description = "gitlab/gitlab-ce image tag for Docker Compose mode (official CE release tags: MAJOR.MINOR.PATCH-ce.0)"
   type        = string
-  default     = "gitlab/gitlab-ce:18.11.4-ce.0"
+  default     = "gitlab/gitlab-ce:18.11.6-ce.0"
 
   validation {
     condition = can(regex(
       "^gitlab/gitlab-ce:[0-9]+\\.[0-9]+\\.[0-9]+-ce\\.0$",
       var.gitlab_docker_gitlab_ce_image,
     ))
-    error_message = "gitlab_docker_gitlab_ce_image must be an official CE tag: gitlab/gitlab-ce:MAJOR.MINOR.PATCH-ce.0 (e.g. gitlab/gitlab-ce:18.11.4-ce.0)."
+    error_message = "gitlab_docker_gitlab_ce_image must be an official CE tag: gitlab/gitlab-ce:MAJOR.MINOR.PATCH-ce.0 (e.g. gitlab/gitlab-ce:18.11.6-ce.0)."
   }
 
   validation {
@@ -451,7 +451,7 @@ variable "gitlab_docker_runner_enabled" {
 variable "gitlab_docker_runner_image" {
   description = "GitLab Runner image (pin version; see https://gitlab.com/gitlab-org/gitlab-runner/container_registry)"
   type        = string
-  default     = "gitlab/gitlab-runner:alpine-v18.11.3"
+  default     = "gitlab/gitlab-runner:alpine-v18.11.6"
 
   validation {
     condition = can(regex(
