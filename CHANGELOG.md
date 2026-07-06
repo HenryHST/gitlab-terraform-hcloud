@@ -9,6 +9,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Added
 
+- **PVE LXC Bash-Install (ohne Terraform):** [`scripts/pve-secure-gitlab-lxc.sh`](scripts/pve-secure-gitlab-lxc.sh) v3.0.0 — Debian-LXC, Docker Compose unter `/opt/gitlab` (Traefik + GitLab CE + PostgreSQL); Config [`scripts/pve-gitlab.conf.example`](scripts/pve-gitlab.conf.example); Templates [`scripts/templates/gitlab-docker-core/`](scripts/templates/gitlab-docker-core/); Doku in [`docs/proxmox.md`](docs/proxmox.md).
 - **Backups (Docker Compose / Omnibus):** `gitlab_docker_backup_auto_enabled`, `gitlab_docker_backup_time` (HH:MM), optionaler `gitlab_docker_backup_cron`-Override; Cron nur bei Auto aktiv; erweiterte Host-Skripte (`GITLAB_BACKUP_SOURCE`, Lockfile); [`docs/backup.md`](docs/backup.md) und [`docs/examples/gitlab-backup-ci.yml.example`](docs/examples/gitlab-backup-ci.yml.example).
 - **GitLab Pages (Docker Compose / Proxmox-Docker):** `gitlab_docker_pages_enabled`, `gitlab_docker_pages_dns_label`; Wildcard-DNS (`pages`, `*.pages`), Traefik-Router auf Port 8090 mit DNS-01-Wildcard-Zertifikat; `gitlab_pages['custom_domain_mode'] = 'http'` (Traefik-TLS); Outputs `pages_fqdn`, `pages_wildcard_fqdn`, `pages_url`; [`docs/pages.md`](docs/pages.md), [`terraform/README.md`](terraform/README.md).
 - **GitLab Runner (Buildah):** `gitlab_docker_runner_buildah_enabled` — drei Instance-Runner mit Tags `buildah-rootless`, `buildah-multiarch`, `buildah-privileged`; Host-QEMU/binfmt; [`docs/runner-buildah.md`](docs/runner-buildah.md), [`docs/examples/gitlab-ci-buildah.yml.example`](docs/examples/gitlab-ci-buildah.yml.example).
@@ -22,6 +23,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- **`pve-secure-gitlab-lxc.sh`:** Breaking — kein Ubuntu/Omnibus mehr; Advanced Storage = ein LV für `/opt/gitlab` (statt drei Omnibus-Mounts).
 - **`gitlab_display_initial_root_password`:** Default `true`; `gitlab.rb` setzt bei Aktivierung `display_initial_root_password` und `store_initial_root_password` (Sign-in-Hinweis + temporäre Datei im Container; nur Erst-DB-Seed).
 - **Cloud-Init Bootstrap:** `apt-get install` und `systemctl enable --now docker` getrennt; Host-Hardening-Pakete über Terraform-Local `host_hardening_apt_packages` (Fix: `~`-Trimming klebte `docker-compose-pluginjq` / `systemctl` an die apt-Zeile).
 - **Docker-Host-Hardening (Host-OS):** sshd Drop-in, sysctl, fail2ban `recidive`, optional `ufw_ssh_source_ips` / ICMP / unattended-upgrades.

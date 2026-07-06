@@ -1,0 +1,128 @@
+services:
+  traefik:
+    container_name: $${SERVICES_TRAEFIK_CONTAINER_NAME:-traefik}
+    env_file:
+      - ./traefik/.env
+    hostname: $${SERVICES_TRAEFIK_HOSTNAME:-traefik}
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      timeout: 1s
+      interval: 10s
+      retries: 3
+      start_period: 10s
+    image: ${TRAEFIK_IMAGE}
+    networks:
+      proxy:
+        ipv4_address: $${SERVICES_TRAEFIK_NETWORKS_PROXY_IPV4:-172.31.191.247}
+        ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7fff}
+      socket_proxy:
+        ipv4_address: $${SERVICES_TRAEFIK_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.253}
+        ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffe}
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic_conf:/etc/traefik/dynamic_conf:ro
+      - ./traefik/certs:/certs
+      - /var/log/traefik/:/var/log/traefik
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+
+  postgres:
+    image: ${POSTGRES_IMAGE}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: gitlab
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+      POSTGRES_DB: gitlabhq_production
+    volumes:
+      - ./postgres/data:/var/lib/postgresql/data
+    networks:
+      socket_proxy:
+        ipv4_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.252}
+        ipv6_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffd}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gitlab -d gitlabhq_production"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  gitlab:
+    image: ${GITLAB_CE_IMAGE}
+    restart: unless-stopped
+    hostname: "${GITLAB_FQDN}"
+    shm_size: "256m"
+    healthcheck:
+      disable: true
+    security_opt:
+      - no-new-privileges:true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      GITLAB_ROOT_EMAIL: "${GITLAB_ROOT_EMAIL}"
+      GITLAB_ROOT_PASSWORD: "${GITLAB_ROOT_PASSWORD}"
+    volumes:
+      - ./data/config:/etc/gitlab
+      - ./data/logs:/var/log/gitlab
+      - ./data/gitlab:/var/opt/gitlab
+    ports:
+      - "2424:22"
+    networks:
+      proxy:
+        ipv4_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV4:-172.31.129.254}
+        ipv6_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffe}
+      socket_proxy: {}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
+      - "traefik.http.services.gitlab.loadbalancer.server.port=80"
+      - "traefik.http.routers.gitlab.service=gitlab"
+      - "traefik.http.routers.gitlab.rule=Host(`${GITLAB_FQDN}`)"
+      - "traefik.http.routers.gitlab.entrypoints=web"
+      - "traefik.http.routers.gitlab.middlewares=default@file"
+
+networks:
+  crowdsec:
+    name: $${NETWORKS_CROWDSEC_NAME:-crowdsec}
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: $${NETWORKS_CROWDSEC_SUBNET_IPV4:-172.31.64.0/18}
+        - subnet: $${NETWORKS_CROWDSEC_SUBNET_IPV6:-fd00:1:be:a:7001:0:3e:6000/116}
+    attachable: true
+  proxy:
+    name: $${NETWORKS_PROXY_NAME:-proxy}
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: $${NETWORKS_PROXY_SUBNET_IPV4:-172.31.128.0/18}
+        - subnet: $${NETWORKS_PROXY_SUBNET_IPV6:-fd00:1:be:a:7001:0:3e:7000/116}
+    attachable: true
+  socket_proxy:
+    name: $${NETWORKS_SOCKET_PROXY_NAME:-socket_proxy}
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: $${NETWORKS_SOCKET_PROXY_SUBNET_IPV4:-172.31.192.0/18}
+        - subnet: $${NETWORKS_SOCKET_PROXY_SUBNET_IPV6:-fd00:1:be:a:7001:0:3e:8000/116}
+    attachable: true
+    internal: true
+
+volumes:
+  renovate_logs:
+  renovate_db:

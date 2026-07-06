@@ -1,0 +1,8 @@
+http:
+  middlewares:
+    default:
+      chain:
+        middlewares:
+          - default-security-headers
+          - gzip
+          - fail2ban

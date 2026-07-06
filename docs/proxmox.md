@@ -143,3 +143,48 @@ Snippet deaktivieren (nur Basis-Cloud-Init): `proxmox_gitlab_docker_compose_enab
 - **Paralleles Apply** mit vollem Hetzner-GitLab (`gitlab_install_mode = docker_compose`) erzeugt **zwei** GitLab-Umgebungen — in der Regel nur eine aktivieren.
 
 Weitere Links: [Proxmox VE API](https://pve.proxmox.com/pve-docs/api-viewer/index.html), [telmate/terraform-provider-proxmox](https://github.com/Telmate/terraform-provider-proxmox).
+
+### LXC ohne Terraform (Bash-Script)
+
+Alternativ zur QEMU-VM + Terraform kann GitLab als **unprivileged LXC** mit demselben **Docker-Compose-Kernstack** (Traefik, GitLab CE, PostgreSQL) installiert werden — vollständig über Bash, ohne `terraform apply`.
+
+| Thema | Hinweis |
+|--------|--------|
+| **Script** | [`scripts/pve-secure-gitlab-lxc.sh`](../scripts/pve-secure-gitlab-lxc.sh) (v3.0.0+) |
+| **OS-Template** | `debian-13-standard` (Fallback `debian-12-standard`) |
+| **Stack** | `/opt/gitlab` — wie [`gitlab-docker-cloud-init.yaml.tpl`](../terraform/templates/gitlab-docker-cloud-init.yaml.tpl) (Kern) |
+| **Konfiguration** | [`scripts/pve-gitlab.conf.example`](../scripts/pve-gitlab.conf.example) kopieren → `pve-gitlab.conf` |
+| **DNS** | A/AAAA für `GITLAB_FQDN` manuell auf die LXC-IP; bei ACME zusätzlich Hetzner-DNS-API-Token |
+| **TLS** | Traefik: HTTP-only oder ACME DNS-01 (`TRAEFIK_ACME_ENABLED`, `HETZNER_API_TOKEN`) |
+
+**Beispiel (non-interactive):**
+
+```bash
+cp scripts/pve-gitlab.conf.example scripts/pve-gitlab.conf
+# pve-gitlab.conf anpassen (FQDN, Images, optional ACME)
+
+./scripts/pve-secure-gitlab-lxc.sh \
+  --config scripts/pve-gitlab.conf \
+  --vmid 110 --hostname gitlab --cpu 4 --ram 8192 \
+  --storage-mode simple --rootfs-size 50 \
+  --ip 10.20.0.10/16 --gateway 10.20.0.1 --dns 8.8.8.8 \
+  --storage pve
+```
+
+**Config ↔ Terraform (Kern-Stack):**
+
+| `pve-gitlab.conf` | Terraform-Variable |
+|-------------------|-------------------|
+| `DNS_DOMAIN` + `GITLAB_DNS_LABEL` / `GITLAB_FQDN` | `dns_domain`, `gitlab_dns_record_name` |
+| `TRAEFIK_IMAGE` | `gitlab_docker_traefik_image` |
+| `GITLAB_CE_IMAGE` | `gitlab_docker_gitlab_ce_image` |
+| `POSTGRES_IMAGE` | `gitlab_docker_postgres_image` |
+| `TRAEFIK_ACME_ENABLED` | `gitlab_docker_traefik_acme_enabled` |
+| `HETZNER_API_TOKEN` | `hetzner_api_key` |
+| `ACME_EMAIL` | `gitlab_letsencrypt_email` |
+| `HOST_HARDENING_ENABLED` | `gitlab_docker_host_hardening.enabled` |
+| `GITLAB_ADMIN_*` | `gitlab_admin` |
+
+**v1 des Scripts:** Runner, Registry, Pages, Renovate, PgBouncer, Backup-Cron — nur per Terraform/Cloud-Init; Erweiterung über `scripts/templates/gitlab-docker-core/` geplant.
+
+**Troubleshooting:** Bootstrap-Log im CT: `/var/log/gitlab-docker-bootstrap.log`; Host-Log: `/var/log/gitlab-docker-install-<vmid>.log`.
