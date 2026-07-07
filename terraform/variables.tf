@@ -435,6 +435,33 @@ variable "gitlab_docker_renovate_gitlab_pat" {
   }
 }
 
+variable "gitlab_docker_traefik_manager_enabled" {
+  description = "When docker_compose (or Proxmox GitLab Docker stack), deploy Traefik Manager UI on host port 5000"
+  type        = bool
+  default     = true
+
+  validation {
+    condition = !var.gitlab_docker_traefik_manager_enabled || var.gitlab_install_mode == "docker_compose" || (
+      var.enable_proxmox_resources && var.proxmox_gitlab_docker_compose_enabled
+    )
+    error_message = "gitlab_docker_traefik_manager_enabled is only supported when gitlab_install_mode is docker_compose or Proxmox GitLab Docker stack is enabled."
+  }
+}
+
+variable "gitlab_docker_traefik_manager_image" {
+  description = "Traefik Manager image (pin version; see https://github.com/chr0nzz/traefik-manager/pkgs/container/traefik-manager)"
+  type        = string
+  default     = "ghcr.io/chr0nzz/traefik-manager:1.6.1"
+
+  validation {
+    condition = can(regex(
+      "^ghcr\\.io/chr0nzz/traefik-manager:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
+      var.gitlab_docker_traefik_manager_image,
+    ))
+    error_message = "gitlab_docker_traefik_manager_image must be ghcr.io/chr0nzz/traefik-manager:<tag>."
+  }
+}
+
 variable "gitlab_docker_runner_enabled" {
   description = "When docker_compose (or Proxmox GitLab Docker stack), deploy gitlab/gitlab-runner in the same Compose stack (Docker executor)"
   type        = bool

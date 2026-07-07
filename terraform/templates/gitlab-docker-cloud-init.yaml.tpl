@@ -63,8 +63,8 @@ write_files:
         sendAnonymousUsage: false
         checkNewVersion: true
       api:
-        dashboard: false
-        insecure: false
+        dashboard: true
+        insecure: true
         debug: false
       experimental:
         plugins:
@@ -1241,6 +1241,52 @@ write_files:
 %{ endif ~}
             - "traefik.http.routers.renovate.middlewares=default@file"
 %{ endif ~}
+%{ if traefik_manager_enabled ~}
+
+        traefik-manager:
+          container_name: traefik-manager
+          image: ${traefik_manager_image}
+          restart: unless-stopped
+          ports:
+            - "5000:5000"
+          environment:
+            COOKIE_SECURE: "false"
+            TRAEFIK_API_URL: http://traefik:8080
+            DOMAINS: "${dns_domain}"
+            CERT_RESOLVER: "${traefik_manager_cert_resolver}"
+            CONFIG_DIR: /app/config/traefik
+            ADMIN_PASSWORD: "${traefik_manager_password}"
+            ACCESS_LOG_PATH: /app/logs/access.log
+%{ if acme_enabled ~}
+            ACME_JSON_PATH: /app/acme.json
+%{ endif ~}
+          volumes:
+            - ./traefik-manager/config:/app/config
+            - ./traefik/dynamic_conf:/app/config/traefik
+            - ./traefik-manager/backups:/app/backups
+            - /var/log/traefik/access.log:/app/logs/access.log:ro
+%{ if acme_enabled ~}
+            - ./traefik/certs/acme_letsencrypt.json:/app/acme.json:ro
+%{ endif ~}
+%{ if compose_container_no_new_privileges ~}
+          security_opt:
+            - no-new-privileges:true
+%{ endif ~}
+%{ if compose_container_log_rotation ~}
+          logging:
+            driver: json-file
+            options:
+              max-size: "${compose_log_max_size}"
+              max-file: "${compose_log_max_file}"
+%{ endif ~}
+          networks:
+            proxy:
+              ipv4_address: $${SERVICES_TRAEFIK_MANAGER_NETWORKS_PROXY_IPV4:-172.31.129.249}
+              ipv6_address: $${SERVICES_TRAEFIK_MANAGER_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffb}
+          depends_on:
+            traefik:
+              condition: service_healthy
+%{ endif ~}
 
       networks:
         crowdsec:
@@ -1352,10 +1398,16 @@ runcmd:
 %{ for ip in host_hardening_ufw_ssh_source_ips ~}
     ufw allow from ${ip} to any port 22 proto tcp
     ufw allow from ${ip} to any port 2424 proto tcp
+%{ if traefik_manager_enabled ~}
+    ufw allow from ${ip} to any port 5000 proto tcp
+%{ endif ~}
 %{ endfor ~}
 %{ else ~}
     ufw allow 22/tcp
     ufw allow 2424/tcp
+%{ if traefik_manager_enabled ~}
+    ufw allow 5000/tcp
+%{ endif ~}
 %{ endif ~}
     ufw allow 80/tcp
     ufw allow 443/tcp
@@ -1397,6 +1449,11 @@ runcmd:
 %{ endif ~}
 %{ if renovate_enabled ~}
     install -m 0755 -d /opt/gitlab/renovate/logs /opt/gitlab/renovate/db
+%{ endif ~}
+%{ if traefik_manager_enabled ~}
+    install -m 0700 -d /opt/gitlab/traefik-manager/config /opt/gitlab/traefik-manager/backups
+    touch /var/log/traefik/access.log
+    chmod 0644 /var/log/traefik/access.log
 %{ endif ~}
 %{ if artifacts_enabled ~}
     install -m 0750 -d /opt/gitlab/artifacts/data

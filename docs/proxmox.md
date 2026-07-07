@@ -146,14 +146,15 @@ Weitere Links: [Proxmox VE API](https://pve.proxmox.com/pve-docs/api-viewer/inde
 
 ### LXC ohne Terraform (Bash-Script)
 
-Alternativ zur QEMU-VM + Terraform kann GitLab als **unprivileged LXC** mit demselben **Docker-Compose-Kernstack** (Traefik, GitLab CE, PostgreSQL) installiert werden — vollständig über Bash, ohne `terraform apply`.
+Alternativ zur QEMU-VM + Terraform kann GitLab als **unprivileged LXC** mit demselben **Docker-Compose-Kernstack** (Traefik, GitLab CE, PostgreSQL, Traefik Manager) installiert werden — vollständig über Bash, ohne `terraform apply`.
 
 | Thema | Hinweis |
 |--------|--------|
 | **Script** | [`scripts/pve-secure-gitlab-lxc.sh`](../scripts/pve-secure-gitlab-lxc.sh) (v3.0.0+) |
 | **OS-Template** | `debian-13-standard` (Fallback `debian-12-standard`) |
-| **Stack** | `/opt/gitlab` — wie [`gitlab-docker-cloud-init.yaml.tpl`](../terraform/templates/gitlab-docker-cloud-init.yaml.tpl) (Kern) |
+| **Stack** | `/opt/gitlab` — Traefik, GitLab CE, PostgreSQL, optional Traefik Manager |
 | **Konfiguration** | [`scripts/pve-gitlab.conf.example`](../scripts/pve-gitlab.conf.example) kopieren → `pve-gitlab.conf` |
+| **Traefik Manager** | `http://<LXC-IP>:5000` wenn `TRAEFIK_MANAGER_ENABLED=true` (Default); Passwort auto-generiert oder `TRAEFIK_MANAGER_PASSWORD` |
 | **DNS** | A/AAAA für `GITLAB_FQDN` manuell auf die LXC-IP; bei ACME zusätzlich Hetzner-DNS-API-Token |
 | **TLS** | Traefik: HTTP-only oder ACME DNS-01 (`TRAEFIK_ACME_ENABLED`, `HETZNER_API_TOKEN`) |
 
@@ -184,7 +185,9 @@ cp scripts/pve-gitlab.conf.example scripts/pve-gitlab.conf
 | `ACME_EMAIL` | `gitlab_letsencrypt_email` |
 | `HOST_HARDENING_ENABLED` | `gitlab_docker_host_hardening.enabled` |
 | `GITLAB_ADMIN_*` | `gitlab_admin` |
+| `TRAEFIK_MANAGER_ENABLED` | `gitlab_docker_traefik_manager_enabled` |
+| `TRAEFIK_MANAGER_IMAGE` | `gitlab_docker_traefik_manager_image` |
 
-**v1 des Scripts:** Runner, Registry, Pages, Renovate, PgBouncer, Backup-Cron — nur per Terraform/Cloud-Init; Erweiterung über `scripts/templates/gitlab-docker-core/` geplant.
+**v1 des Scripts:** Runner, Registry, Pages, Renovate, PgBouncer, Backup-Cron — nur per Terraform/Cloud-Init; Traefik Manager ist im Kernstack enthalten.
 
 **Troubleshooting:** Bootstrap-Log im CT: `/var/log/gitlab-docker-bootstrap.log`; Host-Log: `/var/log/gitlab-docker-install-<vmid>.log`.

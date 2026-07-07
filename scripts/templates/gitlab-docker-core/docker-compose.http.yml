@@ -90,6 +90,36 @@ services:
       - "traefik.http.routers.gitlab.entrypoints=web"
       - "traefik.http.routers.gitlab.middlewares=default@file"
 
+  traefik-manager:
+    profiles: ["traefik-manager"]
+    image: ${TRAEFIK_MANAGER_IMAGE}
+    container_name: traefik-manager
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      COOKIE_SECURE: "false"
+      TRAEFIK_API_URL: http://traefik:8080
+      DOMAINS: "${DNS_DOMAIN}"
+      CERT_RESOLVER: "${TRAEFIK_MANAGER_CERT_RESOLVER}"
+      CONFIG_DIR: /app/config/traefik
+      ADMIN_PASSWORD: "${TRAEFIK_MANAGER_PASSWORD}"
+      ACCESS_LOG_PATH: /app/logs/access.log
+    volumes:
+      - ./traefik-manager/config:/app/config
+      - ./traefik/dynamic_conf:/app/config/traefik
+      - ./traefik-manager/backups:/app/backups
+      - /var/log/traefik/access.log:/app/logs/access.log:ro
+    networks:
+      proxy:
+        ipv4_address: 172.31.129.249
+        ipv6_address: fd00:1:be:a:7001:0:3e:7ffb
+    depends_on:
+      traefik:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
 networks:
   crowdsec:
     name: crowdsec

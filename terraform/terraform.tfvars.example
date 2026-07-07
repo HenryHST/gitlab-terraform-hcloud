@@ -40,6 +40,8 @@ gitlab_install_mode                = "none"
 # gitlab_docker_renovate_ce_image  = "ghcr.io/mend/renovate-ce:9.1.0"
 # gitlab_docker_renovate_license_key = "…"  # Mend CE license
 # gitlab_docker_renovate_gitlab_pat  = "glpat-…"
+# gitlab_docker_traefik_manager_enabled = true
+# gitlab_docker_traefik_manager_image   = "ghcr.io/chr0nzz/traefik-manager:1.6.1"
 # Container Registry (docker_compose only; default enabled)
 # gitlab_docker_registry_enabled   = true
 # gitlab_docker_registry_dns_label = "registry"

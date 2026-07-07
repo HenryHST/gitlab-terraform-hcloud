@@ -92,6 +92,22 @@ output "renovate_fqdn" {
   )
 }
 
+output "traefik_manager_enabled" {
+  description = "Whether Traefik Manager is deployed in the docker stack"
+  value       = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled
+}
+
+output "traefik_manager_url_hint" {
+  description = "Traefik Manager URL pattern when enabled (use server/LXC IP: http://<ip>:5000)"
+  value       = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ? "http://<server-ip>:5000" : null
+}
+
+output "gitlab_docker_traefik_manager_password" {
+  description = "Traefik Manager admin password when docker stack and gitlab_docker_traefik_manager_enabled"
+  value       = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ? random_password.gitlab_traefik_manager[0].result : null
+  sensitive   = true
+}
+
 output "registry_fqdn" {
   description = "Container Registry hostname when docker stack and gitlab_docker_registry_enabled"
   value = (

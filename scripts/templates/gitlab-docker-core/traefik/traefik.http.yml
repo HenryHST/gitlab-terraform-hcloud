@@ -24,8 +24,8 @@ global:
   sendAnonymousUsage: false
   checkNewVersion: true
 api:
-  dashboard: false
-  insecure: false
+  dashboard: true
+  insecure: true
   debug: false
 experimental:
   plugins:

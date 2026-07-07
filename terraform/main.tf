@@ -110,6 +110,14 @@ locals {
     renovate_server_api_secret = (
       var.gitlab_docker_renovate_enabled && local.gitlab_docker_stack_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
     )
+    dns_domain              = var.dns_domain
+    traefik_manager_enabled = var.gitlab_docker_traefik_manager_enabled
+    traefik_manager_image   = var.gitlab_docker_traefik_manager_image
+    traefik_manager_password = (
+      var.gitlab_docker_traefik_manager_enabled && local.gitlab_docker_stack_enabled ?
+      random_password.gitlab_traefik_manager[0].result : ""
+    )
+    traefik_manager_cert_resolver           = var.gitlab_docker_traefik_acme_enabled ? "hetzner" : "none"
     registry_enabled                        = var.gitlab_docker_registry_enabled
     registry_fqdn                           = local.registry_fqdn
     pages_enabled                           = var.gitlab_docker_pages_enabled
@@ -224,6 +232,7 @@ locals {
       postgres_password          = local.gitlab_docker_password_placeholder_32
       renovate_webhook_secret    = var.gitlab_docker_renovate_enabled ? local.gitlab_docker_password_placeholder_32 : ""
       renovate_server_api_secret = var.gitlab_docker_renovate_enabled ? local.gitlab_docker_password_placeholder_32 : ""
+      traefik_manager_password   = var.gitlab_docker_traefik_manager_enabled ? local.gitlab_docker_password_placeholder_24 : ""
     },
   )
   gitlab_docker_user_data_hcloud_worst_case = local.gitlab_docker_stack_enabled ? base64gzip(templatefile(
@@ -291,6 +300,12 @@ resource "random_password" "gitlab_renovate_webhook" {
 resource "random_password" "gitlab_renovate_server_api" {
   count   = local.gitlab_docker_stack_enabled && var.gitlab_docker_renovate_enabled ? 1 : 0
   length  = 32
+  special = false
+}
+
+resource "random_password" "gitlab_traefik_manager" {
+  count   = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ? 1 : 0
+  length  = 24
   special = false
 }
 

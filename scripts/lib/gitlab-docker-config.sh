@@ -27,6 +27,9 @@ gitlab_docker_config_init_defaults() {
     SSH_PUBLIC_KEY="${SSH_PUBLIC_KEY:-}"
     GITLAB_ADMIN_ENABLED="${GITLAB_ADMIN_ENABLED:-false}"
     GITLAB_ADMIN_USERNAME="${GITLAB_ADMIN_USERNAME:-gadmin}"
+    TRAEFIK_MANAGER_ENABLED="${TRAEFIK_MANAGER_ENABLED:-true}"
+    TRAEFIK_MANAGER_IMAGE="${TRAEFIK_MANAGER_IMAGE:-ghcr.io/chr0nzz/traefik-manager:1.6.1}"
+    TRAEFIK_MANAGER_PASSWORD="${TRAEFIK_MANAGER_PASSWORD:-}"
 }
 
 gitlab_docker_config_load() {
@@ -47,9 +50,16 @@ gitlab_docker_config_derive() {
     if [[ "${TRAEFIK_ACME_ENABLED}" == "true" || "${TRAEFIK_ACME_ENABLED}" == "1" ]]; then
         EXTERNAL_URL_SCHEME="https"
         TRAEFIK_ACME_ENABLED=true
+        TRAEFIK_MANAGER_CERT_RESOLVER="hetzner"
     else
         EXTERNAL_URL_SCHEME="http"
         TRAEFIK_ACME_ENABLED=false
+        TRAEFIK_MANAGER_CERT_RESOLVER="none"
+    fi
+    if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" || "${TRAEFIK_MANAGER_ENABLED}" == "1" ]]; then
+        TRAEFIK_MANAGER_ENABLED=true
+    else
+        TRAEFIK_MANAGER_ENABLED=false
     fi
     GITLAB_URL="${EXTERNAL_URL_SCHEME}://${GITLAB_FQDN}"
     if [[ -z "${GITLAB_ROOT_EMAIL}" ]]; then
@@ -87,6 +97,9 @@ gitlab_docker_config_generate_secrets() {
     if [[ -z "${POSTGRES_PASSWORD}" ]]; then
         POSTGRES_PASSWORD="$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)"
     fi
+    if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" && -z "${TRAEFIK_MANAGER_PASSWORD}" ]]; then
+        TRAEFIK_MANAGER_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
+    fi
 }
 
 gitlab_docker_config_validate() {
@@ -108,6 +121,12 @@ gitlab_docker_config_validate() {
         echo "GITLAB_ADMIN_ENABLED requires SSH_PUBLIC_KEY_FILE or SSH_PUBLIC_KEY" >&2
         return 1
     fi
+    if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
+        if [[ ! "${TRAEFIK_MANAGER_IMAGE}" =~ ^ghcr\.io/chr0nzz/traefik-manager:[a-zA-Z0-9][a-zA-Z0-9._-]+$ ]]; then
+            echo "Invalid TRAEFIK_MANAGER_IMAGE: ${TRAEFIK_MANAGER_IMAGE}" >&2
+            return 1
+        fi
+    fi
 }
 
 gitlab_docker_config_write_env_file() {
@@ -115,6 +134,7 @@ gitlab_docker_config_write_env_file() {
     umask 077
     {
         printf 'GITLAB_FQDN=%q\n' "${GITLAB_FQDN}"
+        printf 'DNS_DOMAIN=%q\n' "${DNS_DOMAIN}"
         printf 'EXTERNAL_URL_SCHEME=%q\n' "${EXTERNAL_URL_SCHEME}"
         printf 'GITLAB_URL=%q\n' "${GITLAB_URL}"
         printf 'TRAEFIK_IMAGE=%q\n' "${TRAEFIK_IMAGE}"
@@ -136,6 +156,10 @@ gitlab_docker_config_write_env_file() {
         printf 'GITLAB_ADMIN_ENABLED=%q\n' "${GITLAB_ADMIN_ENABLED}"
         printf 'GITLAB_ADMIN_USERNAME=%q\n' "${GITLAB_ADMIN_USERNAME}"
         printf 'SSH_PUBLIC_KEY_EFFECTIVE=%q\n' "${SSH_PUBLIC_KEY_EFFECTIVE}"
+        printf 'TRAEFIK_MANAGER_ENABLED=%q\n' "${TRAEFIK_MANAGER_ENABLED}"
+        printf 'TRAEFIK_MANAGER_IMAGE=%q\n' "${TRAEFIK_MANAGER_IMAGE}"
+        printf 'TRAEFIK_MANAGER_PASSWORD=%q\n' "${TRAEFIK_MANAGER_PASSWORD}"
+        printf 'TRAEFIK_MANAGER_CERT_RESOLVER=%q\n' "${TRAEFIK_MANAGER_CERT_RESOLVER}"
         printf 'TEMPLATES_DIR=%q\n' "${TEMPLATES_DIR:-/root/gitlab-docker-core}"
     } >"${dest}"
     chmod 600 "${dest}"

@@ -25,7 +25,8 @@ render_template() {
     export GITLAB_FQDN EXTERNAL_URL_SCHEME GITLAB_URL TRAEFIK_IMAGE GITLAB_CE_IMAGE POSTGRES_IMAGE
     export HETZNER_API_TOKEN ACME_EMAIL GITLAB_ROOT_EMAIL GITLAB_ROOT_PASSWORD POSTGRES_PASSWORD
     export GITLAB_SIGNUP_ENABLED GITLAB_THEME_ID GITLAB_COLOR_MODE GITLAB_TIME_ZONE ACME_GITLAB_RB_BLOCK
-    envsubst '${GITLAB_FQDN} ${EXTERNAL_URL_SCHEME} ${GITLAB_URL} ${TRAEFIK_IMAGE} ${GITLAB_CE_IMAGE} ${POSTGRES_IMAGE} ${HETZNER_API_TOKEN} ${ACME_EMAIL} ${GITLAB_ROOT_EMAIL} ${GITLAB_ROOT_PASSWORD} ${POSTGRES_PASSWORD} ${GITLAB_SIGNUP_ENABLED} ${GITLAB_THEME_ID} ${GITLAB_COLOR_MODE} ${GITLAB_TIME_ZONE} ${ACME_GITLAB_RB_BLOCK}' \
+    export DNS_DOMAIN TRAEFIK_MANAGER_IMAGE TRAEFIK_MANAGER_PASSWORD TRAEFIK_MANAGER_CERT_RESOLVER
+    envsubst '${GITLAB_FQDN} ${EXTERNAL_URL_SCHEME} ${GITLAB_URL} ${TRAEFIK_IMAGE} ${GITLAB_CE_IMAGE} ${POSTGRES_IMAGE} ${HETZNER_API_TOKEN} ${ACME_EMAIL} ${GITLAB_ROOT_EMAIL} ${GITLAB_ROOT_PASSWORD} ${POSTGRES_PASSWORD} ${GITLAB_SIGNUP_ENABLED} ${GITLAB_THEME_ID} ${GITLAB_COLOR_MODE} ${GITLAB_TIME_ZONE} ${ACME_GITLAB_RB_BLOCK} ${DNS_DOMAIN} ${TRAEFIK_MANAGER_IMAGE} ${TRAEFIK_MANAGER_PASSWORD} ${TRAEFIK_MANAGER_CERT_RESOLVER}' \
         <"${src}" >"${dest}"
     chmod "${mode}" "${dest}"
 }
@@ -36,10 +37,20 @@ nginx['redirect_http_to_https'] = false
 gitlab_rails['trusted_proxies'] = ['127.0.0.0/8', '10.0.0.0/8', '172.16.0.0/12', '172.31.0.0/16']"
     COMPOSE_SRC="${TEMPLATES_DIR}/docker-compose.acme.yml"
     TRAEFIK_SRC="${TEMPLATES_DIR}/traefik/traefik.acme.yml"
+    TRAEFIK_MANAGER_CERT_RESOLVER="${TRAEFIK_MANAGER_CERT_RESOLVER:-hetzner}"
 else
     ACME_GITLAB_RB_BLOCK=""
     COMPOSE_SRC="${TEMPLATES_DIR}/docker-compose.http.yml"
     TRAEFIK_SRC="${TEMPLATES_DIR}/traefik/traefik.http.yml"
+    TRAEFIK_MANAGER_CERT_RESOLVER="${TRAEFIK_MANAGER_CERT_RESOLVER:-none}"
+fi
+
+if [[ "${TRAEFIK_MANAGER_ENABLED:-true}" == "true" ]]; then
+    TRAEFIK_MANAGER_ENABLED=true
+    COMPOSE_PROFILES=(--profile traefik-manager)
+else
+    TRAEFIK_MANAGER_ENABLED=false
+    COMPOSE_PROFILES=()
 fi
 
 # Normalize signup for gitlab.rb (Ruby true/false)
@@ -185,10 +196,16 @@ UU
         for ip in ${UFW_SSH_SOURCE_IPS}; do
             ufw allow from "${ip}" to any port 22 proto tcp
             ufw allow from "${ip}" to any port 2424 proto tcp
+            if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
+                ufw allow from "${ip}" to any port 5000 proto tcp
+            fi
         done
     else
         ufw allow 22/tcp
         ufw allow 2424/tcp
+        if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
+            ufw allow 5000/tcp
+        fi
     fi
     ufw allow 80/tcp
     ufw allow 443/tcp
@@ -207,6 +224,12 @@ install -m 0700 -d /opt/gitlab/postgres/data
 chown 999:999 /opt/gitlab/postgres/data
 install -m 0755 -d /opt/gitlab/data/config /opt/gitlab/data/logs /opt/gitlab/data/gitlab
 install -m 0755 -d /var/log/traefik
+touch /var/log/traefik/access.log
+chmod 0644 /var/log/traefik/access.log
+
+if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
+    install -m 0700 -d /opt/gitlab/traefik-manager/config /opt/gitlab/traefik-manager/backups
+fi
 
 install -d -m 0755 /opt/gitlab/traefik/dynamic_conf
 cp -a "${TEMPLATES_DIR}/traefik/dynamic_conf/." /opt/gitlab/traefik/dynamic_conf/
@@ -218,7 +241,7 @@ render_template "${TEMPLATES_DIR}/data/config/gitlab.rb.tpl" /opt/gitlab/data/co
 
 echo "=== docker compose up ==="
 cd /opt/gitlab
-docker compose pull
-docker compose up -d
+docker compose "${COMPOSE_PROFILES[@]}" pull
+docker compose "${COMPOSE_PROFILES[@]}" up -d
 
 echo "=== finished $(date -Is) ==="

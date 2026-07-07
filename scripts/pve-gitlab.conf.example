@@ -28,6 +28,12 @@ GITLAB_THEME_ID=2
 GITLAB_COLOR_MODE=3
 GITLAB_TIME_ZONE="Europe/Berlin"
 
+# --- Traefik Manager (web UI for Traefik) ---
+TRAEFIK_MANAGER_ENABLED=true
+TRAEFIK_MANAGER_IMAGE="ghcr.io/chr0nzz/traefik-manager:1.6.1"
+# Leave empty to auto-generate (24 chars):
+TRAEFIK_MANAGER_PASSWORD=""
+
 # --- Host hardening (gitlab_docker_host_hardening) ---
 HOST_HARDENING_ENABLED=true
 HOST_HARDENING_UNATTENDED_UPGRADES=true
