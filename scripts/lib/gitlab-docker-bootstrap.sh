@@ -8,6 +8,13 @@ LOG=/var/log/gitlab-docker-bootstrap.log
 exec >>"$LOG" 2>&1
 echo "=== gitlab-docker bootstrap $(date -Is) ==="
 
+# #region agent log
+bootstrap_debug() {
+    printf '{"sessionId":"672ee6","hypothesisId":"%s","location":"%s","message":"%s","data":%s,"timestamp":%s}\n' \
+        "$1" "$2" "$3" "${4:-{}}" "$(date +%s%3N)" >>"${LOG}"
+}
+# #endregion
+
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "ERROR: missing ${ENV_FILE}" >&2
     exit 1
@@ -59,6 +66,17 @@ if [[ "${HOST_HARDENING_ENABLED}" == "true" ]]; then
     HOST_APT_EXTRA="jq ufw fail2ban unattended-upgrades"
 fi
 
+echo "=== install prerequisites (curl, gpg, envsubst) ==="
+# #region agent log
+bootstrap_debug "A" "prereq:before" "checking curl gpg envsubst" \
+    "{\"curl\":$(command -v curl >/dev/null && echo true || echo false),\"gpg\":$(command -v gpg >/dev/null && echo true || echo false),\"envsubst\":$(command -v envsubst >/dev/null && echo true || echo false)}"
+# #endregion
+apt-get install -y -qq ca-certificates curl gnupg gettext-base
+# #region agent log
+bootstrap_debug "A" "prereq:after" "prerequisites installed" \
+    "{\"curl\":$(command -v curl >/dev/null && echo true || echo false),\"gpg\":$(command -v gpg >/dev/null && echo true || echo false),\"envsubst\":$(command -v envsubst >/dev/null && echo true || echo false)}"
+# #endregion
+
 echo "=== install docker ==="
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
@@ -71,7 +89,7 @@ apt-get update -qq
 apt-get install -y -qq \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
     zsh zsh-autosuggestions zsh-syntax-highlighting \
-    curl ca-certificates openssh-server ${HOST_APT_EXTRA}
+    openssh-server ${HOST_APT_EXTRA}
 
 if grep -q '^SHELL=' /etc/default/useradd; then
     sed -i 's|^SHELL=.*|SHELL=/usr/bin/zsh|' /etc/default/useradd
