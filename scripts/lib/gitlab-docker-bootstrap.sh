@@ -79,7 +79,7 @@ bootstrap_debug "A" "prereq:after" "prerequisites installed" \
 
 echo "=== install docker ==="
 install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg
 chmod a+r /etc/apt/keyrings/docker.gpg
 # shellcheck disable=SC1091
 . /etc/os-release
@@ -148,6 +148,7 @@ SSHD
     fi
 
     cat >/etc/sysctl.d/99-gitlab-docker-host.conf <<'SYSCTL'
+# LXC-safe sysctl (no kernel.* — blocked in unprivileged containers)
 net.ipv4.ip_forward = 1
 net.ipv4.conf.all.rp_filter = 1
 net.ipv4.conf.default.rp_filter = 1
@@ -157,10 +158,15 @@ net.ipv6.conf.all.accept_redirects = 0
 net.ipv4.conf.all.send_redirects = 0
 net.ipv4.conf.all.accept_source_route = 0
 net.ipv6.conf.all.accept_source_route = 0
-kernel.kptr_restrict = 1
-kernel.dmesg_restrict = 1
 SYSCTL
-    sysctl --system
+    # #region agent log
+    bootstrap_debug "E" "sysctl:before" "applying gitlab-docker sysctl drop-in only" "{}"
+    # #endregion
+    sysctl -p /etc/sysctl.d/99-gitlab-docker-host.conf 2>/dev/null || true
+    # #region agent log
+    bootstrap_debug "E" "sysctl:after" "sysctl drop-in applied" \
+        "{\"ip_forward\":\"$(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo unknown)\"}"
+    # #endregion
 
     cat >/etc/fail2ban/jail.local <<'F2B'
 [DEFAULT]
