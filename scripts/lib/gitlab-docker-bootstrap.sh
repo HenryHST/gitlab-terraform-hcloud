@@ -89,7 +89,7 @@ apt-get update -qq
 apt-get install -y -qq \
     docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin \
     zsh zsh-autosuggestions zsh-syntax-highlighting \
-    openssh-server ${HOST_APT_EXTRA}
+    openssh-server sudo ${HOST_APT_EXTRA}
 
 if grep -q '^SHELL=' /etc/default/useradd; then
     sed -i 's|^SHELL=.*|SHELL=/usr/bin/zsh|' /etc/default/useradd
@@ -99,8 +99,17 @@ fi
 usermod -s /usr/bin/zsh root
 systemctl enable --now docker
 
+# #region agent log
+bootstrap_debug "D" "zshrc:before" "zshrc.d directory" \
+    "{\"zshrc_d_exists\":$(test -d /etc/zsh/zshrc.d && echo true || echo false)}"
+# #endregion
+install -d -m 0755 /etc/zsh/zshrc.d
 install -m 0644 "${TEMPLATES_DIR}/etc/zsh/zshrc.d/99-gitlab-docker-host.zsh" \
     /etc/zsh/zshrc.d/99-gitlab-docker-host.zsh
+# #region agent log
+bootstrap_debug "D" "zshrc:after" "zshrc installed" \
+    "{\"zshrc_exists\":$(test -f /etc/zsh/zshrc.d/99-gitlab-docker-host.zsh && echo true || echo false)}"
+# #endregion
 
 if [[ "${GITLAB_ADMIN_ENABLED}" == "true" && -n "${SSH_PUBLIC_KEY_EFFECTIVE:-}" ]]; then
   if ! id "${GITLAB_ADMIN_USERNAME}" &>/dev/null; then
