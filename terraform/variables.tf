@@ -462,6 +462,22 @@ variable "gitlab_docker_traefik_manager_image" {
   }
 }
 
+variable "gitlab_docker_traefik_manager_password" {
+  description = "Traefik Manager admin password (ADMIN_PASSWORD); auto-generated when empty"
+  type        = string
+  sensitive   = true
+  default     = ""
+
+  validation {
+    condition = (
+      !var.gitlab_docker_traefik_manager_enabled ||
+      trimspace(var.gitlab_docker_traefik_manager_password) == "" ||
+      length(trimspace(var.gitlab_docker_traefik_manager_password)) >= 8
+    )
+    error_message = "gitlab_docker_traefik_manager_password must be at least 8 characters when set."
+  }
+}
+
 variable "gitlab_docker_runner_enabled" {
   description = "When docker_compose (or Proxmox GitLab Docker stack), deploy gitlab/gitlab-runner in the same Compose stack (Docker executor)"
   type        = bool

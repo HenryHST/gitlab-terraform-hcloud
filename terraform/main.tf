@@ -87,6 +87,13 @@ locals {
     length(local.runner_buildah_profiles) * 4,
   ) : var.gitlab_docker_runner_concurrent
 
+  traefik_manager_password_effective = (
+    !local.gitlab_docker_stack_enabled || !var.gitlab_docker_traefik_manager_enabled ? "" :
+    trimspace(var.gitlab_docker_traefik_manager_password) != "" ?
+    trimspace(var.gitlab_docker_traefik_manager_password) :
+    random_password.gitlab_traefik_manager[0].result
+  )
+
   gitlab_docker_cloud_init_vars = {
     gitlab_fqdn          = local.gitlab_fqdn
     hetzner_api_token    = var.hetzner_api_key
@@ -110,13 +117,10 @@ locals {
     renovate_server_api_secret = (
       var.gitlab_docker_renovate_enabled && local.gitlab_docker_stack_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
     )
-    dns_domain              = var.dns_domain
-    traefik_manager_enabled = var.gitlab_docker_traefik_manager_enabled
-    traefik_manager_image   = var.gitlab_docker_traefik_manager_image
-    traefik_manager_password = (
-      var.gitlab_docker_traefik_manager_enabled && local.gitlab_docker_stack_enabled ?
-      random_password.gitlab_traefik_manager[0].result : ""
-    )
+    dns_domain                              = var.dns_domain
+    traefik_manager_enabled                 = var.gitlab_docker_traefik_manager_enabled
+    traefik_manager_image                   = var.gitlab_docker_traefik_manager_image
+    traefik_manager_password                = local.traefik_manager_password_effective
     traefik_manager_cert_resolver           = var.gitlab_docker_traefik_acme_enabled ? "hetzner" : "none"
     registry_enabled                        = var.gitlab_docker_registry_enabled
     registry_fqdn                           = local.registry_fqdn
@@ -304,7 +308,11 @@ resource "random_password" "gitlab_renovate_server_api" {
 }
 
 resource "random_password" "gitlab_traefik_manager" {
-  count   = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ? 1 : 0
+  count = (
+    local.gitlab_docker_stack_enabled &&
+    var.gitlab_docker_traefik_manager_enabled &&
+    trimspace(var.gitlab_docker_traefik_manager_password) == ""
+  ) ? 1 : 0
   length  = 24
   special = false
 }

@@ -126,6 +126,10 @@ gitlab_docker_config_validate() {
             echo "Invalid TRAEFIK_MANAGER_IMAGE: ${TRAEFIK_MANAGER_IMAGE}" >&2
             return 1
         fi
+        if [[ -n "${TRAEFIK_MANAGER_PASSWORD}" && ${#TRAEFIK_MANAGER_PASSWORD} -lt 8 ]]; then
+            echo "TRAEFIK_MANAGER_PASSWORD must be at least 8 characters when set" >&2
+            return 1
+        fi
     fi
 }
 

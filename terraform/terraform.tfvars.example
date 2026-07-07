@@ -42,6 +42,7 @@ gitlab_install_mode                = "none"
 # gitlab_docker_renovate_gitlab_pat  = "glpat-…"
 # gitlab_docker_traefik_manager_enabled = true
 # gitlab_docker_traefik_manager_image   = "ghcr.io/chr0nzz/traefik-manager:1.6.1"
+# gitlab_docker_traefik_manager_password = "your-secure-password"  # optional; auto-generated when empty
 # Container Registry (docker_compose only; default enabled)
 # gitlab_docker_registry_enabled   = true
 # gitlab_docker_registry_dns_label = "registry"

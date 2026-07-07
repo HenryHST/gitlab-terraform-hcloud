@@ -104,8 +104,11 @@ output "traefik_manager_url_hint" {
 
 output "gitlab_docker_traefik_manager_password" {
   description = "Traefik Manager admin password when docker stack and gitlab_docker_traefik_manager_enabled"
-  value       = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ? random_password.gitlab_traefik_manager[0].result : null
-  sensitive   = true
+  value = (
+    local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ?
+    local.traefik_manager_password_effective : null
+  )
+  sensitive = true
 }
 
 output "registry_fqdn" {

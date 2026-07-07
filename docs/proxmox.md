@@ -187,6 +187,7 @@ cp scripts/pve-gitlab.conf.example scripts/pve-gitlab.conf
 | `GITLAB_ADMIN_*` | `gitlab_admin` |
 | `TRAEFIK_MANAGER_ENABLED` | `gitlab_docker_traefik_manager_enabled` |
 | `TRAEFIK_MANAGER_IMAGE` | `gitlab_docker_traefik_manager_image` |
+| `TRAEFIK_MANAGER_PASSWORD` | `gitlab_docker_traefik_manager_password` |
 
 **v1 des Scripts:** Runner, Registry, Pages, Renovate, PgBouncer, Backup-Cron — nur per Terraform/Cloud-Init; Traefik Manager ist im Kernstack enthalten.
 
