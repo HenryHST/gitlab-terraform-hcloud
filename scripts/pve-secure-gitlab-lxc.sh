@@ -29,6 +29,17 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "\n${BLUE}==>${NC} ${GREEN}$*${NC}\n"; }
 err() { log_error "$*"; exit 1; }
 
+# #region agent log
+DEBUG_LOG="${SCRIPT_DIR}/.cursor/debug-672ee6.log"
+debug_log() {
+    local hypothesis_id="$1" location="$2" message="$3" data_json="${4:-{}}"
+    mkdir -p "$(dirname "${DEBUG_LOG}")" 2>/dev/null || true
+    printf '{"sessionId":"672ee6","hypothesisId":"%s","location":"%s","message":"%s","data":%s,"timestamp":%s}\n' \
+        "${hypothesis_id}" "${location}" "${message}" "${data_json}" "$(date +%s%3N)" \
+        >>"${DEBUG_LOG}" 2>/dev/null || true
+}
+# #endregion
+
 INTERACTIVE=true
 SCRIPT_VERSION="3.0.0"
 CONFIG_FILE=""
@@ -42,6 +53,8 @@ CT_IP=""
 GATEWAY=""
 DNS=""
 STORAGE=""
+ROOTFS_STORAGE=""
+LVM_VG=""
 BRIDGE="vmbr0"
 FORCE_CLEANUP=false
 STORAGE_MODE="simple"
@@ -80,7 +93,8 @@ EOF
   GitLab URL      : ${GREEN}${GITLAB_URL}${NC}
   TLS             : ${GREEN}${tls_mode}${NC}
   GitLab Image    : ${GREEN}${GITLAB_CE_IMAGE}${NC}
-  Storage VG      : ${GREEN}${STORAGE}${NC}
+  Storage VG      : ${GREEN}${LVM_VG}${NC}
+  Rootfs storage  : ${GREEN}${ROOTFS_STORAGE}${NC}
   Network Bridge  : ${GREEN}${BRIDGE}${NC}
   Template        : ${GREEN}${TEMPLATE}${NC}
   Config File     : ${GREEN}${CONFIG_FILE:-<defaults>}${NC}
@@ -152,17 +166,18 @@ Non-interactive (simple storage):
        --vmid 110 --hostname gitlab --cpu 4 --ram 8192 \\
        --storage-mode simple --rootfs-size 50 \\
        --ip 192.168.1.110/24 --gateway 192.168.1.1 --dns 8.8.8.8 \\
-       --storage pve
+       --rootfs-storage local-lvm --lvm-vg pve
 
 Non-interactive (advanced: separate /opt/gitlab LV):
     $0 --config scripts/pve-gitlab.conf \\
        --vmid 120 --hostname gitlab --cpu 4 --ram 8192 \\
        --storage-mode advanced --bootdisk 20 --data-size 100 \\
        --ip 192.168.1.120/24 --gateway 192.168.1.1 --dns 8.8.8.8 \\
-       --storage pve
+       --rootfs-storage local-lvm --lvm-vg pve
 
 Required (non-interactive):
-    --vmid, --hostname, --cpu, --ram, --ip, --gateway, --dns, --storage
+    --vmid, --hostname, --cpu, --ram, --ip, --gateway, --dns
+    --rootfs-storage and/or --lvm-vg (or legacy --storage; see below)
     simple: --rootfs-size
     advanced: --bootdisk, --data-size
 
@@ -172,6 +187,9 @@ GitLab / TLS (optional CLI overrides; else from --config):
     --acme true|false   Traefik ACME DNS-01 (needs Hetzner API token in config)
 
 Other:
+    --rootfs-storage <id> Proxmox storage for CT rootfs (e.g. local-lvm)
+    --lvm-vg <name>       LVM VG for advanced mode data LV (default: pve)
+    --storage <id|vg>     Shorthand: Proxmox storage ID or LVM VG name (auto-map)
     --bridge <name>     Network bridge (default: vmbr0)
     --force-cleanup     Remove existing CT/LV for VMID
     --help              Show this help
@@ -195,6 +213,8 @@ while [[ $# -gt 0 ]]; do
         --gateway) GATEWAY="$2"; shift 2 ;;
         --dns) DNS="$2"; shift 2 ;;
         --storage) STORAGE="$2"; shift 2 ;;
+        --rootfs-storage) ROOTFS_STORAGE="$2"; shift 2 ;;
+        --lvm-vg) LVM_VG="$2"; shift 2 ;;
         --bridge) BRIDGE="$2"; shift 2 ;;
         --config) CONFIG_FILE="$2"; shift 2 ;;
         --fqdn) CLI_FQDN="$2"; shift 2 ;;
@@ -210,6 +230,77 @@ log_step "Running pre-flight checks..."
 command -v pct >/dev/null || err "This script requires Proxmox VE (pct)."
 command -v openssl >/dev/null || err "openssl is required."
 log_info "Proxmox environment OK"
+
+pve_storage_exists() {
+    pvesm status -storage "$1" >/dev/null 2>&1
+}
+
+find_rootfs_storage_for_vg() {
+    local vg="$1"
+    local sid=""
+    if [[ -f /etc/pve/storage.cfg ]]; then
+        sid="$(awk -v vg="${vg}" '
+            /^[a-z][a-z0-9]*: / {
+                line=$0
+                sub(/^[^:]*: /, "", line)
+                split(line, parts, " ")
+                sid=parts[1]
+                vgname=""
+                content=""
+            }
+            /^[[:space:]]+vgname / { vgname=$2 }
+            /^[[:space:]]+content / { content=$0 }
+            vgname == vg && content ~ /rootdir/ { print sid; exit }
+        ' /etc/pve/storage.cfg 2>/dev/null || true)"
+    fi
+    if [[ -z "${sid}" ]] && pve_storage_exists "local-lvm" && [[ "${vg}" == "pve" ]]; then
+        sid="local-lvm"
+    fi
+    printf '%s' "${sid}"
+}
+
+resolve_storage_settings() {
+    # #region agent log
+    debug_log "A" "resolve_storage_settings:entry" "storage inputs" \
+        "{\"storage\":\"${STORAGE}\",\"rootfs_storage\":\"${ROOTFS_STORAGE}\",\"lvm_vg\":\"${LVM_VG}\"}"
+    # #endregion
+
+    if [[ -n "${ROOTFS_STORAGE}" && -n "${LVM_VG}" ]]; then
+        :
+    elif [[ -n "${STORAGE}" ]]; then
+        if pve_storage_exists "${STORAGE}"; then
+            ROOTFS_STORAGE="${STORAGE}"
+            LVM_VG="${LVM_VG:-pve}"
+            log_info "Using --storage as Proxmox rootfs storage: ${ROOTFS_STORAGE}"
+        elif vgs "${STORAGE}" >/dev/null 2>&1; then
+            LVM_VG="${STORAGE}"
+            ROOTFS_STORAGE="$(find_rootfs_storage_for_vg "${STORAGE}")"
+            log_info "Mapped LVM VG '${LVM_VG}' to rootfs storage '${ROOTFS_STORAGE:-<none>}'"
+        else
+            err "'${STORAGE}' is neither a Proxmox storage (pvesm) nor an LVM VG (vgs)."
+        fi
+    elif [[ -n "${ROOTFS_STORAGE}" ]]; then
+        LVM_VG="${LVM_VG:-pve}"
+    elif [[ -n "${LVM_VG}" ]]; then
+        ROOTFS_STORAGE="$(find_rootfs_storage_for_vg "${LVM_VG}")"
+    else
+        LVM_VG="pve"
+        ROOTFS_STORAGE="$(find_rootfs_storage_for_vg pve)"
+    fi
+
+    if [[ -z "${ROOTFS_STORAGE}" ]]; then
+        err "No Proxmox rootdir storage found for VG '${LVM_VG}'. Set --rootfs-storage (e.g. local-lvm)."
+    fi
+    pve_storage_exists "${ROOTFS_STORAGE}" || err "Proxmox storage '${ROOTFS_STORAGE}' not found. Run: pvesm status -content rootdir"
+    vgs "${LVM_VG}" >/dev/null 2>&1 || err "LVM VG '${LVM_VG}' not found. Run: vgs"
+
+    # #region agent log
+    debug_log "A" "resolve_storage_settings:exit" "resolved storage" \
+        "{\"rootfs_storage\":\"${ROOTFS_STORAGE}\",\"lvm_vg\":\"${LVM_VG}\",\"pct_rootfs\":\"${ROOTFS_STORAGE}:${BOOTDISK}\"}"
+    debug_log "B" "resolve_storage_settings:exit" "pvesm check" \
+        "{\"rootfs_exists\":$(pve_storage_exists "${ROOTFS_STORAGE}" && echo true || echo false)}"
+    # #endregion
+}
 
 log_step "Updating Proxmox host..."
 apt update -qq || err "apt update failed"
@@ -272,8 +363,10 @@ if [[ "${INTERACTIVE}" == "true" ]]; then
     DEFAULT_DNS=$(awk '/^nameserver/ {print $2; exit}' /etc/resolv.conf)
     read -rp "DNS [${DEFAULT_DNS}]: " DNS
     DNS="${DNS:-$DEFAULT_DNS}"
-    read -rp "LVM VG [pve]: " STORAGE
-    STORAGE="${STORAGE:-pve}"
+    read -rp "Proxmox rootfs storage [local-lvm]: " ROOTFS_INPUT
+    ROOTFS_STORAGE="${ROOTFS_INPUT:-local-lvm}"
+    read -rp "LVM volume group [pve]: " LVM_INPUT
+    LVM_VG="${LVM_INPUT:-pve}"
     read -rp "Bridge [vmbr0]: " BRIDGE_INPUT
     BRIDGE="${BRIDGE_INPUT:-vmbr0}"
     DEFAULT_CONFIG="${SCRIPT_DIR}/pve-gitlab.conf"
@@ -287,14 +380,16 @@ if [[ "${INTERACTIVE}" == "true" ]]; then
 else
     if [[ "${STORAGE_MODE}" == "simple" ]]; then
         [[ -n "${VMID}" && -n "${CT_HOSTNAME}" && -n "${CPU}" && -n "${RAM}" && -n "${BOOTDISK}" && \
-           -n "${CT_IP}" && -n "${GATEWAY}" && -n "${DNS}" && -n "${STORAGE}" ]] || \
+           -n "${CT_IP}" && -n "${GATEWAY}" && -n "${DNS}" ]] || \
             err "Simple mode: missing required options (see --help)"
     else
         [[ -n "${VMID}" && -n "${CT_HOSTNAME}" && -n "${CPU}" && -n "${RAM}" && -n "${BOOTDISK}" && \
-           -n "${DATA_SIZE}" && -n "${CT_IP}" && -n "${GATEWAY}" && -n "${DNS}" && -n "${STORAGE}" ]] || \
+           -n "${DATA_SIZE}" && -n "${CT_IP}" && -n "${GATEWAY}" && -n "${DNS}" ]] || \
             err "Advanced mode: missing required options (see --help)"
     fi
 fi
+
+resolve_storage_settings
 
 gitlab_docker_config_load || err "Invalid GitLab Docker config"
 if [[ -n "${CLI_FQDN}" ]]; then
@@ -317,16 +412,15 @@ if [[ -n "${CLI_ACME}" ]]; then
 fi
 
 log_step "Validating..."
-vgs "${STORAGE}" >/dev/null 2>&1 || err "VG '${STORAGE}' not found"
 [[ "${CT_IP}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$ ]] || err "Invalid IP CIDR: ${CT_IP}"
 
 LV_DATA="vm-${VMID}-gitlab-data"
 EXISTING_CONTAINER=false
 EXISTING_LVS=()
 pct status "${VMID}" >/dev/null 2>&1 && EXISTING_CONTAINER=true
-lvdisplay "/dev/${STORAGE}/${LV_DATA}" >/dev/null 2>&1 && EXISTING_LVS+=("${LV_DATA}")
+lvdisplay "/dev/${LVM_VG}/${LV_DATA}" >/dev/null 2>&1 && EXISTING_LVS+=("${LV_DATA}")
 for legacy in "vm-${VMID}-gitlab-etc" "vm-${VMID}-gitlab-log" "vm-${VMID}-gitlab-opt"; do
-    lvdisplay "/dev/${STORAGE}/${legacy}" >/dev/null 2>&1 && EXISTING_LVS+=("${legacy}")
+    lvdisplay "/dev/${LVM_VG}/${legacy}" >/dev/null 2>&1 && EXISTING_LVS+=("${legacy}")
 done
 
 if [[ "${EXISTING_CONTAINER}" == "true" || ${#EXISTING_LVS[@]} -gt 0 ]]; then
@@ -346,7 +440,7 @@ if [[ "${EXISTING_CONTAINER}" == "true" || ${#EXISTING_LVS[@]} -gt 0 ]]; then
         pct stop "${VMID}" 2>/dev/null || true
         pct destroy "${VMID}" 2>/dev/null || true
         for lv in "${EXISTING_LVS[@]}"; do
-            lvremove -f "/dev/${STORAGE}/${lv}" 2>/dev/null || true
+            lvremove -f "/dev/${LVM_VG}/${lv}" 2>/dev/null || true
         done
         log_info "Cleanup complete"
     else
@@ -368,11 +462,15 @@ Installed: ${INSTALL_DATE}
 FQDN: ${GITLAB_FQDN}
 Stack: Traefik + GitLab CE + PostgreSQL under /opt/gitlab"
 
+# #region agent log
+debug_log "C" "pct_create:before" "pct create rootfs" \
+    "{\"vmid\":\"${VMID}\",\"rootfs\":\"${ROOTFS_STORAGE}:${BOOTDISK}\",\"lvm_vg\":\"${LVM_VG}\"}"
+# #endregion
 pct create "${VMID}" "${TEMPLATE}" \
     --hostname "${CT_HOSTNAME}" \
     --cores "${CPU}" \
     --memory "${RAM}" \
-    --rootfs "${STORAGE}:${BOOTDISK}" \
+    --rootfs "${ROOTFS_STORAGE}:${BOOTDISK}" \
     --net0 "name=eth0,bridge=${BRIDGE},ip=${CT_IP},gw=${GATEWAY},type=veth" \
     --nameserver "${DNS}" \
     --unprivileged 1 \
@@ -383,9 +481,9 @@ pct create "${VMID}" "${TEMPLATE}" \
 
 if [[ "${STORAGE_MODE}" == "advanced" ]]; then
     log_step "Advanced storage: LV for /opt/gitlab"
-    LV_PATH="/dev/${STORAGE}/${LV_DATA}"
+    LV_PATH="/dev/${LVM_VG}/${LV_DATA}"
     if ! lvdisplay "${LV_PATH}" >/dev/null 2>&1; then
-        lvcreate -L "${DATA_SIZE}G" -n "${LV_DATA}" "${STORAGE}" || err "lvcreate failed"
+        lvcreate -L "${DATA_SIZE}G" -n "${LV_DATA}" "${LVM_VG}" || err "lvcreate failed"
     fi
     fs_type=$(blkid -o value -s TYPE "${LV_PATH}" 2>/dev/null || true)
     if [[ -z "${fs_type}" ]]; then
