@@ -250,6 +250,19 @@ write_files:
       MEND_RNV_GITLAB_PAT=${renovate_gitlab_pat}
       MEND_RNV_WEBHOOK_SECRET=${renovate_webhook_secret}
 %{ endif ~}
+%{ if traefik_manager_enabled ~}
+  - path: /opt/gitlab/traefik-manager/config/manager.yml
+    owner: root:root
+    permissions: "0600"
+    content: |
+      domains:
+        - ${dns_domain}
+      cert_resolver: ${traefik_manager_cert_resolver}
+      traefik_api_url: http://traefik:8080
+      auth_enabled: true
+      setup_complete: true
+      must_change_password: false
+%{ endif ~}
 %{ if runner_enabled && runner_static_config ~}
   - path: /opt/gitlab/gitlab-runner/config.toml
     owner: root:root
@@ -1256,6 +1269,7 @@ write_files:
             CERT_RESOLVER: "${traefik_manager_cert_resolver}"
             CONFIG_DIR: /app/config/traefik
             ADMIN_PASSWORD: "${traefik_manager_password}"
+            SECRET_KEY: "${traefik_manager_secret_key}"
             ACCESS_LOG_PATH: /app/logs/access.log
 %{ if acme_enabled ~}
             ACME_JSON_PATH: /app/acme.json

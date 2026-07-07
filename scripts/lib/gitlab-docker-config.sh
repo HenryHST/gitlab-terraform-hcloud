@@ -30,6 +30,7 @@ gitlab_docker_config_init_defaults() {
     TRAEFIK_MANAGER_ENABLED="${TRAEFIK_MANAGER_ENABLED:-true}"
     TRAEFIK_MANAGER_IMAGE="${TRAEFIK_MANAGER_IMAGE:-ghcr.io/chr0nzz/traefik-manager:1.6.1}"
     TRAEFIK_MANAGER_PASSWORD="${TRAEFIK_MANAGER_PASSWORD:-}"
+    TRAEFIK_MANAGER_SECRET_KEY="${TRAEFIK_MANAGER_SECRET_KEY:-}"
 }
 
 gitlab_docker_config_load() {
@@ -100,6 +101,9 @@ gitlab_docker_config_generate_secrets() {
     if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" && -z "${TRAEFIK_MANAGER_PASSWORD}" ]]; then
         TRAEFIK_MANAGER_PASSWORD="$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)"
     fi
+    if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" && -z "${TRAEFIK_MANAGER_SECRET_KEY}" ]]; then
+        TRAEFIK_MANAGER_SECRET_KEY="$(openssl rand -hex 32)"
+    fi
 }
 
 gitlab_docker_config_validate() {
@@ -163,6 +167,7 @@ gitlab_docker_config_write_env_file() {
         printf 'TRAEFIK_MANAGER_ENABLED=%q\n' "${TRAEFIK_MANAGER_ENABLED}"
         printf 'TRAEFIK_MANAGER_IMAGE=%q\n' "${TRAEFIK_MANAGER_IMAGE}"
         printf 'TRAEFIK_MANAGER_PASSWORD=%q\n' "${TRAEFIK_MANAGER_PASSWORD}"
+        printf 'TRAEFIK_MANAGER_SECRET_KEY=%q\n' "${TRAEFIK_MANAGER_SECRET_KEY}"
         printf 'TRAEFIK_MANAGER_CERT_RESOLVER=%q\n' "${TRAEFIK_MANAGER_CERT_RESOLVER}"
         printf 'TEMPLATES_DIR=%q\n' "${TEMPLATES_DIR:-/root/gitlab-docker-core}"
     } >"${dest}"

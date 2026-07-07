@@ -154,7 +154,7 @@ Alternativ zur QEMU-VM + Terraform kann GitLab als **unprivileged LXC** mit dems
 | **OS-Template** | `debian-13-standard` (Fallback `debian-12-standard`) |
 | **Stack** | `/opt/gitlab` — Traefik, GitLab CE, PostgreSQL, optional Traefik Manager |
 | **Konfiguration** | [`scripts/pve-gitlab.conf.example`](../scripts/pve-gitlab.conf.example) kopieren → `pve-gitlab.conf` |
-| **Traefik Manager** | `http://<LXC-IP>:5000` wenn `TRAEFIK_MANAGER_ENABLED=true` (Default); Passwort auto-generiert oder `TRAEFIK_MANAGER_PASSWORD` |
+| **Traefik Manager** | `http://<LXC-IP>:5000` wenn `TRAEFIK_MANAGER_ENABLED=true` (Default); Passwort auto-generiert oder `TRAEFIK_MANAGER_PASSWORD`. Nach Container-Neustart/Neuinstallation: Browser-Cookies für die Seite löschen, falls Login mit „CSRF check failed“ fehlschlägt. |
 | **DNS** | A/AAAA für `GITLAB_FQDN` manuell auf die LXC-IP; bei ACME zusätzlich Hetzner-DNS-API-Token |
 | **TLS** | Traefik: HTTP-only oder ACME DNS-01 (`TRAEFIK_ACME_ENABLED`, `HETZNER_API_TOKEN`) |
 

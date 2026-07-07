@@ -25,8 +25,8 @@ render_template() {
     export GITLAB_FQDN EXTERNAL_URL_SCHEME GITLAB_URL TRAEFIK_IMAGE GITLAB_CE_IMAGE POSTGRES_IMAGE
     export HETZNER_API_TOKEN ACME_EMAIL GITLAB_ROOT_EMAIL GITLAB_ROOT_PASSWORD POSTGRES_PASSWORD
     export GITLAB_SIGNUP_ENABLED GITLAB_THEME_ID GITLAB_COLOR_MODE GITLAB_TIME_ZONE ACME_GITLAB_RB_BLOCK
-    export DNS_DOMAIN TRAEFIK_MANAGER_IMAGE TRAEFIK_MANAGER_PASSWORD TRAEFIK_MANAGER_CERT_RESOLVER
-    envsubst '${GITLAB_FQDN} ${EXTERNAL_URL_SCHEME} ${GITLAB_URL} ${TRAEFIK_IMAGE} ${GITLAB_CE_IMAGE} ${POSTGRES_IMAGE} ${HETZNER_API_TOKEN} ${ACME_EMAIL} ${GITLAB_ROOT_EMAIL} ${GITLAB_ROOT_PASSWORD} ${POSTGRES_PASSWORD} ${GITLAB_SIGNUP_ENABLED} ${GITLAB_THEME_ID} ${GITLAB_COLOR_MODE} ${GITLAB_TIME_ZONE} ${ACME_GITLAB_RB_BLOCK} ${DNS_DOMAIN} ${TRAEFIK_MANAGER_IMAGE} ${TRAEFIK_MANAGER_PASSWORD} ${TRAEFIK_MANAGER_CERT_RESOLVER}' \
+    export DNS_DOMAIN TRAEFIK_MANAGER_IMAGE TRAEFIK_MANAGER_PASSWORD TRAEFIK_MANAGER_SECRET_KEY TRAEFIK_MANAGER_CERT_RESOLVER
+    envsubst '${GITLAB_FQDN} ${EXTERNAL_URL_SCHEME} ${GITLAB_URL} ${TRAEFIK_IMAGE} ${GITLAB_CE_IMAGE} ${POSTGRES_IMAGE} ${HETZNER_API_TOKEN} ${ACME_EMAIL} ${GITLAB_ROOT_EMAIL} ${GITLAB_ROOT_PASSWORD} ${POSTGRES_PASSWORD} ${GITLAB_SIGNUP_ENABLED} ${GITLAB_THEME_ID} ${GITLAB_COLOR_MODE} ${GITLAB_TIME_ZONE} ${ACME_GITLAB_RB_BLOCK} ${DNS_DOMAIN} ${TRAEFIK_MANAGER_IMAGE} ${TRAEFIK_MANAGER_PASSWORD} ${TRAEFIK_MANAGER_SECRET_KEY} ${TRAEFIK_MANAGER_CERT_RESOLVER}' \
         <"${src}" >"${dest}"
     chmod "${mode}" "${dest}"
 }
@@ -229,6 +229,13 @@ chmod 0644 /var/log/traefik/access.log
 
 if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
     install -m 0700 -d /opt/gitlab/traefik-manager/config /opt/gitlab/traefik-manager/backups
+    if [[ -z "${TRAEFIK_MANAGER_SECRET_KEY:-}" ]]; then
+        TRAEFIK_MANAGER_SECRET_KEY="$(openssl rand -hex 32)"
+    fi
+    if [[ ! -f /opt/gitlab/traefik-manager/config/manager.yml ]]; then
+        render_template "${TEMPLATES_DIR}/traefik-manager/manager.yml.tpl" \
+            /opt/gitlab/traefik-manager/config/manager.yml 0600
+    fi
 fi
 
 install -d -m 0755 /opt/gitlab/traefik/dynamic_conf
@@ -243,5 +250,22 @@ echo "=== docker compose up ==="
 cd /opt/gitlab
 docker compose "${COMPOSE_PROFILES[@]}" pull
 docker compose "${COMPOSE_PROFILES[@]}" up -d
+
+if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
+    # #region agent log
+    _tm_secret_file=false
+    _tm_manager_yml=false
+    [[ -f /opt/gitlab/traefik-manager/config/.secret_key ]] && _tm_secret_file=true
+    [[ -f /opt/gitlab/traefik-manager/config/manager.yml ]] && _tm_manager_yml=true
+    _tm_login_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/login 2>/dev/null || echo 000)"
+    _tm_cookie="$(curl -s -D - -o /dev/null http://127.0.0.1:5000/login 2>/dev/null | grep -i '^set-cookie: session=' | head -1 | cut -d: -f2- | cut -d';' -f1 | xargs || true)"
+    printf '{"sessionId":"672ee6","hypothesisId":"A","location":"bootstrap:tm-post-up","message":"traefik-manager session diagnostics","data":{"secret_key_file":%s,"manager_yml":%s,"login_http_code":"%s","session_cookie_set":%s,"secret_key_env_set":%s},"timestamp":%s}\n' \
+        "${_tm_secret_file}" "${_tm_manager_yml}" "${_tm_login_code}" \
+        "$( [[ -n "${_tm_cookie}" ]] && echo true || echo false )" \
+        "$( [[ -n "${TRAEFIK_MANAGER_SECRET_KEY:-}" ]] && echo true || echo false )" \
+        "$(date +%s%3N)" >>/var/log/gitlab-docker-bootstrap.log
+    unset _tm_secret_file _tm_manager_yml _tm_login_code _tm_cookie
+    # #endregion
+fi
 
 echo "=== finished $(date -Is) ==="

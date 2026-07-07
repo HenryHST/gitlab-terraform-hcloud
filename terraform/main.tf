@@ -117,10 +117,14 @@ locals {
     renovate_server_api_secret = (
       var.gitlab_docker_renovate_enabled && local.gitlab_docker_stack_enabled ? random_password.gitlab_renovate_server_api[0].result : ""
     )
-    dns_domain                              = var.dns_domain
-    traefik_manager_enabled                 = var.gitlab_docker_traefik_manager_enabled
-    traefik_manager_image                   = var.gitlab_docker_traefik_manager_image
-    traefik_manager_password                = local.traefik_manager_password_effective
+    dns_domain               = var.dns_domain
+    traefik_manager_enabled  = var.gitlab_docker_traefik_manager_enabled
+    traefik_manager_image    = var.gitlab_docker_traefik_manager_image
+    traefik_manager_password = local.traefik_manager_password_effective
+    traefik_manager_secret_key = (
+      var.gitlab_docker_traefik_manager_enabled && local.gitlab_docker_stack_enabled ?
+      random_password.gitlab_traefik_manager_secret[0].result : ""
+    )
     traefik_manager_cert_resolver           = var.gitlab_docker_traefik_acme_enabled ? "hetzner" : "none"
     registry_enabled                        = var.gitlab_docker_registry_enabled
     registry_fqdn                           = local.registry_fqdn
@@ -229,6 +233,7 @@ locals {
   # max-length placeholder passwords (same lengths as random_password resources).
   gitlab_docker_password_placeholder_24 = join("", [for _ in range(24) : "Z"])
   gitlab_docker_password_placeholder_32 = join("", [for _ in range(32) : "Y"])
+  gitlab_docker_password_placeholder_64 = join("", [for _ in range(64) : "X"])
   gitlab_docker_cloud_init_vars_worst_case = merge(
     local.gitlab_docker_cloud_init_vars,
     {
@@ -237,6 +242,7 @@ locals {
       renovate_webhook_secret    = var.gitlab_docker_renovate_enabled ? local.gitlab_docker_password_placeholder_32 : ""
       renovate_server_api_secret = var.gitlab_docker_renovate_enabled ? local.gitlab_docker_password_placeholder_32 : ""
       traefik_manager_password   = var.gitlab_docker_traefik_manager_enabled ? local.gitlab_docker_password_placeholder_24 : ""
+      traefik_manager_secret_key = var.gitlab_docker_traefik_manager_enabled ? local.gitlab_docker_password_placeholder_64 : ""
     },
   )
   gitlab_docker_user_data_hcloud_worst_case = local.gitlab_docker_stack_enabled ? base64gzip(templatefile(
@@ -314,6 +320,12 @@ resource "random_password" "gitlab_traefik_manager" {
     trimspace(var.gitlab_docker_traefik_manager_password) == ""
   ) ? 1 : 0
   length  = 24
+  special = false
+}
+
+resource "random_password" "gitlab_traefik_manager_secret" {
+  count   = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled ? 1 : 0
+  length  = 64
   special = false
 }
 

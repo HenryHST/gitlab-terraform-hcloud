@@ -104,6 +104,7 @@ services:
       CERT_RESOLVER: "${TRAEFIK_MANAGER_CERT_RESOLVER}"
       CONFIG_DIR: /app/config/traefik
       ADMIN_PASSWORD: "${TRAEFIK_MANAGER_PASSWORD}"
+      SECRET_KEY: "${TRAEFIK_MANAGER_SECRET_KEY}"
       ACCESS_LOG_PATH: /app/logs/access.log
     volumes:
       - ./traefik-manager/config:/app/config
