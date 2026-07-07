@@ -108,6 +108,7 @@ services:
       ACCESS_LOG_PATH: /app/logs/access.log
     volumes:
       - ./traefik-manager/config:/app/config
+      - ./traefik/traefik.yml:/app/config/traefik.yml:ro
       - ./traefik/dynamic_conf:/app/config/traefik
       - ./traefik-manager/backups:/app/backups
       - /var/log/traefik/access.log:/app/logs/access.log:ro
