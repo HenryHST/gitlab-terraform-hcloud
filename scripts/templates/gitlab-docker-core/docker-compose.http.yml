@@ -1,9 +1,9 @@
 services:
   traefik:
-    container_name: $${SERVICES_TRAEFIK_CONTAINER_NAME:-traefik}
+    container_name: traefik
     env_file:
       - ./traefik/.env
-    hostname: $${SERVICES_TRAEFIK_HOSTNAME:-traefik}
+    hostname: traefik
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       timeout: 1s
@@ -13,11 +13,11 @@ services:
     image: ${TRAEFIK_IMAGE}
     networks:
       proxy:
-        ipv4_address: $${SERVICES_TRAEFIK_NETWORKS_PROXY_IPV4:-172.31.191.247}
-        ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7fff}
+        ipv4_address: 172.31.191.247
+        ipv6_address: fd00:1:be:a:7001:0:3e:7fff
       socket_proxy:
-        ipv4_address: $${SERVICES_TRAEFIK_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.253}
-        ipv6_address: $${SERVICES_TRAEFIK_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffe}
+        ipv4_address: 172.31.255.253
+        ipv6_address: fd00:1:be:a:7001:0:3e:8ffe
     ports:
       - "80:80"
       - "443:443"
@@ -45,8 +45,8 @@ services:
       - ./postgres/data:/var/lib/postgresql/data
     networks:
       socket_proxy:
-        ipv4_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV4:-172.31.255.252}
-        ipv6_address: $${SERVICES_POSTGRES_NETWORKS_SOCKET_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:8ffd}
+        ipv4_address: 172.31.255.252
+        ipv6_address: fd00:1:be:a:7001:0:3e:8ffd
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U gitlab -d gitlabhq_production"]
       interval: 5s
@@ -78,12 +78,12 @@ services:
       - "2424:22"
     networks:
       proxy:
-        ipv4_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV4:-172.31.129.254}
-        ipv6_address: $${SERVICES_GITLAB_NETWORKS_PROXY_IPV6:-fd00:1:be:a:7001:0:3e:7ffe}
+        ipv4_address: 172.31.129.254
+        ipv6_address: fd00:1:be:a:7001:0:3e:7ffe
       socket_proxy: {}
     labels:
       - "traefik.enable=true"
-      - "traefik.docker.network=$${NETWORKS_PROXY_NAME:-proxy}"
+      - "traefik.docker.network=proxy"
       - "traefik.http.services.gitlab.loadbalancer.server.port=80"
       - "traefik.http.routers.gitlab.service=gitlab"
       - "traefik.http.routers.gitlab.rule=Host(`${GITLAB_FQDN}`)"
@@ -92,34 +92,34 @@ services:
 
 networks:
   crowdsec:
-    name: $${NETWORKS_CROWDSEC_NAME:-crowdsec}
+    name: crowdsec
     driver: bridge
     enable_ipv6: true
     ipam:
       driver: default
       config:
-        - subnet: $${NETWORKS_CROWDSEC_SUBNET_IPV4:-172.31.64.0/18}
-        - subnet: $${NETWORKS_CROWDSEC_SUBNET_IPV6:-fd00:1:be:a:7001:0:3e:6000/116}
+        - subnet: 172.31.64.0/18
+        - subnet: fd00:1:be:a:7001:0:3e:6000/116
     attachable: true
   proxy:
-    name: $${NETWORKS_PROXY_NAME:-proxy}
+    name: proxy
     driver: bridge
     enable_ipv6: true
     ipam:
       driver: default
       config:
-        - subnet: $${NETWORKS_PROXY_SUBNET_IPV4:-172.31.128.0/18}
-        - subnet: $${NETWORKS_PROXY_SUBNET_IPV6:-fd00:1:be:a:7001:0:3e:7000/116}
+        - subnet: 172.31.128.0/18
+        - subnet: fd00:1:be:a:7001:0:3e:7000/116
     attachable: true
   socket_proxy:
-    name: $${NETWORKS_SOCKET_PROXY_NAME:-socket_proxy}
+    name: socket_proxy
     driver: bridge
     enable_ipv6: true
     ipam:
       driver: default
       config:
-        - subnet: $${NETWORKS_SOCKET_PROXY_SUBNET_IPV4:-172.31.192.0/18}
-        - subnet: $${NETWORKS_SOCKET_PROXY_SUBNET_IPV6:-fd00:1:be:a:7001:0:3e:8000/116}
+        - subnet: 172.31.192.0/18
+        - subnet: fd00:1:be:a:7001:0:3e:8000/116
     attachable: true
     internal: true
 

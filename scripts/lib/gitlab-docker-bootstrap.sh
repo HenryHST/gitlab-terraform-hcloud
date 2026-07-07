@@ -248,7 +248,19 @@ render_template "${TEMPLATES_DIR}/data/config/gitlab.rb.tpl" /opt/gitlab/data/co
 
 echo "=== docker compose up ==="
 cd /opt/gitlab
+# #region agent log
+_subnets="$(grep 'subnet:' /opt/gitlab/docker-compose.yml | awk '{print $2}' | paste -sd, - || true)"
+_has_var="$(grep -q '\${' /opt/gitlab/docker-compose.yml && echo true || echo false)"
+bootstrap_debug "F" "compose:before" "rendered network subnets" \
+    "{\"subnets\":\"${_subnets}\",\"has_dollar_brace\":${_has_var}}"
+unset _subnets _has_var
+# #endregion
 docker compose pull
 docker compose up -d
+# #region agent log
+_compose_states="$(docker compose ps --format '{{.State}}' 2>/dev/null | paste -sd, - || true)"
+bootstrap_debug "F" "compose:after" "docker compose ps" "{\"states\":\"${_compose_states}\"}"
+unset _compose_states
+# #endregion
 
 echo "=== finished $(date -Is) ==="
