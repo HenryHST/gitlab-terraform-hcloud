@@ -29,17 +29,6 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "\n${BLUE}==>${NC} ${GREEN}$*${NC}\n"; }
 err() { log_error "$*"; exit 1; }
 
-# #region agent log
-DEBUG_LOG="${SCRIPT_DIR}/.cursor/debug-672ee6.log"
-debug_log() {
-    local hypothesis_id="$1" location="$2" message="$3" data_json="${4:-{}}"
-    mkdir -p "$(dirname "${DEBUG_LOG}")" 2>/dev/null || true
-    printf '{"sessionId":"672ee6","hypothesisId":"%s","location":"%s","message":"%s","data":%s,"timestamp":%s}\n' \
-        "${hypothesis_id}" "${location}" "${message}" "${data_json}" "$(date +%s%3N)" \
-        >>"${DEBUG_LOG}" 2>/dev/null || true
-}
-# #endregion
-
 INTERACTIVE=true
 SCRIPT_VERSION="3.0.0"
 CONFIG_FILE=""
@@ -260,11 +249,6 @@ find_rootfs_storage_for_vg() {
 }
 
 resolve_storage_settings() {
-    # #region agent log
-    debug_log "A" "resolve_storage_settings:entry" "storage inputs" \
-        "{\"storage\":\"${STORAGE}\",\"rootfs_storage\":\"${ROOTFS_STORAGE}\",\"lvm_vg\":\"${LVM_VG}\"}"
-    # #endregion
-
     if [[ -n "${ROOTFS_STORAGE}" && -n "${LVM_VG}" ]]; then
         :
     elif [[ -n "${STORAGE}" ]]; then
@@ -293,13 +277,6 @@ resolve_storage_settings() {
     fi
     pve_storage_exists "${ROOTFS_STORAGE}" || err "Proxmox storage '${ROOTFS_STORAGE}' not found. Run: pvesm status -content rootdir"
     vgs "${LVM_VG}" >/dev/null 2>&1 || err "LVM VG '${LVM_VG}' not found. Run: vgs"
-
-    # #region agent log
-    debug_log "A" "resolve_storage_settings:exit" "resolved storage" \
-        "{\"rootfs_storage\":\"${ROOTFS_STORAGE}\",\"lvm_vg\":\"${LVM_VG}\",\"pct_rootfs\":\"${ROOTFS_STORAGE}:${BOOTDISK}\"}"
-    debug_log "B" "resolve_storage_settings:exit" "pvesm check" \
-        "{\"rootfs_exists\":$(pve_storage_exists "${ROOTFS_STORAGE}" && echo true || echo false)}"
-    # #endregion
 }
 
 log_step "Updating Proxmox host..."
@@ -462,10 +439,6 @@ Installed: ${INSTALL_DATE}
 FQDN: ${GITLAB_FQDN}
 Stack: Traefik + GitLab CE + PostgreSQL under /opt/gitlab"
 
-# #region agent log
-debug_log "C" "pct_create:before" "pct create rootfs" \
-    "{\"vmid\":\"${VMID}\",\"rootfs\":\"${ROOTFS_STORAGE}:${BOOTDISK}\",\"lvm_vg\":\"${LVM_VG}\"}"
-# #endregion
 pct create "${VMID}" "${TEMPLATE}" \
     --hostname "${CT_HOSTNAME}" \
     --cores "${CPU}" \

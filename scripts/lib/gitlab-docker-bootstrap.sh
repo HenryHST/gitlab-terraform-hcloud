@@ -8,13 +8,6 @@ LOG=/var/log/gitlab-docker-bootstrap.log
 exec >>"$LOG" 2>&1
 echo "=== gitlab-docker bootstrap $(date -Is) ==="
 
-# #region agent log
-bootstrap_debug() {
-    printf '{"sessionId":"672ee6","hypothesisId":"%s","location":"%s","message":"%s","data":%s,"timestamp":%s}\n' \
-        "$1" "$2" "$3" "${4:-{}}" "$(date +%s%3N)" >>"${LOG}"
-}
-# #endregion
-
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "ERROR: missing ${ENV_FILE}" >&2
     exit 1
@@ -67,15 +60,7 @@ if [[ "${HOST_HARDENING_ENABLED}" == "true" ]]; then
 fi
 
 echo "=== install prerequisites (curl, gpg, envsubst) ==="
-# #region agent log
-bootstrap_debug "A" "prereq:before" "checking curl gpg envsubst" \
-    "{\"curl\":$(command -v curl >/dev/null && echo true || echo false),\"gpg\":$(command -v gpg >/dev/null && echo true || echo false),\"envsubst\":$(command -v envsubst >/dev/null && echo true || echo false)}"
-# #endregion
 apt-get install -y -qq ca-certificates curl gnupg gettext-base
-# #region agent log
-bootstrap_debug "A" "prereq:after" "prerequisites installed" \
-    "{\"curl\":$(command -v curl >/dev/null && echo true || echo false),\"gpg\":$(command -v gpg >/dev/null && echo true || echo false),\"envsubst\":$(command -v envsubst >/dev/null && echo true || echo false)}"
-# #endregion
 
 echo "=== install docker ==="
 install -m 0755 -d /etc/apt/keyrings
@@ -99,17 +84,9 @@ fi
 usermod -s /usr/bin/zsh root
 systemctl enable --now docker
 
-# #region agent log
-bootstrap_debug "D" "zshrc:before" "zshrc.d directory" \
-    "{\"zshrc_d_exists\":$(test -d /etc/zsh/zshrc.d && echo true || echo false)}"
-# #endregion
 install -d -m 0755 /etc/zsh/zshrc.d
 install -m 0644 "${TEMPLATES_DIR}/etc/zsh/zshrc.d/99-gitlab-docker-host.zsh" \
     /etc/zsh/zshrc.d/99-gitlab-docker-host.zsh
-# #region agent log
-bootstrap_debug "D" "zshrc:after" "zshrc installed" \
-    "{\"zshrc_exists\":$(test -f /etc/zsh/zshrc.d/99-gitlab-docker-host.zsh && echo true || echo false)}"
-# #endregion
 
 if [[ "${GITLAB_ADMIN_ENABLED}" == "true" && -n "${SSH_PUBLIC_KEY_EFFECTIVE:-}" ]]; then
   if ! id "${GITLAB_ADMIN_USERNAME}" &>/dev/null; then
@@ -159,14 +136,7 @@ net.ipv4.conf.all.send_redirects = 0
 net.ipv4.conf.all.accept_source_route = 0
 net.ipv6.conf.all.accept_source_route = 0
 SYSCTL
-    # #region agent log
-    bootstrap_debug "E" "sysctl:before" "applying gitlab-docker sysctl drop-in only" "{}"
-    # #endregion
     sysctl -p /etc/sysctl.d/99-gitlab-docker-host.conf 2>/dev/null || true
-    # #region agent log
-    bootstrap_debug "E" "sysctl:after" "sysctl drop-in applied" \
-        "{\"ip_forward\":\"$(sysctl -n net.ipv4.ip_forward 2>/dev/null || echo unknown)\"}"
-    # #endregion
 
     cat >/etc/fail2ban/jail.local <<'F2B'
 [DEFAULT]
@@ -248,19 +218,7 @@ render_template "${TEMPLATES_DIR}/data/config/gitlab.rb.tpl" /opt/gitlab/data/co
 
 echo "=== docker compose up ==="
 cd /opt/gitlab
-# #region agent log
-_subnets="$(grep 'subnet:' /opt/gitlab/docker-compose.yml | awk '{print $2}' | paste -sd, - || true)"
-_has_var="$(grep -q '\${' /opt/gitlab/docker-compose.yml && echo true || echo false)"
-bootstrap_debug "F" "compose:before" "rendered network subnets" \
-    "{\"subnets\":\"${_subnets}\",\"has_dollar_brace\":${_has_var}}"
-unset _subnets _has_var
-# #endregion
 docker compose pull
 docker compose up -d
-# #region agent log
-_compose_states="$(docker compose ps --format '{{.State}}' 2>/dev/null | paste -sd, - || true)"
-bootstrap_debug "F" "compose:after" "docker compose ps" "{\"states\":\"${_compose_states}\"}"
-unset _compose_states
-# #endregion
 
 echo "=== finished $(date -Is) ==="
