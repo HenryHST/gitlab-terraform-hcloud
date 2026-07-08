@@ -34,6 +34,7 @@ TRAEFIK_MANAGER_IMAGE="ghcr.io/chr0nzz/traefik-manager:1.6.1"
 # Set explicitly or leave empty to auto-generate (24 chars):
 # TRAEFIK_MANAGER_PASSWORD="your-secure-password"
 TRAEFIK_MANAGER_PASSWORD=""
+TRAEFIK_MANAGER_SECRET_KEY=""
 
 # --- Host hardening (gitlab_docker_host_hardening) ---
 HOST_HARDENING_ENABLED=true
@@ -45,3 +46,48 @@ UFW_SSH_SOURCE_IPS=""
 SSH_PUBLIC_KEY_FILE="~/.ssh/id_ed25519.pub"
 GITLAB_ADMIN_ENABLED=true
 GITLAB_ADMIN_USERNAME="gadmin"
+
+# --- Optional services / feature flags (Cloud-Init parity) ---
+RUNNER_ENABLED=false
+RUNNER_IMAGE="gitlab/gitlab-runner:alpine-v18.4.0"
+RUNNER_AUTOREGISTER=false
+RUNNER_DESCRIPTION="gitlab-docker-runner"
+RUNNER_EXECUTOR="docker"
+RUNNER_DEFAULT_IMAGE="alpine:3.22"
+RUNNER_PRIVILEGED=true
+RUNNER_CONCURRENT=4
+RUNNER_TAG_LIST="docker,lxc"
+RUNNER_TOKEN=""
+
+BACKUP_ENABLED=false
+BACKUP_AUTO_ENABLED=false
+BACKUP_CRON="30 2 * * *"
+BACKUP_KEEP_TIME=1209600
+
+REGISTRY_ENABLED=false
+REGISTRY_FQDN="registry.example.com"
+PAGES_ENABLED=false
+PAGES_FQDN="pages.example.com"
+ARTIFACTS_ENABLED=false
+ARTIFACTS_PATH="/var/opt/gitlab/gitlab-rails/shared/artifacts"
+TERRAFORM_ENABLED=false
+GITLAB_TERRAFORM_STATE_PATH="/var/opt/gitlab/gitlab-rails/shared/terraform_state"
+GITLAB_TERRAFORM_STATE_FILE="terraform_state"
+
+PLANTUML_ENABLED=false
+PLANTUML_IMAGE="plantuml/plantuml-server:v1.2025.7"
+PLANTUML_URL="http://plantuml:8080"
+
+PGBOUNCER_ENABLED=false
+PGBOUNCER_IMAGE="bitnami/pgbouncer:1.24.1"
+PGBOUNCER_POOL_MODE="transaction"
+PGBOUNCER_MAX_CLIENT_CONN=1000
+PGBOUNCER_DEFAULT_POOL_SIZE=100
+
+RENOVATE_ENABLED=false
+RENOVATE_CE_IMAGE="ghcr.io/mend/renovate-ce:9.8.7"
+RENOVATE_FQDN="renovate.example.com"
+RENOVATE_LICENSE_KEY=""
+RENOVATE_SERVER_API_SECRET=""
+RENOVATE_GITLAB_PAT=""
+RENOVATE_WEBHOOK_SECRET=""

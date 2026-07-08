@@ -153,7 +153,7 @@ Alternativ zur QEMU-VM + Terraform kann GitLab als **unprivileged LXC** mit dems
 | **Script** | [`scripts/pve-secure-gitlab-lxc.sh`](../scripts/pve-secure-gitlab-lxc.sh) (v3.0.0+) |
 | **OS-Template** | `debian-13-standard` (Fallback `debian-12-standard`) |
 | **RAM / Swap** | `--ram` (Default 8192 MB); `--swap` (Default **512 MB**, OOM-Puffer — kein Ersatz für mehr RAM) |
-| **Stack** | `/opt/gitlab` — Traefik, GitLab CE, PostgreSQL, optional Traefik Manager |
+| **Stack** | `/opt/gitlab` — Traefik, GitLab CE, PostgreSQL plus optionale Cloud-Init-Features (PgBouncer, Runner, Backup, Registry, Pages, PlantUML, Renovate, Traefik Manager) |
 | **Konfiguration** | [`scripts/pve-gitlab.conf.example`](../scripts/pve-gitlab.conf.example) kopieren → `pve-gitlab.conf` |
 | **Traefik Manager** | `http://<LXC-IP>:5000` wenn `TRAEFIK_MANAGER_ENABLED=true` (Default); Passwort auto-generiert oder `TRAEFIK_MANAGER_PASSWORD`. Nach Container-Neustart/Neuinstallation: Browser-Cookies für die Seite löschen, falls Login mit „CSRF check failed“ fehlschlägt. |
 | **DNS** | A/AAAA für `GITLAB_FQDN` manuell auf die LXC-IP; bei ACME zusätzlich Hetzner-DNS-API-Token |
@@ -190,7 +190,7 @@ cp scripts/pve-gitlab.conf.example scripts/pve-gitlab.conf
 | `TRAEFIK_MANAGER_IMAGE` | `gitlab_docker_traefik_manager_image` |
 | `TRAEFIK_MANAGER_PASSWORD` | `gitlab_docker_traefik_manager_password` |
 
-**v1 des Scripts:** Runner, Registry, Pages, Renovate, PgBouncer, Backup-Cron — nur per Terraform/Cloud-Init; Traefik Manager ist im Kernstack enthalten.
+**Feature-Parität:** Das LXC-Script nutzt denselben Konfigurationsansatz wie das Cloud-Init-Template. Optionale Dienste werden über `scripts/pve-gitlab.conf` aktiviert (z. B. `RUNNER_ENABLED`, `BACKUP_ENABLED`, `REGISTRY_ENABLED`, `PAGES_ENABLED`, `PLANTUML_ENABLED`, `RENOVATE_ENABLED`, `PGBOUNCER_ENABLED`).
 
 **Troubleshooting:** Bootstrap-Log im CT: `/var/log/gitlab-docker-bootstrap.log`; Host-Log: `/var/log/gitlab-docker-install-<vmid>.log`.
 

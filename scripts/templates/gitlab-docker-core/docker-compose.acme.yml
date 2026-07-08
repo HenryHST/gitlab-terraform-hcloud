@@ -54,6 +54,7 @@ services:
       retries: 20
     security_opt:
       - no-new-privileges:true
+#__COMPOSE_PGBOUNCER_BLOCK__
 
   gitlab:
     image: ${GITLAB_CE_IMAGE}
@@ -67,6 +68,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+#__COMPOSE_GITLAB_PGBOUNCER_DEPENDENCY_BLOCK__
     environment:
       GITLAB_ROOT_EMAIL: "${GITLAB_ROOT_EMAIL}"
       GITLAB_ROOT_PASSWORD: "${GITLAB_ROOT_PASSWORD}"
@@ -74,6 +76,7 @@ services:
       - ./data/config:/etc/gitlab
       - ./data/logs:/var/log/gitlab
       - ./data/gitlab:/var/opt/gitlab
+#__COMPOSE_GITLAB_OPTIONAL_VOLUME_BLOCK__
     ports:
       - "2424:22"
     networks:
@@ -91,6 +94,14 @@ services:
       - "traefik.http.routers.gitlab.tls=true"
       - "traefik.http.routers.gitlab.tls.certresolver=hetzner"
       - "traefik.http.routers.gitlab.middlewares=default@file"
+#__COMPOSE_GITLAB_REGISTRY_LABEL_BLOCK__
+#__COMPOSE_GITLAB_PAGES_LABEL_BLOCK__
+
+#__COMPOSE_PLANTUML_BLOCK__
+
+#__COMPOSE_RUNNER_BLOCK__
+
+#__COMPOSE_RENOVATE_BLOCK__
 
   traefik-manager:
     profiles: ["traefik-manager"]
@@ -108,7 +119,7 @@ services:
       ADMIN_PASSWORD: "${TRAEFIK_MANAGER_PASSWORD}"
       SECRET_KEY: "${TRAEFIK_MANAGER_SECRET_KEY}"
       ACCESS_LOG_PATH: /app/logs/access.log
-      ACME_JSON_PATH: /app/acme.json
+#__COMPOSE_ACME_JSON_PATH_BLOCK__
     volumes:
       - ./traefik-manager/config:/app/config
       - ./traefik/traefik.yml:/app/config/traefik.yml:ro

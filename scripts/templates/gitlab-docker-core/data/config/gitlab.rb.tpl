@@ -10,25 +10,28 @@ ${ACME_GITLAB_RB_BLOCK}
 
 # https://docs.gitlab.com/install/docker/configuration/#expose-gitlab-on-different-ports
 gitlab_rails['gitlab_shell_ssh_port'] = 2424
-gitlab_rails['display_initial_root_password'] = false
+gitlab_rails['display_initial_root_password'] = true
 
 # External PostgreSQL (docker service postgres on socket_proxy)
 postgresql['enable'] = false
 gitlab_rails['db_adapter'] = 'postgresql'
 gitlab_rails['db_encoding'] = 'unicode'
-gitlab_rails['db_host'] = 'postgres'
+gitlab_rails['db_host'] = '${DB_HOST}'
 gitlab_rails['db_port'] = 5432
 gitlab_rails['db_username'] = 'gitlab'
 gitlab_rails['db_password'] = '${POSTGRES_PASSWORD}'
 gitlab_rails['db_database'] = 'gitlabhq_production'
 
-gitlab_pages['enable'] = false
+${GITLAB_RB_PAGES_BLOCK}
 gitlab_rails['gitlab_default_theme'] = ${GITLAB_THEME_ID}
 gitlab_rails['gitlab_default_color_mode'] = ${GITLAB_COLOR_MODE}
 gitlab_rails['time_zone'] = '${GITLAB_TIME_ZONE}'
 gitlab_rails['gitlab_default_can_create_group'] = true
 gitlab_rails['gitlab_username_changing_enabled'] = true
 gitlab_rails['webhook_timeout'] = 10
-gitlab_rails['artifacts_enabled'] = false
+${GITLAB_RB_ARTIFACTS_BLOCK}
 gitlab_rails['gitlab_signup_enabled'] = ${GITLAB_SIGNUP_ENABLED}
+${GITLAB_RB_REGISTRY_BLOCK}
+${GITLAB_RB_TERRAFORM_BLOCK}
+${GITLAB_RB_PLANTUML_BLOCK}
 gitlab_rails['smtp_enable'] = false

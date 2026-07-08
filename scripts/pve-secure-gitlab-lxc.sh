@@ -84,6 +84,7 @@ EOF
   GitLab URL      : ${GREEN}${GITLAB_URL}${NC}
   TLS             : ${GREEN}${tls_mode}${NC}
   GitLab Image    : ${GREEN}${GITLAB_CE_IMAGE}${NC}
+  Optional stack  : ${GREEN}runner=${RUNNER_ENABLED},backup=${BACKUP_ENABLED},registry=${REGISTRY_ENABLED},pages=${PAGES_ENABLED},plantuml=${PLANTUML_ENABLED},renovate=${RENOVATE_ENABLED},pgbouncer=${PGBOUNCER_ENABLED}${NC}
   Storage VG      : ${GREEN}${LVM_VG}${NC}
   Rootfs storage  : ${GREEN}${ROOTFS_STORAGE}${NC}
   Network Bridge  : ${GREEN}${BRIDGE}${NC}
