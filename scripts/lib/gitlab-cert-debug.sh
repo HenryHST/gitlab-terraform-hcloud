@@ -33,10 +33,36 @@ write_log() {
 ct_state="$(pct status "${VMID}" 2>/dev/null || true)"
 compose_ps="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose ps --format json" 2>/dev/null || true)"
 traefik_logs="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose logs --tail=200 traefik 2>/dev/null || true" || true)"
+traefik_acme_errors="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose logs --tail=500 traefik 2>/dev/null | rg -ni 'acme|certificate|resolver|lego|challenge|letsencrypt|error|fail' || true" || true)"
 
 acme_enabled_flag="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && grep -n 'certResolver: hetzner' traefik/traefik.yml >/dev/null && echo true || echo false" 2>/dev/null || true)"
 acme_storage_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && stat -c '%n|%s|%a|%U:%G' traefik/certs/acme_letsencrypt.json 2>/dev/null || echo missing" 2>/dev/null || true)"
 acme_json_sample="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && (head -c 160 traefik/certs/acme_letsencrypt.json 2>/dev/null || true)" 2>/dev/null || true)"
+acme_cert_domains="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && python3 - <<'PY'
+import json
+from pathlib import Path
+p = Path('traefik/certs/acme_letsencrypt.json')
+if not p.exists():
+    print('missing')
+    raise SystemExit(0)
+try:
+    data = json.loads(p.read_text())
+except Exception as e:
+    print(f'invalid_json:{e.__class__.__name__}')
+    raise SystemExit(0)
+resolver = data.get('hetzner', {})
+certs = resolver.get('Certificates', []) or []
+if not certs:
+    print('none')
+else:
+    vals = []
+    for c in certs:
+        d = c.get('domain', {}) or {}
+        main = d.get('main', '')
+        sans = ','.join(d.get('sans', []) or [])
+        vals.append(f'{main}|{sans}')
+    print(';'.join(vals))
+PY" 2>/dev/null || true)"
 acme_email_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && val=\$(awk -F= '/^ACME_EMAIL=/{print \$2}' traefik/.env | tr -d '\"' || true); if [ -n \"\$val\" ]; then echo set; else echo empty; fi" 2>/dev/null || true)"
 hetzner_token_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && val=\$(awk -F= '/^HETZNER_API_TOKEN=/{print \$2}' traefik/.env | tr -d '\"' || true); if [ -n \"\$val\" ]; then echo set; else echo empty; fi" 2>/dev/null || true)"
 
@@ -52,7 +78,7 @@ write_log "A" "gitlab-cert-debug.sh:runtime" "container_and_traefik_runtime" \
 
 # #region agent log
 write_log "B" "gitlab-cert-debug.sh:acme-files" "acme_config_and_storage_state" \
-    "{\"acme_enabled\":\"$(json_escape "${acme_enabled_flag}")\",\"acme_storage\":\"$(json_escape "${acme_storage_state}")\",\"acme_json_sample\":\"$(json_escape "${acme_json_sample}")\"}"
+    "{\"acme_enabled\":\"$(json_escape "${acme_enabled_flag}")\",\"acme_storage\":\"$(json_escape "${acme_storage_state}")\",\"acme_json_sample\":\"$(json_escape "${acme_json_sample}")\",\"acme_cert_domains\":\"$(json_escape "${acme_cert_domains}")\"}"
 # #endregion
 
 # #region agent log
@@ -73,6 +99,11 @@ write_log "E" "gitlab-cert-debug.sh:tls-probe" "live_tls_and_dns_probe" \
 # #region agent log
 write_log "A" "gitlab-cert-debug.sh:traefik-logs" "traefik_recent_logs" \
     "{\"tail\":\"$(json_escape "${traefik_logs}")\"}"
+# #endregion
+
+# #region agent log
+write_log "B" "gitlab-cert-debug.sh:traefik-acme" "traefik_acme_error_lines" \
+    "{\"matches\":\"$(json_escape "${traefik_acme_errors}")\"}"
 # #endregion
 
 echo "wrote debug logs to ${LOG_PATH}"
