@@ -36,6 +36,7 @@ VMID=""
 CT_HOSTNAME=""
 CPU=""
 RAM=""
+SWAP=""
 BOOTDISK=""
 DATA_SIZE=""
 CT_IP=""
@@ -61,6 +62,7 @@ ${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━�
   Hostname        : ${GREEN}${CT_HOSTNAME}${NC}
   CPU Cores       : ${GREEN}${CPU}${NC}
   RAM             : ${GREEN}${RAM} MB${NC}
+  Swap            : ${GREEN}${SWAP} MB${NC}
 EOF
     if [ "$STORAGE_MODE" = "simple" ]; then
         cat <<EOF
@@ -176,6 +178,7 @@ GitLab / TLS (optional CLI overrides; else from --config):
     --acme true|false   Traefik ACME DNS-01 (needs Hetzner API token in config)
 
 Other:
+    --swap <MiB>        LXC swap (default: 512; 0 = no swap)
     --rootfs-storage <id> Proxmox storage for CT rootfs (e.g. local-lvm)
     --lvm-vg <name>       LVM VG for advanced mode data LV (default: pve)
     --storage <id|vg>     Shorthand: Proxmox storage ID or LVM VG name (auto-map)
@@ -193,6 +196,7 @@ while [[ $# -gt 0 ]]; do
         --hostname) CT_HOSTNAME="$2"; shift 2 ;;
         --cpu) CPU="$2"; shift 2 ;;
         --ram) RAM="$2"; shift 2 ;;
+        --swap) SWAP="$2"; shift 2 ;;
         --storage-mode) STORAGE_MODE=$(echo "$2" | tr '[:upper:]' '[:lower:]' | xargs); shift 2 ;;
         --rootfs-size) BOOTDISK="$2"; shift 2 ;;
         --bootdisk) BOOTDISK="$2"; shift 2 ;;
@@ -318,6 +322,8 @@ if [[ "${INTERACTIVE}" == "true" ]]; then
     CPU="${CPU:-4}"
     read -rp "RAM MB [8192]: " RAM
     RAM="${RAM:-8192}"
+    read -rp "Swap MB [512]: " SWAP
+    SWAP="${SWAP:-512}"
     echo ""
     echo "Storage: 1=simple (recommended), 2=advanced (/opt/gitlab LV)"
     read -rp "Mode [1]: " MODE_CHOICE
@@ -367,6 +373,11 @@ else
 fi
 
 resolve_storage_settings
+
+SWAP="${SWAP:-512}"
+if ! [[ "${SWAP}" =~ ^[0-9]+$ ]]; then
+    err "Invalid --swap: must be non-negative integer (MiB)"
+fi
 
 gitlab_docker_config_load || err "Invalid GitLab Docker config"
 if [[ -n "${CLI_FQDN}" ]]; then
@@ -443,6 +454,7 @@ pct create "${VMID}" "${TEMPLATE}" \
     --hostname "${CT_HOSTNAME}" \
     --cores "${CPU}" \
     --memory "${RAM}" \
+    --swap "${SWAP}" \
     --rootfs "${ROOTFS_STORAGE}:${BOOTDISK}" \
     --net0 "name=eth0,bridge=${BRIDGE},ip=${CT_IP},gw=${GATEWAY},type=veth" \
     --nameserver "${DNS}" \

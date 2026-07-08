@@ -10,6 +10,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 ### Added
 
 - **Traefik Manager:** Web-UI für Traefik im Docker-Compose-Kernstack (PVE-LXC + Terraform Cloud-Init); Zugriff über `http://<Host-IP>:5000`; verwaltet `traefik/dynamic_conf/` via `CONFIG_DIR`; Traefik-API intern auf `:8080` (`api.insecure: true`, nicht auf dem Host publiziert). Konfiguration: `TRAEFIK_MANAGER_*` in [`scripts/pve-gitlab.conf.example`](scripts/pve-gitlab.conf.example), Terraform `gitlab_docker_traefik_manager_*`; Passwort optional explizit (`TRAEFIK_MANAGER_PASSWORD` / `gitlab_docker_traefik_manager_password`) oder auto-generiert; stabiler Flask-`SECRET_KEY` via `TRAEFIK_MANAGER_SECRET_KEY` verhindert CSRF-Fehler nach Container-Neustarts.
+- **`pve-secure-gitlab-lxc.sh`:** `--swap` für LXC-Swap (Default 512 MiB; `0` = kein Swap).
 
 ## [0.2.0] - 2026-07-06
 

@@ -251,21 +251,4 @@ cd /opt/gitlab
 docker compose "${COMPOSE_PROFILES[@]}" pull
 docker compose "${COMPOSE_PROFILES[@]}" up -d
 
-if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
-    # #region agent log
-    _tm_secret_file=false
-    _tm_manager_yml=false
-    [[ -f /opt/gitlab/traefik-manager/config/.secret_key ]] && _tm_secret_file=true
-    [[ -f /opt/gitlab/traefik-manager/config/manager.yml ]] && _tm_manager_yml=true
-    _tm_login_code="$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:5000/login 2>/dev/null || echo 000)"
-    _tm_cookie="$(curl -s -D - -o /dev/null http://127.0.0.1:5000/login 2>/dev/null | grep -i '^set-cookie: session=' | head -1 | cut -d: -f2- | cut -d';' -f1 | xargs || true)"
-    printf '{"sessionId":"672ee6","hypothesisId":"A","location":"bootstrap:tm-post-up","message":"traefik-manager session diagnostics","data":{"secret_key_file":%s,"manager_yml":%s,"login_http_code":"%s","session_cookie_set":%s,"secret_key_env_set":%s},"timestamp":%s}\n' \
-        "${_tm_secret_file}" "${_tm_manager_yml}" "${_tm_login_code}" \
-        "$( [[ -n "${_tm_cookie}" ]] && echo true || echo false )" \
-        "$( [[ -n "${TRAEFIK_MANAGER_SECRET_KEY:-}" ]] && echo true || echo false )" \
-        "$(date +%s%3N)" >>/var/log/gitlab-docker-bootstrap.log
-    unset _tm_secret_file _tm_manager_yml _tm_login_code _tm_cookie
-    # #endregion
-fi
-
 echo "=== finished $(date -Is) ==="

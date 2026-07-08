@@ -7,7 +7,7 @@ gitlab_docker_config_init_defaults() {
     DNS_DOMAIN="${DNS_DOMAIN:-example.com}"
     GITLAB_DNS_LABEL="${GITLAB_DNS_LABEL:-gitlab}"
     GITLAB_FQDN="${GITLAB_FQDN:-}"
-    TRAEFIK_IMAGE="${TRAEFIK_IMAGE:-traefik:v3.7.5}"
+    TRAEFIK_IMAGE="${TRAEFIK_IMAGE:-traefik:v3.7.6}"
     GITLAB_CE_IMAGE="${GITLAB_CE_IMAGE:-gitlab/gitlab-ce:18.11.6-ce.0}"
     POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:16-alpine}"
     TRAEFIK_ACME_ENABLED="${TRAEFIK_ACME_ENABLED:-false}"
