@@ -17,6 +17,19 @@ source "${ENV_FILE}"
 
 TEMPLATES_DIR="${TEMPLATES_DIR:-/root/gitlab-docker-core}"
 
+# #region agent log
+agent_debug_log() {
+    local hypothesis_id="$1" location="$2" message="$3" data_json="$4"
+    local debug_log_path="/Users/henry/Projects/gitlab-terraform-hcloud/.cursor/debug-672ee6.log"
+    local ts
+    ts=$(($(date +%s) * 1000))
+    if [[ -d "$(dirname "${debug_log_path}")" ]]; then
+        printf '{"sessionId":"672ee6","runId":"ct-login-debug","hypothesisId":"%s","location":"%s","message":"%s","data":%s,"timestamp":%s}\n' \
+            "${hypothesis_id}" "${location}" "${message}" "${data_json}" "${ts}" >>"${debug_log_path}" 2>/dev/null || true
+    fi
+}
+# #endregion
+
 render_template() {
     local src="$1" dest="$2" mode="${3:-644}"
     local dir
@@ -245,6 +258,12 @@ render_template "${TRAEFIK_SRC}" /opt/gitlab/traefik/traefik.yml 0644
 render_template "${TEMPLATES_DIR}/traefik/.env.tpl" /opt/gitlab/traefik/.env 0600
 render_template "${COMPOSE_SRC}" /opt/gitlab/docker-compose.yml 0644
 render_template "${TEMPLATES_DIR}/data/config/gitlab.rb.tpl" /opt/gitlab/data/config/gitlab.rb 0600
+# #region agent log
+agent_debug_log "A" "gitlab-docker-bootstrap.sh:rendered-config" "gitlab_config_rendered" \
+    "{\"acme_enabled\":\"${TRAEFIK_ACME_ENABLED}\",\"external_url\":\"${EXTERNAL_URL_SCHEME}://${GITLAB_FQDN}\",\"gitlab_fqdn\":\"${GITLAB_FQDN}\",\"compose_src\":\"${COMPOSE_SRC}\"}"
+agent_debug_log "B" "gitlab-docker-bootstrap.sh:rendered-config" "trusted_proxies_line" \
+    "$(awk -F' = ' '/trusted_proxies/ {gsub(/\\/,"\\\\",$2); gsub(/"/,"\\\"",$2); printf "{\"trusted_proxies\": \"%s\"}", $2; found=1} END {if (!found) printf "{\"trusted_proxies\":\"<missing>\"}"}' /opt/gitlab/data/config/gitlab.rb)"
+# #endregion
 
 echo "=== DNS preflight (before docker compose pull) ==="
 cat /etc/resolv.conf
@@ -260,5 +279,11 @@ echo "=== docker compose up ==="
 cd /opt/gitlab
 docker compose "${COMPOSE_PROFILES[@]}" pull
 docker compose "${COMPOSE_PROFILES[@]}" up -d
+# #region agent log
+agent_debug_log "C" "gitlab-docker-bootstrap.sh:post-up" "docker_compose_services" \
+    "$(docker compose ps --format json 2>/dev/null | jq -s 'map({name:.Service,state:.State,health:(.Health // "")})' 2>/dev/null || echo '[]')"
+agent_debug_log "D" "gitlab-docker-bootstrap.sh:post-up" "gitlab_container_env" \
+    "$(docker compose exec -T gitlab bash -lc 'printf "{\"gitlab_rails_env\":\"%s\"}\n" "${RAILS_ENV:-unknown}"' 2>/dev/null || echo '{"gitlab_rails_env":"exec_failed"}')"
+# #endregion
 
 echo "=== finished $(date -Is) ==="
