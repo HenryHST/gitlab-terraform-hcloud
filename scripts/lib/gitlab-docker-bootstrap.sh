@@ -289,6 +289,37 @@ echo "=== docker compose up ==="
 cd /opt/gitlab
 docker compose "${COMPOSE_PROFILES[@]}" pull
 docker compose "${COMPOSE_PROFILES[@]}" up -d
+
+echo "=== ensure gitlab root user exists ==="
+docker compose exec -T gitlab bash -lc '
+gitlab-rails runner "
+u = User.find_by_username(\"root\")
+if u.nil?
+  pass = ENV[\"GITLAB_ROOT_PASSWORD\"]
+  mail = ENV[\"GITLAB_ROOT_EMAIL\"]
+  raise \"GITLAB_ROOT_PASSWORD missing\" if pass.to_s.empty?
+  raise \"GITLAB_ROOT_EMAIL missing\" if mail.to_s.empty?
+  u = User.new(
+    username: \"root\",
+    name: \"Administrator\",
+    email: mail,
+    password: pass,
+    password_confirmation: pass,
+    admin: true
+  )
+  u.confirm
+  u.save!
+  puts({root_exists: true, root_created: true, state: u.state}.to_json)
+else
+  puts({root_exists: true, root_created: false, state: u.state}.to_json)
+end
+"
+' || true
+# #region agent log
+agent_debug_log "F" "gitlab-docker-bootstrap.sh:root-user" "ensure_root_user_completed" \
+    "{\"root_email_set\":\"$([[ -n "${GITLAB_ROOT_EMAIL:-}" ]] && echo true || echo false)\",\"root_password_set\":\"$([[ -n "${GITLAB_ROOT_PASSWORD:-}" ]] && echo true || echo false)\"}"
+# #endregion
+
 # #region agent log
 agent_debug_log "C" "gitlab-docker-bootstrap.sh:post-up" "docker_compose_services" \
     "$(docker compose ps --format json 2>/dev/null | jq -s 'map({name:.Service,state:.State,health:(.Health // "")})' 2>/dev/null || echo '[]')"
