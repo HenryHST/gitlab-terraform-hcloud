@@ -61,7 +61,7 @@ container_data_stat="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker 
 oom_tail="$(pct exec "${VMID}" -- bash -lc "dmesg 2>/dev/null | tail -n 200 | rg -i 'out of memory|killed process|oom'" 2>/dev/null || true)"
 root_pw_env_len="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc 'pw=\${GITLAB_ROOT_PASSWORD:-}; printf \"%s\" \"\${#pw}\"'" 2>/dev/null || true)"
 initial_root_file_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc 'if [ -f /etc/gitlab/initial_root_password ]; then stat -c \"%n %s %y\" /etc/gitlab/initial_root_password; else echo \"missing\"; fi'" 2>/dev/null || true)"
-root_user_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc 'gitlab-rails runner \"u=User.find_by_username(\\\"root\\\"); if u.nil?; puts({root_exists:false}.to_json); else puts({root_exists:true, state:u.state, sign_in_count:u.sign_in_count, failed_attempts:u.failed_attempts, last_sign_in_at:u.last_sign_in_at}.to_json); end\"' 2>/dev/null || true)"
+root_user_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc 'gitlab-rails runner \"u=User.find_by_username(%q(root)); if u.nil?; puts({root_exists:false}.to_json); else puts({root_exists:true,state:u.state,sign_in_count:u.sign_in_count,failed_attempts:u.failed_attempts,last_sign_in_at:u.last_sign_in_at}.to_json); end\"'" 2>/dev/null || true)"
 
 # #region agent log
 write_log "A" "gitlab-login-debug.sh:container" "container_and_compose_state" \
