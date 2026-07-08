@@ -49,6 +49,9 @@ else
     nginx_reqid="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -nE ' 500 |status=500|internal server error|csrf|invalid authenticity' /var/log/gitlab/nginx/gitlab_access.log /var/log/gitlab/nginx/gitlab_error.log /var/log/gitlab/gitlab-workhorse/current 2>/dev/null | tail -n 60 || true\"" 2>/dev/null || true)"
 fi
 workhorse_500="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose logs --tail=200 gitlab 2>/dev/null | grep -niE '500|csrf|invalid authenticity|exception|error' | tail -n 80 || true" 2>/dev/null || true)"
+postgres_identity="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'id -u; id -g; id'" 2>/dev/null || true)"
+postgres_file_stat="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'ls -ln /var/lib/postgresql/data/base/16384/22068 2>/dev/null || true; stat -c \"%u:%g %a %n\" /var/lib/postgresql/data/base/16384/22068 2>/dev/null || true'" 2>/dev/null || true)"
+postgres_data_stat="$(pct exec "${VMID}" -- bash -lc "ls -ldn /opt/gitlab/postgres/data /opt/gitlab/postgres/data/base /opt/gitlab/postgres/data/base/16384 2>/dev/null || true" 2>/dev/null || true)"
 oom_tail="$(pct exec "${VMID}" -- bash -lc "dmesg 2>/dev/null | tail -n 200 | rg -i 'out of memory|killed process|oom'" 2>/dev/null || true)"
 
 # #region agent log
@@ -84,6 +87,11 @@ write_log "D" "gitlab-login-debug.sh:app-errors" "rails_production_text_500" \
 # #region agent log
 write_log "D" "gitlab-login-debug.sh:edge-and-workhorse" "nginx_workhorse_request" \
     "{\"request_id\":\"$(json_escape "${REQUEST_ID}")\",\"matches\":\"$(json_escape "${nginx_reqid}")\",\"gitlab_logs\":\"$(json_escape "${workhorse_500}")\"}"
+# #endregion
+
+# #region agent log
+write_log "D" "gitlab-login-debug.sh:postgres-permissions" "postgres_file_permissions" \
+    "{\"postgres_identity\":\"$(json_escape "${postgres_identity}")\",\"file_stat\":\"$(json_escape "${postgres_file_stat}")\",\"host_data_stat\":\"$(json_escape "${postgres_data_stat}")\"}"
 # #endregion
 
 # #region agent log
