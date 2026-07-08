@@ -234,7 +234,17 @@ echo "=== write /opt/gitlab stack ==="
 install -m 0700 -d /opt/gitlab/traefik/certs
 touch /opt/gitlab/traefik/certs/.gitkeep
 install -m 0700 -d /opt/gitlab/postgres/data
-chown 999:999 /opt/gitlab/postgres/data
+POSTGRES_UID="$(docker run --rm "${POSTGRES_IMAGE}" sh -lc 'id -u postgres 2>/dev/null || id -u' 2>/dev/null || true)"
+POSTGRES_GID="$(docker run --rm "${POSTGRES_IMAGE}" sh -lc 'id -g postgres 2>/dev/null || id -g' 2>/dev/null || true)"
+if [[ ! "${POSTGRES_UID}" =~ ^[0-9]+$ ]] || [[ ! "${POSTGRES_GID}" =~ ^[0-9]+$ ]]; then
+    POSTGRES_UID=70
+    POSTGRES_GID=70
+fi
+chown "${POSTGRES_UID}:${POSTGRES_GID}" /opt/gitlab/postgres/data
+# #region agent log
+agent_debug_log "D" "gitlab-docker-bootstrap.sh:postgres-data-owner" "postgres_data_owner_applied" \
+    "{\"postgres_image\":\"${POSTGRES_IMAGE}\",\"postgres_uid\":\"${POSTGRES_UID}\",\"postgres_gid\":\"${POSTGRES_GID}\"}"
+# #endregion
 install -m 0755 -d /opt/gitlab/data/config /opt/gitlab/data/logs /opt/gitlab/data/gitlab
 install -m 0755 -d /var/log/traefik
 touch /var/log/traefik/access.log
