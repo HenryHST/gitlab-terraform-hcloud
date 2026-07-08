@@ -73,7 +73,7 @@ tls_probe="$(pct exec "${VMID}" -- bash -lc "echo | openssl s_client -connect '$
 cert_subject="$(pct exec "${VMID}" -- bash -lc "echo | openssl s_client -connect '${TARGET_HOST}:443' -servername '${TARGET_HOST}' 2>/dev/null | openssl x509 -noout -subject -issuer -dates 2>/dev/null | tr '\n' ';' || true" 2>/dev/null || true)"
 
 dns_zone_base="${TARGET_HOST#*.}"
-hetzner_api_probe="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && tok=\$(awk -F= '/^HETZNER_API_TOKEN=/{print \$2}' traefik/.env | tr -d '\"'); if [ -z \"\$tok\" ]; then echo token_missing; else code=\$(curl -s -o /tmp/hetzner-zone-check.json -w '%{http_code}' -H \"Auth-API-Token: \$tok\" \"https://dns.hetzner.com/api/v1/zones?name=${dns_zone_base}\" || true); body=\$(tr -d '\n' </tmp/hetzner-zone-check.json 2>/dev/null || true); if echo \"\$body\" | rg -q '\"zones\"'; then zones_count=\$(python3 - <<'PY'
+hetzner_api_probe="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && tok=\$(awk -F= '/^HETZNER_API_TOKEN=/{print \$2}' traefik/.env | tr -d '\"'); if [ -z \"\$tok\" ]; then echo token_missing; else code=\$(curl -sL -o /tmp/hetzner-zone-check.json -w '%{http_code}' -H \"Auth-API-Token: \$tok\" \"https://dns.hetzner.com/api/v1/zones?name=${dns_zone_base}\" || true); body=\$(tr -d '\n' </tmp/hetzner-zone-check.json 2>/dev/null || true); if echo \"\$body\" | rg -q '\"zones\"'; then zones_count=\$(python3 - <<'PY'
 import json
 from pathlib import Path
 p=Path('/tmp/hetzner-zone-check.json')
@@ -84,6 +84,19 @@ except Exception:
     print('parse_error')
 PY
 ); else zones_count=unknown; fi; echo \"status=\$code zones=\$zones_count\"; fi" 2>/dev/null || true)"
+hetzner_api_auth_probe="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && tok=\$(awk -F= '/^HETZNER_API_TOKEN=/{print \$2}' traefik/.env | tr -d '\"'); if [ -z \"\$tok\" ]; then echo token_missing; else code=\$(curl -sL -o /tmp/hetzner-auth-check.json -w '%{http_code}' -H \"Auth-API-Token: \$tok\" \"https://dns.hetzner.com/api/v1/zones\" || true); body=\$(tr -d '\n' </tmp/hetzner-auth-check.json 2>/dev/null || true); if echo \"\$body\" | rg -q '\"error\"'; then err=\$(python3 - <<'PY'
+import json
+from pathlib import Path
+p=Path('/tmp/hetzner-auth-check.json')
+try:
+    j=json.loads(p.read_text())
+    e=j.get('error',{}) if isinstance(j,dict) else {}
+    print(f\"{e.get('code','')}:{e.get('message','')}\")
+except Exception:
+    print('none')
+PY
+); else err=none; fi; echo \"status=\$code error=\$err\"; fi" 2>/dev/null || true)"
+traefik_env_provider_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T traefik sh -lc 'token_len=\${#HETZNER_API_TOKEN}; key_len=\${#HETZNER_API_KEY}; if [ \"\$token_len\" -gt 0 ]; then token_state=set; else token_state=empty; fi; if [ \"\$key_len\" -gt 0 ]; then key_state=set; else key_state=empty; fi; printf \"token=%s(%s) key=%s(%s)\\n\" \"\$token_state\" \"\$token_len\" \"\$key_state\" \"\$key_len\"' 2>/dev/null || true" 2>/dev/null || true)"
 
 # #region agent log
 write_log "A" "gitlab-cert-debug.sh:runtime" "container_and_traefik_runtime" \
@@ -128,6 +141,16 @@ write_log "B" "gitlab-cert-debug.sh:traefik-file-acme" "traefik_file_log_acme_er
 # #region agent log
 write_log "F" "gitlab-cert-debug.sh:hetzner-api" "hetzner_dns_api_probe" \
     "{\"zone\":\"$(json_escape "${dns_zone_base}")\",\"probe\":\"$(json_escape "${hetzner_api_probe}")\"}"
+# #endregion
+
+# #region agent log
+write_log "F" "gitlab-cert-debug.sh:hetzner-api-auth" "hetzner_dns_api_auth_probe" \
+    "{\"zone\":\"$(json_escape "${dns_zone_base}")\",\"probe\":\"$(json_escape "${hetzner_api_auth_probe}")\"}"
+# #endregion
+
+# #region agent log
+write_log "F" "gitlab-cert-debug.sh:traefik-env-provider" "traefik_provider_env_state" \
+    "{\"state\":\"$(json_escape "${traefik_env_provider_state}")\"}"
 # #endregion
 
 echo "wrote debug logs to ${LOG_PATH}"
