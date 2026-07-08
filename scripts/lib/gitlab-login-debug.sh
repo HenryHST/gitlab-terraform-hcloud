@@ -52,7 +52,10 @@ workhorse_500="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compos
 postgres_identity="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'id -u; id -g; id'" 2>/dev/null || true)"
 postgres_process_identity="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'ps -eo user,uid,gid,pid,comm | grep \"[p]ostgres\" || true'" 2>/dev/null || true)"
 postgres_passwd_entry="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'getent passwd postgres || grep \"^postgres:\" /etc/passwd || true'" 2>/dev/null || true)"
+postgres_pid1_status="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'cat /proc/1/status | grep -E \"^(Name|Uid|Gid):\" || true'" 2>/dev/null || true)"
+postgres_postmaster_status="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'pid=$(pgrep -xo postgres || true); if [ -n \"$pid\" ]; then cat /proc/$pid/status | grep -E \"^(Name|Uid|Gid):\"; else echo \"postmaster_pid_missing\"; fi'" 2>/dev/null || true)"
 postgres_file_stat="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'ls -ln /var/lib/postgresql/data/base/16384/22068 2>/dev/null || true; stat -c \"%u:%g %a %n\" /var/lib/postgresql/data/base/16384/22068 2>/dev/null || true'" 2>/dev/null || true)"
+postgres_file_acl="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'lsattr /var/lib/postgresql/data/base/16384/22068 2>/dev/null || true'" 2>/dev/null || true)"
 postgres_data_stat="$(pct exec "${VMID}" -- bash -lc "ls -ldn /opt/gitlab/postgres/data /opt/gitlab/postgres/data/base /opt/gitlab/postgres/data/base/16384 2>/dev/null || true" 2>/dev/null || true)"
 container_data_stat="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres sh -lc 'ls -ldn /var/lib/postgresql/data /var/lib/postgresql/data/base /var/lib/postgresql/data/base/16384 2>/dev/null || true'" 2>/dev/null || true)"
 oom_tail="$(pct exec "${VMID}" -- bash -lc "dmesg 2>/dev/null | tail -n 200 | rg -i 'out of memory|killed process|oom'" 2>/dev/null || true)"
@@ -94,7 +97,7 @@ write_log "D" "gitlab-login-debug.sh:edge-and-workhorse" "nginx_workhorse_reques
 
 # #region agent log
 write_log "D" "gitlab-login-debug.sh:postgres-permissions" "postgres_file_permissions" \
-    "{\"postgres_identity\":\"$(json_escape "${postgres_identity}")\",\"postgres_process_identity\":\"$(json_escape "${postgres_process_identity}")\",\"postgres_passwd_entry\":\"$(json_escape "${postgres_passwd_entry}")\",\"file_stat\":\"$(json_escape "${postgres_file_stat}")\",\"host_data_stat\":\"$(json_escape "${postgres_data_stat}")\",\"container_data_stat\":\"$(json_escape "${container_data_stat}")\"}"
+    "{\"postgres_identity\":\"$(json_escape "${postgres_identity}")\",\"postgres_process_identity\":\"$(json_escape "${postgres_process_identity}")\",\"postgres_passwd_entry\":\"$(json_escape "${postgres_passwd_entry}")\",\"pid1_status\":\"$(json_escape "${postgres_pid1_status}")\",\"postmaster_status\":\"$(json_escape "${postgres_postmaster_status}")\",\"file_stat\":\"$(json_escape "${postgres_file_stat}")\",\"file_attrs\":\"$(json_escape "${postgres_file_acl}")\",\"host_data_stat\":\"$(json_escape "${postgres_data_stat}")\",\"container_data_stat\":\"$(json_escape "${container_data_stat}")\"}"
 # #endregion
 
 # #region agent log
