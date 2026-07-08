@@ -33,9 +33,15 @@ write_log() {
 container_state="$(pct status "${VMID}" 2>/dev/null || true)"
 compose_states="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose ps --format json" 2>/dev/null || true)"
 postgres_ready="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T postgres pg_isready -U gitlab -d gitlabhq_production" 2>/dev/null || true)"
-trusted_proxy_line="$(pct exec "${VMID}" -- bash -lc "rg \"trusted_proxies\" /opt/gitlab/data/config/gitlab.rb" 2>/dev/null || true)"
-external_url_line="$(pct exec "${VMID}" -- bash -lc "rg \"^external_url\" /opt/gitlab/data/config/gitlab.rb" 2>/dev/null || true)"
-error_tail="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"rg -n 'Request ID|Completed 500|FATAL|PG::|ActionController::InvalidAuthenticityToken|NoMethodError|undefined method|exception' /var/log/gitlab/gitlab-rails/production_json.log | tail -n 60\"" 2>/dev/null || true)"
+gitlab_rb_exists="$(pct exec "${VMID}" -- bash -lc "test -f /opt/gitlab/data/config/gitlab.rb && echo yes || echo no" 2>/dev/null || true)"
+trusted_proxy_line="$(pct exec "${VMID}" -- bash -lc "grep -n 'trusted_proxies' /opt/gitlab/data/config/gitlab.rb || true" 2>/dev/null || true)"
+external_url_line="$(pct exec "${VMID}" -- bash -lc "grep -n '^external_url' /opt/gitlab/data/config/gitlab.rb || true" 2>/dev/null || true)"
+if [[ -n "${REQUEST_ID}" ]]; then
+    error_tail="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -n '${REQUEST_ID}' /var/log/gitlab/gitlab-rails/production_json.log | tail -n 40 || true\"" 2>/dev/null || true)"
+else
+    error_tail="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -nE 'Completed 500|FATAL|PG::|ActionController::InvalidAuthenticityToken|NoMethodError|undefined method|Exception' /var/log/gitlab/gitlab-rails/production_json.log | tail -n 60 || true\"" 2>/dev/null || true)"
+fi
+rails_log_tail="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"tail -n 80 /var/log/gitlab/gitlab-rails/production_json.log || true\"" 2>/dev/null || true)"
 oom_tail="$(pct exec "${VMID}" -- bash -lc "dmesg 2>/dev/null | tail -n 200 | rg -i 'out of memory|killed process|oom'" 2>/dev/null || true)"
 
 # #region agent log
@@ -50,12 +56,17 @@ write_log "B" "gitlab-login-debug.sh:database" "postgres_connectivity" \
 
 # #region agent log
 write_log "C" "gitlab-login-debug.sh:proxy" "gitlab_proxy_config" \
-    "{\"external_url\":\"$(json_escape "${external_url_line}")\",\"trusted_proxies\":\"$(json_escape "${trusted_proxy_line}")\"}"
+    "{\"gitlab_rb_exists\":\"$(json_escape "${gitlab_rb_exists}")\",\"external_url\":\"$(json_escape "${external_url_line}")\",\"trusted_proxies\":\"$(json_escape "${trusted_proxy_line}")\"}"
 # #endregion
 
 # #region agent log
 write_log "D" "gitlab-login-debug.sh:app-errors" "application_errors_tail" \
     "{\"request_id\":\"$(json_escape "${REQUEST_ID}")\",\"errors\":\"$(json_escape "${error_tail}")\"}"
+# #endregion
+
+# #region agent log
+write_log "D" "gitlab-login-debug.sh:app-errors" "rails_production_log_tail" \
+    "{\"request_id\":\"$(json_escape "${REQUEST_ID}")\",\"tail\":\"$(json_escape "${rails_log_tail}")\"}"
 # #endregion
 
 # #region agent log
