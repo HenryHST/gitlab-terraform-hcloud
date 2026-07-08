@@ -246,6 +246,39 @@ render_template "${TEMPLATES_DIR}/traefik/.env.tpl" /opt/gitlab/traefik/.env 060
 render_template "${COMPOSE_SRC}" /opt/gitlab/docker-compose.yml 0644
 render_template "${TEMPLATES_DIR}/data/config/gitlab.rb.tpl" /opt/gitlab/data/config/gitlab.rb 0600
 
+# #region agent log
+_agent_debug_log() {
+    local hypothesis_id="$1" location="$2" message="$3"
+    shift 3
+    local ts resolv nameserver auth_ok registry_ok
+    ts=$(($(date +%s) * 1000))
+    resolv="$(tr '\n' ';' </etc/resolv.conf 2>/dev/null || true)"
+    nameserver="$(awk '/^nameserver/{print $2; exit}' /etc/resolv.conf 2>/dev/null || true)"
+    auth_ok=false
+    registry_ok=false
+    getent hosts auth.docker.io >/dev/null 2>&1 && auth_ok=true
+    getent hosts registry-1.docker.io >/dev/null 2>&1 && registry_ok=true
+    printf '{"sessionId":"672ee6","hypothesisId":"%s","location":"%s","message":"%s","data":{"resolv_conf":"%s","nameserver":"%s","auth_docker_io":%s,"registry_docker_io":%s},"timestamp":%s}\n' \
+        "${hypothesis_id}" "${location}" "${message}" "${resolv}" "${nameserver}" "${auth_ok}" "${registry_ok}" "${ts}"
+}
+# #endregion
+
+echo "=== DNS preflight (before docker compose pull) ==="
+cat /etc/resolv.conf
+# #region agent log
+_agent_debug_log "A" "gitlab-docker-bootstrap.sh:preflight" "dns_preflight_before_pull"
+# #endregion
+if ! getent hosts auth.docker.io registry-1.docker.io >/dev/null 2>&1; then
+    # #region agent log
+    _agent_debug_log "A" "gitlab-docker-bootstrap.sh:preflight" "dns_preflight_failed"
+    # #endregion
+    echo "ERROR: DNS resolution failed for Docker registries (auth.docker.io / registry-1.docker.io)." >&2
+    echo "  nameserver(s): $(awk '/^nameserver/{print $2}' /etc/resolv.conf | tr '\n' ' ')" >&2
+    echo "  Fix on Proxmox host: pct set <vmid> -nameserver 8.8.8.8" >&2
+    echo "  Or recreate with: --dns 8.8.8.8 (or 1.1.1.1)" >&2
+    exit 1
+fi
+
 echo "=== docker compose up ==="
 cd /opt/gitlab
 docker compose "${COMPOSE_PROFILES[@]}" pull

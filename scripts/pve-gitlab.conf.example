@@ -8,7 +8,7 @@ GITLAB_DNS_LABEL="gitlab"
 # GITLAB_FQDN="gitlab.example.com"
 
 # --- Container images (gitlab_docker_* ) ---
-TRAEFIK_IMAGE="traefik:v3.7.5"
+TRAEFIK_IMAGE="traefik:v3.7.6"
 GITLAB_CE_IMAGE="gitlab/gitlab-ce:18.11.6-ce.0"
 POSTGRES_IMAGE="postgres:16-alpine"
 

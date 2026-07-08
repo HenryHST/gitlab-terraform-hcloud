@@ -492,6 +492,11 @@ pct start "${VMID}" || err "pct start failed"
 sleep 5
 pct status "${VMID}" | grep -q running || err "Container not running"
 
+log_step "Checking container DNS..."
+if ! pct exec "${VMID}" -- getent hosts auth.docker.io registry-1.docker.io >/dev/null 2>&1; then
+    err "Container DNS failed (nameserver: ${DNS}). Gateway/router DNS may not respond from CTs — retry with --dns 8.8.8.8 or: pct set ${VMID} -nameserver 8.8.8.8"
+fi
+
 log_step "Deploying GitLab Docker stack..."
 chmod +x "${SCRIPT_DIR}/lib/gitlab-docker-bootstrap.sh" 2>/dev/null || true
 TMP_TAR="/tmp/gitlab-docker-core-${VMID}.tar.gz"
@@ -509,7 +514,8 @@ pct exec "${VMID}" -- bash -c '
     mkdir -p /root/gitlab-docker-core
     tar -xzf /root/gitlab-docker-core.tar.gz -C /root/gitlab-docker-core
     ENV_FILE=/root/pve-gitlab.env /root/gitlab-docker-bootstrap.sh
-' || err "Bootstrap failed — check: pct exec '"${VMID}"' -- tail -50 /var/log/gitlab-docker-bootstrap.log"
+' || err "Bootstrap failed — check: pct exec '"${VMID}"' -- tail -80 /var/log/gitlab-docker-bootstrap.log
+If DNS timeout on auth.docker.io: pct set ${VMID} -nameserver 8.8.8.8 then re-run bootstrap or docker compose pull in /opt/gitlab"
 
 log_step "Waiting for Docker services..."
 for i in $(seq 1 60); do
