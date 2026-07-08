@@ -310,14 +310,14 @@ variable "gitlab_docker_host_image" {
 variable "gitlab_docker_traefik_image" {
   description = "Traefik container image (pin v3.7.x as required)"
   type        = string
-  default     = "traefik:v3.7.5"
+  default     = "traefik:v3.7.6"
 
   validation {
     condition = can(regex(
       "^[a-z0-9]+([._-][a-z0-9]+)*(/[a-z0-9]+([._-][a-z0-9]+)*)*:[a-zA-Z0-9][a-zA-Z0-9._-]+$",
       var.gitlab_docker_traefik_image,
     ))
-    error_message = "gitlab_docker_traefik_image must be a Docker image reference with a tag (e.g. traefik:v3.7.5)."
+    error_message = "gitlab_docker_traefik_image must be a Docker image reference with a tag (e.g. traefik:v3.7.6)."
   }
 
   validation {
@@ -351,14 +351,14 @@ variable "gitlab_docker_gitlab_ce_image" {
 variable "gitlab_docker_postgres_image" {
   description = "PostgreSQL container image for Docker Compose mode. GitLab 18.x: postgres:16+ or 17; GitLab 19.x: Terraform uses postgres:17 automatically (suffix from this variable, default -alpine). See https://docs.gitlab.com/install/requirements/"
   type        = string
-  default     = "postgres:16-alpine"
+  default     = "postgres:17-alpine"
 
   validation {
     condition = can(regex(
-      "^postgres:(1[3-7])(\\.[0-9]+)?(-[a-zA-Z0-9._-]+)?$",
+      "^postgres:(1[3-7])(\\.[0-9]+){0,2}(-[a-zA-Z0-9._-]+)?$",
       var.gitlab_docker_postgres_image,
     ))
-    error_message = "gitlab_docker_postgres_image must be postgres:<major> or postgres:<major>.<minor> with optional suffix (e.g. postgres:16-alpine, postgres:17.7-bookworm)."
+    error_message = "gitlab_docker_postgres_image must be postgres:<major>, postgres:<major>.<minor> or postgres:<major>.<minor>.<patch> with optional suffix (e.g. postgres:17-alpine, postgres:17.7-bookworm, postgres:17.7.1-alpine)."
   }
 
   validation {

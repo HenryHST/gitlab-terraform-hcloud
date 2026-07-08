@@ -24,7 +24,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 | `gitlab_docker_host_image` | `debian-13` | Nur `docker_compose`: Hetzner-Image-Slug für den Hauptserver (vor Apply mit `hcloud image list` prüfen; bei abweichendem Slug z. B. `debian-12` setzen) |
 | `gitlab_docker_traefik_image` | `traefik:v3.7.5` | Traefik-Container in `docker_compose` |
 | `gitlab_docker_gitlab_ce_image` | `gitlab/gitlab-ce:18.11.6-ce.0` | GitLab-CE-Image-Tag (`MAJOR.MINOR.PATCH-ce.0`); Validierung ab GitLab 16+; 19.x z. B. `19.1.1-ce.0` |
-| `gitlab_docker_postgres_image` | `postgres:16-alpine` | PostgreSQL-Image (Major 13–17); **18.x:** 16 oder 17; **19.x:** Terraform setzt automatisch **postgres:17** (Suffix aus dieser Variable, z. B. `-alpine`) — Output `gitlab_docker_postgres_image_effective` |
+| `gitlab_docker_postgres_image` | `postgres:17-alpine` | PostgreSQL-Image (Major 13–17; Format `postgres:<major>[.<minor>[.<patch>]][-suffix]`); **18.x:** 16 oder 17; **19.x:** Terraform setzt automatisch **postgres:17** (Suffix aus dieser Variable, z. B. `-alpine`) — Output `gitlab_docker_postgres_image_effective`; `make check-images` prüft den neuesten Tag im unterstützten Bereich 13–17 |
 | `gitlab_docker_renovate_enabled` | `false` | `true`: Mend **Renovate CE** im Compose-Stack; nur bei `docker_compose` |
 | `gitlab_docker_renovate_ce_image` | `ghcr.io/mend/renovate-ce:9.1.0` | Image-Tag pinnen ([Container-Pakete](https://github.com/mend/renovate-ce-ee/pkgs/container/renovate-ce)) |
 | `gitlab_docker_renovate_dns_label` | `renovate` | DNS + Traefik-Host: `<label>.<zone>` |

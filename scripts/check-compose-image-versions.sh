@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Compare pinned GitLab CE and Traefik Docker image tags (Terraform) against Docker Hub.
+# Compare pinned GitLab CE, Traefik and PostgreSQL Docker image tags (Terraform) against Docker Hub.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -82,6 +82,13 @@ latest_traefik_v3_tag() {
     | tail -1
 }
 
+latest_postgres_supported_major_tag() {
+  fetch_docker_hub_tags "library/postgres" \
+    | grep -E '^(1[3-7])(\.[0-9]+){0,2}(-[a-zA-Z0-9._-]+)?$' \
+    | sort -V \
+    | tail -1
+}
+
 compare_tags() {
   local pinned_tag="$1"
   local latest_tag="$2"
@@ -103,6 +110,7 @@ print_image_report() {
   local name="$1"
   local pinned_image="$2"
   local latest_tag="$3"
+  local filter_desc="$4"
   local pinned_tag="${pinned_image#*:}"
   local latest_image="${pinned_image%:*}:${latest_tag}"
   local status
@@ -113,11 +121,7 @@ print_image_report() {
   echo "${name}"
   echo "  pinned:  ${pinned_image}"
   echo "  latest:  ${latest_image}"
-  if [[ "${name}" == "traefik" ]]; then
-    echo "  filter:  v3.x tags only"
-  else
-    echo "  filter:  *-ce.0 release tags"
-  fi
+  echo "  filter:  ${filter_desc}"
   echo "  status:  ${status}"
   echo
   return "${rc}"
@@ -129,13 +133,15 @@ main() {
     exit 2
   }
 
-  local gitlab_image traefik_image
+  local gitlab_image traefik_image postgres_image
   gitlab_image="$(effective_image "gitlab_docker_gitlab_ce_image")"
   traefik_image="$(effective_image "gitlab_docker_traefik_image")"
+  postgres_image="$(effective_image "gitlab_docker_postgres_image")"
 
-  local gitlab_latest traefik_latest
+  local gitlab_latest traefik_latest postgres_latest
   gitlab_latest="$(latest_gitlab_ce_tag)"
   traefik_latest="$(latest_traefik_v3_tag)"
+  postgres_latest="$(latest_postgres_supported_major_tag)"
 
   [[ -n "${gitlab_latest}" ]] || {
     echo "error: no GitLab CE tags matched *-ce.0 on Docker Hub" >&2
@@ -145,16 +151,21 @@ main() {
     echo "error: no Traefik v3.x tags found on Docker Hub" >&2
     exit 2
   }
+  [[ -n "${postgres_latest}" ]] || {
+    echo "error: no PostgreSQL tags (major 13-17) found on Docker Hub" >&2
+    exit 2
+  }
 
   echo "Image checks (Docker Hub vs Terraform pin)"
   echo
 
   local outdated=0
-  print_image_report "gitlab/gitlab-ce" "${gitlab_image}" "${gitlab_latest}" || outdated=1
-  print_image_report "traefik" "${traefik_image}" "${traefik_latest}" || outdated=1
+  print_image_report "gitlab/gitlab-ce" "${gitlab_image}" "${gitlab_latest}" "*-ce.0 release tags" || outdated=1
+  print_image_report "traefik" "${traefik_image}" "${traefik_latest}" "v3.x tags only" || outdated=1
+  print_image_report "postgres" "${postgres_image}" "${postgres_latest}" "latest tag in supported majors 13-17" || outdated=1
 
   if [[ "${outdated}" -eq 1 ]]; then
-    echo "Hint: update gitlab_docker_gitlab_ce_image / gitlab_docker_traefik_image in"
+    echo "Hint: update gitlab_docker_gitlab_ce_image / gitlab_docker_traefik_image / gitlab_docker_postgres_image in"
     echo "      terraform/variables.tf or terraform/terraform.tfvars, then plan/apply."
     if [[ "${STRICT}" -eq 1 ]]; then
       exit 1

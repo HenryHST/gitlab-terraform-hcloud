@@ -9,7 +9,7 @@ gitlab_docker_config_init_defaults() {
     GITLAB_FQDN="${GITLAB_FQDN:-}"
     TRAEFIK_IMAGE="${TRAEFIK_IMAGE:-traefik:v3.7.6}"
     GITLAB_CE_IMAGE="${GITLAB_CE_IMAGE:-gitlab/gitlab-ce:18.11.6-ce.0}"
-    POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:16-alpine}"
+    POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:17-alpine}"
     TRAEFIK_ACME_ENABLED="${TRAEFIK_ACME_ENABLED:-false}"
     HETZNER_API_TOKEN="${HETZNER_API_TOKEN:-}"
     ACME_EMAIL="${ACME_EMAIL:-}"
@@ -124,6 +124,17 @@ gitlab_docker_config_validate() {
     if [[ "${GITLAB_ADMIN_ENABLED}" == "true" && -z "${SSH_PUBLIC_KEY_EFFECTIVE}" ]]; then
         echo "GITLAB_ADMIN_ENABLED requires SSH_PUBLIC_KEY_FILE or SSH_PUBLIC_KEY" >&2
         return 1
+    fi
+    if [[ ! "${POSTGRES_IMAGE}" =~ ^postgres:(1[3-7])(\.[0-9]+){0,2}(-[a-zA-Z0-9._-]+)?$ ]]; then
+        echo "Invalid POSTGRES_IMAGE: ${POSTGRES_IMAGE} (expected postgres:<major>[.<minor>[.<patch>]][-suffix], major 13-17)" >&2
+        return 1
+    fi
+    if [[ "${GITLAB_CE_IMAGE}" =~ ^gitlab/gitlab-ce:([0-9]+)\.[0-9]+\.[0-9]+-ce\.0$ ]]; then
+        local gitlab_major="${BASH_REMATCH[1]}"
+        if [[ "${gitlab_major}" == "19" && ! "${POSTGRES_IMAGE}" =~ ^postgres:17(\.[0-9]+){0,2}(-[a-zA-Z0-9._-]+)?$ ]]; then
+            echo "POSTGRES_IMAGE must use postgres:17* when GITLAB_CE_IMAGE is GitLab 19.x" >&2
+            return 1
+        fi
     fi
     if [[ "${TRAEFIK_MANAGER_ENABLED}" == "true" ]]; then
         if [[ ! "${TRAEFIK_MANAGER_IMAGE}" =~ ^ghcr\.io/chr0nzz/traefik-manager:[a-zA-Z0-9][a-zA-Z0-9._-]+$ ]]; then
