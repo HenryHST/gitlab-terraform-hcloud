@@ -42,6 +42,13 @@ else
     error_tail="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -nE 'Completed 500|FATAL|PG::|ActionController::InvalidAuthenticityToken|NoMethodError|undefined method|Exception' /var/log/gitlab/gitlab-rails/production_json.log | tail -n 60 || true\"" 2>/dev/null || true)"
 fi
 rails_log_tail="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"tail -n 80 /var/log/gitlab/gitlab-rails/production_json.log || true\"" 2>/dev/null || true)"
+rails_text_500="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -nE 'Completed 500|ActionController::InvalidAuthenticityToken|NoMethodError|RuntimeError|PG::|FATAL|Exception' /var/log/gitlab/gitlab-rails/production.log | tail -n 80 || true\"" 2>/dev/null || true)"
+if [[ -n "${REQUEST_ID}" ]]; then
+    nginx_reqid="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -n '${REQUEST_ID}' /var/log/gitlab/nginx/gitlab_access.log /var/log/gitlab/nginx/gitlab_error.log /var/log/gitlab/gitlab-workhorse/current 2>/dev/null | tail -n 40 || true\"" 2>/dev/null || true)"
+else
+    nginx_reqid="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T gitlab bash -lc \"grep -nE ' 500 |status=500|internal server error|csrf|invalid authenticity' /var/log/gitlab/nginx/gitlab_access.log /var/log/gitlab/nginx/gitlab_error.log /var/log/gitlab/gitlab-workhorse/current 2>/dev/null | tail -n 60 || true\"" 2>/dev/null || true)"
+fi
+workhorse_500="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose logs --tail=200 gitlab 2>/dev/null | grep -niE '500|csrf|invalid authenticity|exception|error' | tail -n 80 || true" 2>/dev/null || true)"
 oom_tail="$(pct exec "${VMID}" -- bash -lc "dmesg 2>/dev/null | tail -n 200 | rg -i 'out of memory|killed process|oom'" 2>/dev/null || true)"
 
 # #region agent log
@@ -67,6 +74,16 @@ write_log "D" "gitlab-login-debug.sh:app-errors" "application_errors_tail" \
 # #region agent log
 write_log "D" "gitlab-login-debug.sh:app-errors" "rails_production_log_tail" \
     "{\"request_id\":\"$(json_escape "${REQUEST_ID}")\",\"tail\":\"$(json_escape "${rails_log_tail}")\"}"
+# #endregion
+
+# #region agent log
+write_log "D" "gitlab-login-debug.sh:app-errors" "rails_production_text_500" \
+    "{\"request_id\":\"$(json_escape "${REQUEST_ID}")\",\"errors\":\"$(json_escape "${rails_text_500}")\"}"
+# #endregion
+
+# #region agent log
+write_log "D" "gitlab-login-debug.sh:edge-and-workhorse" "nginx_workhorse_request" \
+    "{\"request_id\":\"$(json_escape "${REQUEST_ID}")\",\"matches\":\"$(json_escape "${nginx_reqid}")\",\"gitlab_logs\":\"$(json_escape "${workhorse_500}")\"}"
 # #endregion
 
 # #region agent log
