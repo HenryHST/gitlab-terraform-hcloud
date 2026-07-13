@@ -97,6 +97,39 @@ except Exception:
 PY
 ); else err=none; fi; echo \"status=\$code error=\$err\"; fi" 2>/dev/null || true)"
 traefik_env_provider_state="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && docker compose exec -T traefik sh -lc 'token_len=\${#HETZNER_API_TOKEN}; key_len=\${#HETZNER_API_KEY}; if [ \"\$token_len\" -gt 0 ]; then token_state=set; else token_state=empty; fi; if [ \"\$key_len\" -gt 0 ]; then key_state=set; else key_state=empty; fi; printf \"token=%s(%s) key=%s(%s)\\n\" \"\$token_state\" \"\$token_len\" \"\$key_state\" \"\$key_len\"' 2>/dev/null || true" 2>/dev/null || true)"
+traefik_dot_env_keys="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && awk -F= '/^HETZNER_API_/{print \$1}' traefik/.env 2>/dev/null | paste -sd, - || true" 2>/dev/null || true)"
+acme_challenge_name="_acme-challenge.${TARGET_HOST%%.*}"
+acme_challenge_txt_probe="$(pct exec "${VMID}" -- bash -lc "dig +short TXT '${acme_challenge_name}.${dns_zone_base}' @oxygen.ns.hetzner.com 2>/dev/null | tr '\n' ';' || true" 2>/dev/null || true)"
+hetzner_cloud_api_probe="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && tok=\$(awk -F= '/^HETZNER_API_TOKEN=/{print \$2}' traefik/.env | tr -d '\"'); key=\$(awk -F= '/^HETZNER_API_KEY=/{print \$2}' traefik/.env | tr -d '\"'); cred=\"\${tok:-\$key}\"; if [ -z \"\$cred\" ]; then echo cred_missing; else code=\$(curl -sL -o /tmp/hcloud-zone-check.json -w '%{http_code}' -H \"Authorization: Bearer \$cred\" \"https://api.hetzner.cloud/v1/zones?name=${dns_zone_base}\" || true); body=\$(tr -d '\n' </tmp/hcloud-zone-check.json 2>/dev/null || true); if echo \"\$body\" | rg -q '\"zones\"'; then zones_count=\$(python3 - <<'PY'
+import json
+from pathlib import Path
+p=Path('/tmp/hcloud-zone-check.json')
+try:
+    j=json.loads(p.read_text())
+    print(len(j.get('zones',[])))
+except Exception:
+    print('parse_error')
+PY
+); else zones_count=unknown; fi; echo \"status=\$code zones=\$zones_count\"; fi" 2>/dev/null || true)"
+hetzner_legacy_txt_probe="$(pct exec "${VMID}" -- bash -lc "cd /opt/gitlab && key=\$(awk -F= '/^HETZNER_API_KEY=/{print \$2}' traefik/.env | tr -d '\"'); tok=\$(awk -F= '/^HETZNER_API_TOKEN=/{print \$2}' traefik/.env | tr -d '\"'); cred=\"\${key:-\$tok}\"; if [ -z \"\$cred\" ]; then echo cred_missing; else zone_id=\$(curl -sL -H \"Auth-API-Token: \$cred\" \"https://dns.hetzner.com/api/v1/zones?name=${dns_zone_base}\" | python3 - <<'PY'
+import json,sys
+try:
+    z=json.load(sys.stdin).get('zones',[])
+    print(z[0]['id'] if z else '')
+except Exception:
+    print('')
+PY
+); if [ -z \"\$zone_id\" ]; then echo zone_not_found; else code=\$(curl -sL -o /tmp/hetzner-txt-check.json -w '%{http_code}' -H \"Auth-API-Token: \$cred\" \"https://dns.hetzner.com/api/v1/records?zone_id=\$zone_id&type=TXT&name=${acme_challenge_name}\" || true); txt_count=\$(python3 - <<'PY'
+import json
+from pathlib import Path
+p=Path('/tmp/hetzner-txt-check.json')
+try:
+    j=json.loads(p.read_text())
+    print(len(j.get('records',[])))
+except Exception:
+    print('parse_error')
+PY
+); echo \"zone_id=\$zone_id status=\$code txt_records=\$txt_count\"; fi; fi" 2>/dev/null || true)"
 
 # #region agent log
 write_log "A" "gitlab-cert-debug.sh:runtime" "container_and_traefik_runtime" \
@@ -150,7 +183,17 @@ write_log "F" "gitlab-cert-debug.sh:hetzner-api-auth" "hetzner_dns_api_auth_prob
 
 # #region agent log
 write_log "F" "gitlab-cert-debug.sh:traefik-env-provider" "traefik_provider_env_state" \
-    "{\"state\":\"$(json_escape "${traefik_env_provider_state}")\"}"
+    "{\"state\":\"$(json_escape "${traefik_env_provider_state}")\",\"dot_env_keys\":\"$(json_escape "${traefik_dot_env_keys}")\"}"
+# #endregion
+
+# #region agent log
+write_log "G" "gitlab-cert-debug.sh:acme-txt" "acme_challenge_txt_at_authoritative_ns" \
+    "{\"challenge_name\":\"$(json_escape "${acme_challenge_name}.${dns_zone_base}")\",\"txt\":\"$(json_escape "${acme_challenge_txt_probe}")\"}"
+# #endregion
+
+# #region agent log
+write_log "G" "gitlab-cert-debug.sh:api-split" "legacy_dns_vs_cloud_api_probe" \
+    "{\"legacy_dns\":\"$(json_escape "${hetzner_api_probe}")\",\"legacy_txt\":\"$(json_escape "${hetzner_legacy_txt_probe}")\",\"cloud_dns\":\"$(json_escape "${hetzner_cloud_api_probe}")\"}"
 # #endregion
 
 echo "wrote debug logs to ${LOG_PATH}"

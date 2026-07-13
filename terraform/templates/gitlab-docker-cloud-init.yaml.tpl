@@ -108,7 +108,7 @@ write_files:
       ABSOLUTE_PATH=/opt/gitlab
       TZ=Europe/Berlin
       SERVICES_TRAEFIK_LABELS_TRAEFIK_HOST=HOST(`${gitlab_fqdn}`)
-      HETZNER_API_TOKEN=${hetzner_api_token}
+      # Legacy Hetzner DNS API token (dns.hetzner.com) — see traefik/.env.tpl for Lego env mapping.
       HETZNER_API_KEY=${hetzner_api_token}
       ACME_EMAIL=${acme_email}
 

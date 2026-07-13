@@ -8,9 +8,9 @@ GITLAB_DNS_LABEL="gitlab"
 # GITLAB_FQDN="gitlab.example.com"
 
 # --- Container images (gitlab_docker_* ) ---
-TRAEFIK_IMAGE="traefik:v3.7.6"
+TRAEFIK_IMAGE="traefik:v3.7.7"
 GITLAB_CE_IMAGE="gitlab/gitlab-ce:18.11.6-ce.0"
-POSTGRES_IMAGE="postgres:17-alpine"
+POSTGRES_IMAGE="postgres:17.10-trixie"
 
 # --- TLS (Traefik ACME DNS-01 via Hetzner API) ---
 TRAEFIK_ACME_ENABLED=false
@@ -30,7 +30,7 @@ GITLAB_TIME_ZONE="Europe/Berlin"
 
 # --- Traefik Manager (web UI for Traefik) ---
 TRAEFIK_MANAGER_ENABLED=true
-TRAEFIK_MANAGER_IMAGE="ghcr.io/chr0nzz/traefik-manager:1.6.1"
+TRAEFIK_MANAGER_IMAGE="ghcr.io/chr0nzz/traefik-manager:1.7.1"
 # Set explicitly or leave empty to auto-generate (24 chars):
 # TRAEFIK_MANAGER_PASSWORD="your-secure-password"
 TRAEFIK_MANAGER_PASSWORD=""

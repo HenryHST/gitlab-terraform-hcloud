@@ -10,7 +10,7 @@ Terraform verlangt **alle Variablen ohne `default`** (siehe unten).
 |------|-----|----------|--------------|
 | `hcloud_token` | string | ja | Hetzner **Cloud** API-Token ([Console](https://console.hetzner.cloud/)) |
 | `ssh_public_key` | string | nein | Eine Zeile aus `*.pub`, **oder** leer lassen und `ssh_public_key_file` setzen |
-| `hetzner_api_key` | string | ja | Hetzner **DNS** API-Token ([dns.hetzner.com](https://dns.hetzner.com/)) — **nicht** `hcloud_token`; bei `docker_compose` → `HETZNER_API_TOKEN` in Traefik `.env` |
+| `hetzner_api_key` | string | ja | Hetzner **DNS** API-Token ([dns.hetzner.com](https://dns.hetzner.com/)) — **nicht** `hcloud_token`; bei `docker_compose` → `HETZNER_API_KEY` in Traefik `.env` (Lego legacy DNS API; **nicht** `HETZNER_API_TOKEN` setzen, sonst nutzt Traefik 3.7+ die Cloud-DNS-API) |
 
 ### Mit Default (optional überschreibbar)
 
