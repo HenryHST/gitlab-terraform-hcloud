@@ -16,6 +16,7 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 
 ### Changed
 
+- **`scripts/check-compose-image-versions.sh`:** Caching (`~/.docker-hub-cache`, mtime-TTL), Retry mit Backoff, parallele Docker-Hub-Abfragen, strukturiertes Logging (`CHECK_IMAGES_DEBUG`), konfigurierbare Version-Filter, Input-Validierung, jq-/sort-Checks und konsistente Exit-Codes (`0`/`1`/`2`).
 - **`scripts/lib/gitlab-docker-bootstrap.sh`:** temporäre Login-Debug-Instrumentierung entfernt; Render-/Bootstrap-Fluss auf erweiterte Feature-Blöcke umgestellt und zusätzliche optionalen Artefakte (`scripts/templates/gitlab-docker-core/scripts/*.tpl`) integriert.
 
 ## [0.2.0] - 2026-07-06
