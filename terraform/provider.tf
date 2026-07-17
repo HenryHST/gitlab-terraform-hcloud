@@ -5,7 +5,7 @@ terraform {
   required_providers {
     hcloud = {
       source  = "hetznercloud/hcloud"
-      version = "~> 1.63"
+      version = "~> 1.66.1"
     }
     random = {
       source  = "hashicorp/random"
@@ -13,7 +13,7 @@ terraform {
     }
     gitlab = {
       source  = "gitlabhq/gitlab"
-      version = "~> 18.11"
+      version = "~> 19.1.0"
     }
   }
 }

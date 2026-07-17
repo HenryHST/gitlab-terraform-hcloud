@@ -82,6 +82,7 @@ module "firewall" {
 | `node_exporter_source_ips` | `list(string)` | `["0.0.0.0/0", "::/0"]` | no       | Source IPs allowed for Node Exporter access |
 | `node_exporter_port`       | `number`       | `9100`                  | no       | Port for Node Exporter metrics              |
 | `custom_rules`             | `list(object)` | `[]`                    | no       | Additional custom firewall rules            |
+| `enable_https_traefik_manager` | `bool`     | `false`                 | no       | Enable inbound TCP 5000 for Traefik Manager |
 
 ### Custom Rules Object Structure
 
@@ -166,13 +167,13 @@ module "firewall" {
 
 | Name | Version |
 | ---- | ------- |
-| <a name="requirement_hcloud"></a> [hcloud](#requirement\_hcloud) | ~> 1.60 |
+| <a name="requirement_hcloud"></a> [hcloud](#requirement\_hcloud) | ~> 1.66.1 |
 
 ## Providers
 
 | Name | Version |
 | ---- | ------- |
-| <a name="provider_hcloud"></a> [hcloud](#provider\_hcloud) | ~> 1.60 |
+| <a name="provider_hcloud"></a> [hcloud](#provider\_hcloud) | ~> 1.66.1 |
 
 ## Inputs
 
@@ -189,6 +190,7 @@ module "firewall" {
 | <a name="input_enable_egress_smtp"></a> [enable\_egress\_smtp](#input\_enable\_egress\_smtp) | Allow outbound SMTP (TCP on egress\_smtp\_port, e.g. 587 or 465) | `bool` | `false` | no |
 | <a name="input_enable_http"></a> [enable\_http](#input\_enable\_http) | Enable HTTP access on port 80 | `bool` | `true` | no |
 | <a name="input_enable_https"></a> [enable\_https](#input\_enable\_https) | Enable HTTPS access on port 443 | `bool` | `true` | no |
+| <a name="input_enable_https_traefik_manager"></a> [enable\_https\_traefik\_manager](#input\_enable\_https\_traefik\_manager) | Enable inbound TCP 5000 for Traefik Manager UI | `bool` | `false` | no |
 | <a name="input_enable_icmp"></a> [enable\_icmp](#input\_enable\_icmp) | Enable ICMP (ping) access | `bool` | `true` | no |
 | <a name="input_enable_node_exporter"></a> [enable\_node\_exporter](#input\_enable\_node\_exporter) | Enable Node Exporter metrics access | `bool` | `true` | no |
 | <a name="input_enable_ssh"></a> [enable\_ssh](#input\_enable\_ssh) | Enable SSH access on port 22 | `bool` | `true` | no |

@@ -3,6 +3,10 @@ services:
     container_name: traefik
     env_file:
       - ./traefik/.env
+    # Lego v5 prefers HETZNER_API_TOKEN (Hetzner Cloud DNS API). This stack uses the legacy
+    # dns.hetzner.com token via HETZNER_API_KEY in traefik/.env — clear TOKEN so it cannot win.
+    environment:
+      HETZNER_API_TOKEN: ""
     hostname: traefik
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]

@@ -45,6 +45,17 @@ resource "hcloud_firewall" "main" {
     }
   }
 
+  # HTTPS Traefik Manager
+  dynamic "rule" {
+    for_each = var.enable_https_traefik_manager ? [1] : []
+    content {
+      direction  = "in"
+      protocol   = "tcp"
+      port       = "5000"
+      source_ips = var.https_source_ips
+    }
+  }
+
   # DNS (TCP)
   dynamic "rule" {
     for_each = var.enable_dns ? [1] : []

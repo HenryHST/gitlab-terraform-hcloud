@@ -310,7 +310,7 @@ variable "gitlab_docker_host_image" {
 variable "gitlab_docker_traefik_image" {
   description = "Traefik container image (pin v3.7.x as required)"
   type        = string
-  default     = "traefik:v3.7.6"
+  default     = "traefik:v3.7.8"
 
   validation {
     condition = can(regex(
@@ -451,7 +451,7 @@ variable "gitlab_docker_traefik_manager_enabled" {
 variable "gitlab_docker_traefik_manager_image" {
   description = "Traefik Manager image (pin version; see https://github.com/chr0nzz/traefik-manager/pkgs/container/traefik-manager)"
   type        = string
-  default     = "ghcr.io/chr0nzz/traefik-manager:1.6.1"
+  default     = "ghcr.io/chr0nzz/traefik-manager:1.7.1"
 
   validation {
     condition = can(regex(

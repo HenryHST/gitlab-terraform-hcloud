@@ -38,6 +38,12 @@ variable "enable_https" {
   description = "Enable HTTPS access on port 443"
 }
 
+variable "enable_https_traefik_manager" {
+  type        = bool
+  default     = false
+  description = "Enable inbound TCP 5000 for Traefik Manager UI"
+}
+
 variable "https_source_ips" {
   type        = list(string)
   default     = ["0.0.0.0/0", "::/0"]

@@ -943,6 +943,8 @@ write_files:
           container_name: $${SERVICES_TRAEFIK_CONTAINER_NAME:-traefik}
           env_file:
             - ./traefik/.env
+          environment:
+            HETZNER_API_TOKEN: ""
           hostname: $${SERVICES_TRAEFIK_HOSTNAME:-traefik}
           healthcheck:
             test: ["CMD", "traefik", "healthcheck", "--ping"]
@@ -1148,6 +1150,11 @@ write_files:
             - "traefik.http.routers.pages.tls.domains[0].main=${pages_fqdn}"
             - "traefik.http.routers.pages.tls.domains[0].sans=*.${pages_fqdn}"
             - "traefik.http.routers.pages.middlewares=default@file"
+            - "traefik.http.routers.pages-wildcard.rule=HostRegexp(^.+\\.pages\\.example\\.com$)"
+            - "traefik.http.routers.pages-wildcard.entrypoints=websecure"
+            - "traefik.http.routers.pages-wildcard.tls=true"
+            - "traefik.http.routers.pages-wildcard.tls.certresolver=hetzner"
+            - "traefik.http.routers.pages-wildcard.middlewares=default@file"
 %{ endif ~}
 %{ if plantuml_enabled ~}
 

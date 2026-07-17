@@ -333,9 +333,10 @@ resource "random_password" "gitlab_traefik_manager_secret" {
 module "firewall" {
   source = "./modules/firewall"
 
-  firewall_name      = "${var.server_name}-firewall"
-  enable_egress_smtp = var.gitlab_smtp_enabled
-  egress_smtp_port   = var.gitlab_smtp_port
+  firewall_name                = "${var.server_name}-firewall"
+  enable_egress_smtp           = var.gitlab_smtp_enabled
+  egress_smtp_port             = var.gitlab_smtp_port
+  enable_https_traefik_manager = local.gitlab_docker_stack_enabled && var.gitlab_docker_traefik_manager_enabled
 }
 
 # Server Module
