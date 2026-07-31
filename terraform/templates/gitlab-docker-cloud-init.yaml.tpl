@@ -1143,14 +1143,15 @@ write_files:
 %{ if pages_enabled ~}
             - "traefik.http.services.pages.loadbalancer.server.port=8090"
             - "traefik.http.routers.pages.service=pages"
-            - 'traefik.http.routers.pages.rule=Host(`${pages_fqdn}`) || HostRegexp(`^.+\\.${pages_fqdn_host_regex}$$`)'
+            - "traefik.http.routers.pages.rule=Host(`${pages_fqdn}`)"
             - "traefik.http.routers.pages.entrypoints=websecure"
             - "traefik.http.routers.pages.tls=true"
             - "traefik.http.routers.pages.tls.certresolver=hetzner"
             - "traefik.http.routers.pages.tls.domains[0].main=${pages_fqdn}"
             - "traefik.http.routers.pages.tls.domains[0].sans=*.${pages_fqdn}"
             - "traefik.http.routers.pages.middlewares=default@file"
-            - "traefik.http.routers.pages-wildcard.rule=HostRegexp(^.+\\.pages\\.example\\.com$)"
+            - "traefik.http.routers.pages-wildcard.service=pages"
+            - 'traefik.http.routers.pages-wildcard.rule=HostRegexp(`^.+\\.${pages_fqdn_host_regex}$$`)'
             - "traefik.http.routers.pages-wildcard.entrypoints=websecure"
             - "traefik.http.routers.pages-wildcard.tls=true"
             - "traefik.http.routers.pages-wildcard.tls.certresolver=hetzner"

@@ -20,6 +20,10 @@ und dieses Projekt folgt [Semantic Versioning](https://semver.org/spec/v2.0.0.ht
 - **Traefik ACME (DNS-01):** `traefik/.env` mappt den Hetzner-DNS-Console-Token (`dns.hetzner.com`) nur noch auf `HETZNER_API_KEY` (Lego legacy). `HETZNER_API_TOKEN` entfällt im Traefik-Container, damit Lego v5 nicht fälschlich die Hetzner-Cloud-DNS-API nutzt (NXDOMAIN bei `_acme-challenge.*`).
 - **`scripts/lib/gitlab-docker-bootstrap.sh`:** temporäre Login-Debug-Instrumentierung entfernt; Render-/Bootstrap-Fluss auf erweiterte Feature-Blöcke umgestellt und zusätzliche optionalen Artefakte (`scripts/templates/gitlab-docker-core/scripts/*.tpl`) integriert.
 
+### Fixed
+
+- **GitLab Pages (Cloud-Init):** Traefik-Router `pages-wildcard` wiederhergestellt — HostRegexp über `pages_fqdn_host_regex`, mit `service=pages`; Apex-Router `pages` nur noch `Host(pages_fqdn)` plus Wildcard-TLS-SANs.
+
 ## [0.2.0] - 2026-07-06
 
 Minor-Release: PVE-LXC-Bash-Install, Docker-Compose-Erweiterungen, Pre-commit, Image-Pin-Updates.
