@@ -310,7 +310,7 @@ variable "gitlab_docker_host_image" {
 variable "gitlab_docker_traefik_image" {
   description = "Traefik container image (pin v3.7.x as required)"
   type        = string
-  default     = "traefik:v3.7.8"
+  default     = "traefik:v3.7.11"
 
   validation {
     condition = can(regex(
@@ -332,7 +332,7 @@ variable "gitlab_docker_traefik_image" {
 variable "gitlab_docker_gitlab_ce_image" {
   description = "gitlab/gitlab-ce image tag for Docker Compose mode (official CE release tags: MAJOR.MINOR.PATCH-ce.0)"
   type        = string
-  default     = "gitlab/gitlab-ce:18.11.6-ce.0"
+  default     = "gitlab/gitlab-ce:19.2.4-ce.0"
 
   validation {
     condition = can(regex(
